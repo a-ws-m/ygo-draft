@@ -1,6 +1,7 @@
-<script>
-    import CubePreview from "$lib/components/CubePreview.svelte";
+<script lang="ts">
     import { createEventDispatcher } from "svelte";
+    import { goto } from "$app/navigation"; // For navigation
+    import { supabase } from "$lib/supabaseClient"; // Supabase client
 
     const dispatch = createEventDispatcher();
 
@@ -18,8 +19,9 @@
     let totalCards = 0;
     let cube = []; // Store the cube data
 
-    function handleFileUpload(event) {
-        cubeFile = event.target.files[0];
+    function handleFileUpload(event: Event) {
+        const target = event.target as HTMLInputElement;
+        cubeFile = target.files?.[0] || null;
         if (cubeFile) {
             isProcessing = true;
             errorMessage = "";
@@ -63,6 +65,49 @@
             if (poolSize < numberOfPiles) {
                 optionErrorMessage = "Pool size must be at least equal to the number of piles.";
             }
+        }
+    }
+
+    async function startDraft() {
+        if (!isCubeValid || optionErrorMessage) return;
+
+        isProcessing = true;
+
+        try {
+            // Create a new draft session in the `drafts` table
+            const { data: draft, error: draftError } = await supabase
+                .from("drafts")
+                .insert({
+                    draft_method: draftMethod,
+                    pool_size: poolSize,
+                    number_of_players: numberOfPlayers,
+                    connected_users: 0,
+                    status: "waiting",
+                })
+                .select()
+                .single();
+
+            if (draftError) throw draftError;
+
+            // Insert cube data into the `cubes` table
+            const cubeData = cube.map((card) => ({
+                draft_id: draft.id,
+                card_name: card.name,
+                quantity: card.quantity,
+                type: card.type,
+                api_data: card.apiData,
+            }));
+
+            const { error: cubeError } = await supabase.from("cubes").insert(cubeData);
+            if (cubeError) throw cubeError;
+
+            // Redirect to the draft route
+            goto(`/draft/${draft.id}`);
+        } catch (error) {
+            console.error("Error starting draft:", error);
+            errorMessage = "Failed to start draft. Please try again.";
+        } finally {
+            isProcessing = false;
         }
     }
 </script>
@@ -217,6 +262,7 @@
         <button
             type="button"
             class="w-full bg-indigo-600 text-white py-2 px-4 rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:bg-gray-400 disabled:cursor-not-allowed"
+            on:click={startDraft}
             disabled={!isCubeValid || isProcessing || optionErrorMessage}
         >
             Start Draft
