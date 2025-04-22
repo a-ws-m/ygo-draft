@@ -3,12 +3,8 @@
 	import Card from '$lib/components/Card.svelte'; // Import the Card component
 
 	export let cube = []; // The cube data passed as a prop
-	let showAll = false; // Controls whether to show all cards
 	let viewMode = 'tile'; // Controls the view mode: "tile" or "list"
 	let isListView = false; // Checkbox state for list view
-
-	// Limit the number of cards displayed initially
-	const initialDisplayLimit = 8;
 
 	// Determine the default view mode based on screen size
 	onMount(() => {
@@ -55,42 +51,34 @@
 	</p>
 
 	<!-- Card Previews -->
-	{#if viewMode === 'tile'}
-		<div class="grid grid-cols-4 gap-4">
-			{#each showAll ? cube : cube.slice(0, initialDisplayLimit) as card}
-				<div class="flex flex-col items-center">
-					<!-- Use the Card component with small size -->
-					<Card {card} size="small" />
-					<!-- Card Name and Quantity -->
-					<p class="mt-1 text-center text-sm text-gray-600">{card.name}</p>
-					<p class="text-xs text-gray-500">x{card.quantity}</p>
-				</div>
-			{/each}
-		</div>
-	{:else}
-		<div class="space-y-2">
-			{#each showAll ? cube : cube.slice(0, initialDisplayLimit) as card}
-				<div
-					class={`flex items-center justify-between rounded border-l-4 p-2 shadow-sm ${getTypeColor(
-						card.type
-					)}`}
-				>
-					<!-- Card Name -->
-					<p class="text-sm font-medium text-gray-700">{card.name}</p>
-					<!-- Card Quantity -->
-					<p class="text-xs text-gray-500">x{card.quantity}</p>
-				</div>
-			{/each}
-		</div>
-	{/if}
-
-	<!-- Show More/Show Less Button -->
-	{#if cube.length > initialDisplayLimit}
-		<button
-			on:click={() => (showAll = !showAll)}
-			class="mt-4 rounded bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:outline-none"
-		>
-			{showAll ? 'Show Less' : `Show All (${cube.length - initialDisplayLimit} more)`}
-		</button>
-	{/if}
+	<div class="overflow-y-auto rounded shadow-sm overflow-x-hidden" style="max-height: 400px;">
+		{#if viewMode === 'tile'}
+			<div class="grid grid-cols-4 gap-4 p-2">
+				{#each cube as card}
+					<div class="flex flex-col items-center">
+						<!-- Use the Card component with small size -->
+						<Card {card} size="small" />
+						<!-- Card Name and Quantity -->
+						<p class="mt-1 text-center text-sm text-gray-600">{card.name}</p>
+						<p class="text-xs text-gray-500">x{card.quantity}</p>
+					</div>
+				{/each}
+			</div>
+		{:else}
+			<div class="space-y-2 p-2">
+				{#each cube as card}
+					<div
+						class={`flex items-center justify-between rounded border-l-4 p-2 shadow-sm ${getTypeColor(
+							card.type
+						)}`}
+					>
+						<!-- Card Name -->
+						<p class="text-sm font-medium text-gray-700">{card.name}</p>
+						<!-- Card Quantity -->
+						<p class="text-xs text-gray-500">x{card.quantity}</p>
+					</div>
+				{/each}
+			</div>
+		{/if}
+	</div>
 </div>
