@@ -3,16 +3,8 @@
 	import Card from '$lib/components/Card.svelte'; // Import the Card component
 
 	export let cube = []; // The cube data passed as a prop
-	let viewMode = 'tile'; // Controls the view mode: "tile" or "list"
-	let isListView = false; // Checkbox state for list view
-
-	// Determine the default view mode based on screen size
-	onMount(() => {
-		if (window.innerWidth <= 768) {
-			viewMode = 'list'; // Default to list mode on mobile
-			isListView = true;
-		}
-	});
+	let viewMode = 'list'; // Controls the view mode: "tile" or "list"
+	let isListView = true; // Checkbox state for list view
 
 	// Update viewMode when isListView changes
 	$: viewMode = isListView ? 'list' : 'tile';
@@ -47,7 +39,7 @@
 
 	<!-- Total Cards -->
 	<p class="text-lg font-medium text-gray-700">
-		Total Cards: {cube.reduce((sum, card) => sum + card.quantity, 0)}
+		Total Cards: {cube.reduce((sum, card) => sum + (card.quantity || 1), 0)}
 	</p>
 
 	<!-- Card Previews -->
@@ -60,7 +52,9 @@
 						<Card {card} size="small" />
 						<!-- Card Name and Quantity -->
 						<p class="mt-1 text-center text-sm text-gray-600">{card.name}</p>
-						<p class="text-xs text-gray-500">x{card.quantity}</p>
+						{#if card.quantity}
+							<p class="text-xs text-gray-500">x{card.quantity}</p>
+						{/if}
 					</div>
 				{/each}
 			</div>
@@ -75,7 +69,9 @@
 						<!-- Card Name -->
 						<p class="text-sm font-medium text-gray-700">{card.name}</p>
 						<!-- Card Quantity -->
-						<p class="text-xs text-gray-500">x{card.quantity}</p>
+						{#if card.quantity}
+							<p class="text-xs text-gray-500">x{card.quantity}</p>
+						{/if}
 					</div>
 				{/each}
 			</div>

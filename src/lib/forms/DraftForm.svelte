@@ -1,7 +1,7 @@
 <script lang="ts">
     import { createEventDispatcher } from "svelte";
     import { goto } from "$app/navigation"; // For navigation
-    import { supabase } from "$lib/supabaseClient"; // Supabase client
+    import { createDraft } from "$lib/utils/draftManager"; // Import the draft manager function
 
     const dispatch = createEventDispatcher();
 
@@ -74,35 +74,11 @@
         isProcessing = true;
 
         try {
-            // Create a new draft session in the `drafts` table
-            const { data: draft, error: draftError } = await supabase
-                .from("drafts")
-                .insert({
-                    draft_method: draftMethod,
-                    pool_size: poolSize,
-                    number_of_players: numberOfPlayers,
-                    connected_users: 0,
-                    status: "waiting",
-                })
-                .select()
-                .single();
-
-            if (draftError) throw draftError;
-
-            // Insert cube data into the `cubes` table
-            const cubeData = cube.map((card) => ({
-                draft_id: draft.id,
-                card_name: card.name,
-                quantity: card.quantity,
-                type: card.type,
-                api_data: card.apiData,
-            }));
-
-            const { error: cubeError } = await supabase.from("cubes").insert(cubeData);
-            if (cubeError) throw cubeError;
+            // Use the draft manager to create the draft
+            const draftId = await createDraft(draftMethod, poolSize, numberOfPlayers, cube);
 
             // Redirect to the draft route
-            goto(`/draft/${draft.id}`);
+            goto(`/draft/${draftId}`);
         } catch (error) {
             console.error("Error starting draft:", error);
             errorMessage = "Failed to start draft. Please try again.";
