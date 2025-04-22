@@ -141,9 +141,19 @@
 			})
 			.subscribe();
 
+		// Subscribe to real-time changes in the `drafts` table for the current player
+		const currentPlayerSubscription = supabase
+			.from(`drafts:id=eq.${data.id}`)
+			.on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'drafts' }, (payload) => {
+				console.log('Current player updated:', payload.new.current_player);
+				currentPlayer = payload.new.current_player; // Update the current player
+			})
+			.subscribe();
+
 		onDestroy(() => {
 			// Unsubscribe from the real-time subscription
 			supabase.removeSubscription(cubesSubscription);
+			supabase.removeSubscription(currentPlayerSubscription);
 		});
 	});
 
@@ -328,23 +338,29 @@
 				<div class="grid grid-cols-3 gap-4">
 					{#each formattedPiles as pile, index}
 						<div class="rounded border p-2 shadow">
-							<CardList cube={pile} />
-							<div class="mt-2 flex justify-between">
-								<button
-									class="rounded bg-green-500 px-4 py-2 text-white"
-									on:click={() => handleAcceptPile(index)}
-									disabled={currentPlayer !== participants.indexOf(userId)}
-								>
-									Accept
-								</button>
-								<button
-									class="rounded bg-red-500 px-4 py-2 text-white"
-									on:click={() => handleDeclinePile(index)}
-									disabled={currentPlayer !== participants.indexOf(userId)}
-								>
-									Decline
-								</button>
-							</div>
+							{#if currentPlayer === participants.indexOf(userId)}
+								<!-- Show cards in the pile only for the current player -->
+								<CardList cube={pile} />
+								<div class="mt-2 flex justify-between">
+									<button
+										class="rounded bg-green-500 px-4 py-2 text-white"
+										on:click={() => handleAcceptPile(index)}
+										disabled={currentPlayer !== participants.indexOf(userId)}
+									>
+										Accept
+									</button>
+									<button
+										class="rounded bg-red-500 px-4 py-2 text-white"
+										on:click={() => handleDeclinePile(index)}
+										disabled={currentPlayer !== participants.indexOf(userId)}
+									>
+										Decline
+									</button>
+								</div>
+							{:else}
+								<!-- Placeholder for other players -->
+								<p class="text-gray-500">Waiting for the current player...</p>
+							{/if}
 						</div>
 					{/each}
 				</div>
