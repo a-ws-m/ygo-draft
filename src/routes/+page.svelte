@@ -1,6 +1,6 @@
 <script>
     import DraftForm from "$lib/forms/DraftForm.svelte";
-    import CubePreview from "$lib/components/CubePreview.svelte";
+    import CardList from "$lib/components/CardList.svelte";
 
     let cube = []; // Store the cube data from the form
 </script>
@@ -24,7 +24,7 @@
         <!-- Cube Preview -->
         {#if cube.length > 0}
             <div class="w-full max-w-lg bg-white p-6 rounded-lg shadow-md">
-                <CubePreview {cube} />
+                <CardList {cube} />
             </div>
         {/if}
     </div>
