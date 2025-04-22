@@ -16,12 +16,21 @@
     let draftReady = false;
     let channel: any;
 
-    onMount(() => {
+    onMount(async () => {
+        // Get the user session to retrieve the user ID
+        const { data: session, error } = await supabase.auth.getSession();
+        if (error) {
+            console.error('Error fetching session:', error);
+        }
+
+        const userId = session?.session?.user?.id || `guest-${Math.random()}`;
+        console.log('User ID:', userId);
+
         // Join the presence channel for the draft
         channel = supabase.channel(`draft-room-${data.id}`, {
             config: {
                 presence: {
-                    key: supabase.auth.user()?.id || `guest-${Math.random()}`, // Unique key for each user
+                    key: userId, // Unique key for each user
                 },
             },
         });
@@ -29,6 +38,7 @@
         // Subscribe to presence state changes
         channel.on('presence', { event: 'sync' }, () => {
             const state = channel.presenceState();
+            console.log('Presence state updated:', state);
             connectedUsers = Object.keys(state).length; // Count the number of connected users
             draftReady = connectedUsers === data.numberOfPlayers;
         });
@@ -44,16 +54,28 @@
         });
 
         // Subscribe to the channel
-        channel.subscribe((status) => {
+        channel.subscribe(async (status) => {
             if (status === 'SUBSCRIBED') {
                 console.log('Subscribed to presence channel');
+
+                // Track the user's presence in the channel
+                const trackResponse = await channel.track({ userId, status: 'online' });
+                if (trackResponse.error) {
+                    console.error('Error tracking presence:', trackResponse.error);
+                } else {
+                    console.log('User presence tracked successfully');
+                }
+            } else {
+                console.error('Failed to subscribe to presence channel:', status);
             }
         });
+    });
 
-        // Clean up when the user leaves the page
-        onDestroy(() => {
+    // Clean up when the user leaves the page
+    onDestroy(() => {
+        if (channel) {
             channel.unsubscribe();
-        });
+        }
     });
 </script>
 
