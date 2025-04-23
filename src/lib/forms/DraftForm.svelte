@@ -1,23 +1,24 @@
 <script lang="ts">
     import { createEventDispatcher } from "svelte";
-    import { goto } from "$app/navigation"; // For navigation
-    import { createDraft } from "$lib/utils/draftManager"; // Import the draft manager function
+    import { goto } from "$app/navigation"; 
+    import { createDraft } from "$lib/utils/draftManager";
 
     const dispatch = createEventDispatcher();
 
-    let draftMethod = "winston";
-    let poolSize = 120;
-    let numberOfPlayers = 2;
-    let numberOfPiles = 3;
-    let packsPerRound = 1;
-    let packSize = 5;
-    let cubeFile = null;
-    let isCubeValid = false;
-    let isProcessing = false;
-    let errorMessage = "";
-    let optionErrorMessage = "";
-    let totalCards = 0;
-    let cube = []; // Store the cube data
+    // Use $state for reactive variables in Svelte 5
+    let draftMethod = $state("winston");
+    let poolSize = $state(120);
+    let numberOfPlayers = $state(2);
+    let numberOfPiles = $state(3);
+    let packsPerRound = $state(1);
+    let packSize = $state(5);
+    let cubeFile = $state(null);
+    let isCubeValid = $state(false);
+    let isProcessing = $state(false);
+    let errorMessage = $state("");
+    let optionErrorMessage = $state("");
+    let totalCards = $state(0);
+    let cube = $state([]); 
 
     function handleFileUpload(event: Event) {
         const target = event.target as HTMLInputElement;
@@ -30,9 +31,9 @@
                     .then((uploadedCube) => {
                         console.log("Cube file processed successfully.");
                         isCubeValid = true;
-                        cube = uploadedCube; // Store the cube data
+                        cube = uploadedCube;
                         totalCards = cube.reduce((sum, card) => sum + card.quantity, 0);
-                        dispatch("cubeUploaded", { cube }); // Emit cube data to parent
+                        dispatch("cubeUploaded", { cube });
                         validateOptions();
                     })
                     .catch((error) => {
@@ -74,10 +75,30 @@
         isProcessing = true;
 
         try {
-            // Use the draft manager to create the draft
-            const draftId = await createDraft(draftMethod, poolSize, numberOfPlayers, cube);
+            // Ensure all necessary data is included in the draft creation
+            const draftId = await createDraft(
+                draftMethod,
+                poolSize,
+                numberOfPlayers,
+                cube.map(card => ({
+                    name: card.name,
+                    quantity: card.quantity,
+                    type: card.type,
+                    apiData: card.apiData
+                }))
+            );
 
-            // Redirect to the draft route
+            // Store draft settings in sessionStorage for additional backup
+            sessionStorage.setItem('draftSettings', JSON.stringify({
+                draftMethod,
+                poolSize,
+                numberOfPlayers,
+                numberOfPiles: draftMethod === "winston" ? numberOfPiles : undefined,
+                packsPerRound: draftMethod === "rochester" ? packsPerRound : undefined,
+                packSize: draftMethod === "rochester" ? packSize : undefined
+            }));
+
+            // Navigate to the draft page
             goto(`/draft/${draftId}`);
         } catch (error) {
             console.error("Error starting draft:", error);

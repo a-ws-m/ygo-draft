@@ -133,25 +133,87 @@ export async function assignCardsToPlayer(draftId: string, playerId: string, car
 }
 
 /**
- * Updates the current player in the `drafts` table.
+ * Updates the draft state in the database, including the current player, pile index, and card ownership.
  * @param draftId - The ID of the draft.
  * @param currentPlayer - The index of the current player.
+ * @param pileIndex - The index of the pile being updated (for syncing pile assignments).
+ * @param cardIndexes - The indexes of the cards being updated (for ownership assignment).
+ * @param playerId - The ID of the player who owns the cards.
+ * @param piles - The updated state of all piles (for syncing pile assignments).
  */
-export async function updateCurrentPlayer(draftId: string, currentPlayer: number) {
+export async function updateDraftState(
+    draftId: string,
+    currentPlayer: number,
+    pileIndex: number | null,
+    cardIndexes: number[],
+    playerId: string,
+    piles: any[] = []
+) {
     try {
-        const { error } = await supabase
-            .from("drafts")
+        // Update the current player in the `drafts` table
+        const { error: draftError } = await supabase
+            .from('drafts')
             .update({ current_player: currentPlayer })
-            .eq("id", draftId);
+            .eq('id', draftId);
 
-        if (error) {
-            console.error("Error updating current player:", error);
-            throw new Error("Failed to update current player.");
+        if (draftError) {
+            console.error('Error updating current player:', draftError);
+            throw new Error('Failed to update current player.');
         }
 
-        console.log(`Current player updated to ${currentPlayer}.`);
+        // Update card ownership if cards are being assigned to a player
+        if (cardIndexes.length > 0) {
+            const { error: ownershipError } = await supabase
+                .from('cubes')
+                .update({ owner: playerId, pile: null }) // Remove the pile index and assign ownership
+                .eq('draft_id', draftId)
+                .in('index', cardIndexes);
+
+            if (ownershipError) {
+                console.error('Error updating card ownership:', ownershipError);
+                throw new Error('Failed to update card ownership.');
+            }
+        }
+
+        // Update pile assignments for all cards
+        if (piles.length > 0) {
+            // First, clear pile assignments for cards that are not owned
+            const { error: clearError } = await supabase
+                .from('cubes')
+                .update({ pile: null })
+                .eq('draft_id', draftId)
+                .is('owner', null);
+
+            if (clearError) {
+                console.error('Error clearing pile assignments:', clearError);
+                throw new Error('Failed to clear pile assignments.');
+            }
+
+            // Then update each pile with the correct cards
+            for (let i = 0; i < piles.length; i++) {
+                if (piles[i] && piles[i].length > 0) {
+                    const pileCardIndexes = piles[i].map((card) => card.index);
+                    
+                    const { error: pileError } = await supabase
+                        .from('cubes')
+                        .update({ pile: i })
+                        .eq('draft_id', draftId)
+                        .is('owner', null) // Only update cards that are not owned
+                        .in('index', pileCardIndexes);
+
+                    if (pileError) {
+                        console.error(`Error updating pile ${i}:`, pileError);
+                        throw new Error(`Failed to update pile ${i}.`);
+                    }
+                }
+            }
+        }
+
+        console.log(
+            `Draft state updated: currentPlayer=${currentPlayer}, pileIndex=${pileIndex}, playerId=${playerId}`
+        );
     } catch (error) {
-        console.error("Error updating current player:", error);
+        console.error('Error updating draft state:', error);
         throw error;
     }
 }
