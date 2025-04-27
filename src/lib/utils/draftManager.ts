@@ -54,7 +54,7 @@ export async function createDraft(
     draftMethod: string,
     poolSize: number,
     numberOfPlayers: number,
-    cube: { name: string; quantity: number; type: string; apiData: any }[]
+    cube: { name: string; quantity: number; type: string; imageUrl: string; apiData: any }[]
 ): Promise<string> {
     try {
         // Create a new draft session in the `drafts` table
@@ -78,8 +78,9 @@ export async function createDraft(
             for (let i = 0; i < card.quantity; i++) {
                 expandedCube.push({
                     draft_id: draft.id,
-                    card_name: card.name,
+                    name: card.name,
                     type: card.type,
+                    imageUrl: card.imageUrl,
                     apiData: card.apiData,
                 });
             }
@@ -204,6 +205,8 @@ export async function updateDraftState(
                     if (pileError) {
                         console.error(`Error updating pile ${i}:`, pileError);
                         throw new Error(`Failed to update pile ${i}.`);
+                    } else {
+                        console.log(`Pile ${i} updated successfully with ${piles[i].length} cards.`);
                     }
                 }
             }

@@ -7,10 +7,11 @@
 		initializeWinstonDraft
 	} from '$lib/utils/draftLogic.svelte';
 	import { startDraftInDB } from '$lib/utils/draftManager';
-	import { formatCardForComponent } from '$lib/utils/format';
 	import type { PageProps } from './$types';
 	import CardList from '$lib/components/CardList.svelte';
 	import * as draftStore from '$lib/stores/draftStore.svelte';
+
+	$inspect('draftStore', draftStore.store);
 
 	// Get the draft ID from the page params
 	let { data }: PageProps = $props();
@@ -28,21 +29,8 @@
 		connectedUsers: 0
 	});
 
-	// Safely access derived values
-	let formattedPiles = $derived(() => {
-		if (!draftStore.store.piles) return [];
-		return draftStore.store.piles.map((pile) =>
-			pile ? pile.map((card) => formatCardForComponent(card)) : []
-		);
-	});
-
-	let formattedDeck = $derived(() => {
-		if (!draftStore.store.draftedDeck) return [];
-		return draftStore.store.draftedDeck.map((card) => formatCardForComponent(card));
-	});
-
-	let isActivePlayer = $derived(() => {
-		if (!draftStore.store.participants || !draftStore.store.userId) return false;
+	let isActivePlayer = $derived.by(() => {
+		if (!draftStore.store.participants || !draftStore.store.userId || !draftStore.store.draftStarted) return false;
 		return (
 			draftStore.store.currentPlayer ===
 			draftStore.store.participants.indexOf(draftStore.store.userId)
@@ -111,20 +99,19 @@
 		}
 
 		// Set user ID in store
-		draftStore.store.userId = (
-			session?.session?.user?.id || `guest-${Math.random().toString(36).substring(2, 12)}`
-		);
+		draftStore.store.userId =
+			session?.session?.user?.id || `guest-${Math.random().toString(36).substring(2, 12)}`;
 		console.log('User ID:', draftStore.store.userId);
 
 		// Join the presence channel for the draft
-		draftStore.store.channel = supabase.channel(`draft-room-${data.id}`, {
+		const channel = supabase.channel(`draft-room-${data.id}`, {
 			config: {
 				presence: {
 					key: draftStore.store.userId
 				}
 			}
 		});
-		const channel = draftStore.store.channel;
+		draftStore.store.channel = channel;
 
 		// Subscribe to presence state changes
 		channel.on('presence', { event: 'sync' }, () => {
@@ -132,7 +119,7 @@
 			console.log('Presence state updated:', state);
 			draftStore.store.connectedUsers = Object.keys(state).length;
 			draftStore.store.participants = Object.keys(state);
-			draftStore.store.draftReady = (draftStore.store.connectedUsers === draftData.numberOfPlayers);
+			draftStore.store.draftReady = draftStore.store.connectedUsers === draftData.numberOfPlayers;
 		});
 
 		// Subscribe to presence join events
@@ -179,9 +166,9 @@
 		});
 
 		// Listen for the "new player" broadcast
-		channel.on('broadcast', { event: 'new-player' }, async (payload) => {
-			console.log('New player broadcast received:', payload);
-			draftStore.store.currentPlayer = payload.currentPlayer;
+		channel.on('broadcast', { event: 'new-player' }, async (broadcast) => {
+			console.log('New player broadcast received:', broadcast);
+			draftStore.store.currentPlayer = broadcast.payload.currentPlayer;
 
 			// Update the local state based on the database
 			await draftStore.updateDeck();
@@ -242,7 +229,7 @@
 		>
 			<strong class="font-bold">Error:</strong>
 			<span class="block sm:inline">{loadError}</span>
-			<button class="mt-2 rounded bg-red-600 px-4 py-2 text-white" on:click={loadDraftData}>
+			<button class="mt-2 rounded bg-red-600 px-4 py-2 text-white" onclick={loadDraftData}>
 				Retry
 			</button>
 		</div>
@@ -256,7 +243,7 @@
 			<button
 				class="mt-4 rounded bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-400"
 				disabled={!draftStore.store.draftReady}
-				on:click={startDraft}
+				onclick={startDraft}
 			>
 				Start Draft
 			</button>
@@ -269,18 +256,18 @@
 						{#if isActivePlayer}
 							<!-- Show only the current pile to the active player -->
 							<div class="rounded border p-2 shadow">
-								{#if formattedPiles.length > draftStore.store.currentPileIndex}
-									<CardList cube={formattedPiles[draftStore.store.currentPileIndex]} />
+								{#if draftStore.store.piles.length > draftStore.store.currentPileIndex}
+									<CardList cube={draftStore.store.piles[draftStore.store.currentPileIndex]} />
 									<div class="mt-2 flex justify-between">
 										<button
 											class="rounded bg-green-500 px-4 py-2 text-white"
-											on:click={handleAcceptPile}
+											onclick={handleAcceptPile}
 										>
 											Accept
 										</button>
 										<button
 											class="rounded bg-red-500 px-4 py-2 text-white"
-											on:click={handleDeclineCurrentPile}
+											onclick={handleDeclineCurrentPile}
 										>
 											Decline
 										</button>
@@ -299,7 +286,7 @@
 				<!-- Drafted Deck for Current Player -->
 				<div class="w-1/3 rounded bg-gray-100 p-4 shadow">
 					<h2 class="mb-4 text-xl font-bold">Your Drafted Deck</h2>
-					<CardList cube={Array.isArray(formattedDeck) ? formattedDeck: []} />
+					<CardList cube={draftStore.store.draftedDeck} />
 				</div>
 			</div>
 		{:else}
@@ -312,7 +299,7 @@
 				</div>
 
 				<!-- Drafted Card List -->
-				<CardList cube={Array.isArray(formattedDeck) ? formattedDeck: []} />
+				<CardList cube={draftStore.store.draftedDeck} />
 			</div>
 		{/if}
 	{/if}

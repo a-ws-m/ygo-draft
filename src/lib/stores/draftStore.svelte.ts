@@ -6,7 +6,7 @@ export const store = $state({
     connectedUsers: 0,
     currentPileIndex: 0,
     draftReady: false,
-    participants: [],
+    participants: [] as string[],
     draftStarted: false,
     piles: [],
     deck: [],
@@ -54,8 +54,7 @@ export async function updatePiles() {
             .from('cubes')
             .select('*')
             .eq('draft_id', store.draftId)
-            .is('pile', null)
-            .not('owner', null)
+            .not('pile', 'is', null)
             .order('pile', { ascending: true });
 
         if (error) {

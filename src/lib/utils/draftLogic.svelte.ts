@@ -60,7 +60,7 @@ export async function moveToNextPlayer(
             type: 'broadcast',
             event: 'new-player',
             payload: {
-                currentPlayer: nextPlayer
+                currentPlayer: nextPlayer,
             }
         });
         
@@ -121,6 +121,7 @@ export async function handleAcceptPile() {
 
     const playerId = draftStore.store.participants[draftStore.store.currentPlayer];
     const cardIndexes = draftStore.store.piles[draftStore.store.currentPileIndex].map((card) => card.index);
+    const acceptedPileIndex = draftStore.store.currentPileIndex;
 
     try {
         // Assign the cards in the pile to the current player in the database
@@ -131,22 +132,28 @@ export async function handleAcceptPile() {
 
         // Refresh the pile with one card from the deck
         const newCard = draftStore.store.deck.pop();
-        draftStore.store.piles = [
-            ...draftStore.store.piles.slice(0, draftStore.store.currentPileIndex),
-            newCard ? [newCard] : [],
-            ...draftStore.store.piles.slice(draftStore.store.currentPileIndex + 1)
-        ];
+        if (newCard) {
+            // Create a copy of the current piles
+            const newPiles = [...draftStore.store.piles];
+            
+            // Update the current pile by adding the new card
+            newPiles[draftStore.store.currentPileIndex] = [ newCard ];
+            
+            // Update the store with the new piles
+            draftStore.store.piles = newPiles;
 
-        // Update the deck with the remaining cards
-        await draftStore.updateDeck();
+        } else {
+            console.error('No cards left in the deck to add to the pile.');
+        }
 
         // Move to the next player (broadcasting happens inside moveToNextPlayer)
-        await moveToNextPlayer(draftStore.store.currentPileIndex, cardIndexes);
+        await moveToNextPlayer(acceptedPileIndex, cardIndexes);
 
-        // Reset the current pile index for the next player
-        draftStore.resetCurrentPileIndex();
     } catch (error) {
         console.error('Error handling accept pile:', error);
+    } finally {
+        // Reset the current pile index for the next player
+        draftStore.resetCurrentPileIndex();
     }
 }
 
@@ -159,12 +166,17 @@ export async function handleDeclineCurrentPile() {
     const newCard = draftStore.store.deck.pop();
 
     if (newCard) {
-        // Add the card to the current pile
-        draftStore.store.piles = [
-            ...draftStore.store.piles.slice(0, draftStore.store.currentPileIndex),
-            [...draftStore.store.piles[draftStore.store.currentPileIndex], newCard],
-            ...draftStore.store.piles.slice(draftStore.store.currentPileIndex + 1)
+        // Create a copy of the current piles
+        const newPiles = [...draftStore.store.piles];
+        
+        // Update the current pile by adding the new card
+        newPiles[draftStore.store.currentPileIndex] = [
+            ...draftStore.store.piles[draftStore.store.currentPileIndex], 
+            newCard
         ];
+        
+        // Update the store with the new piles
+        draftStore.store.piles = newPiles;
         
         await draftStore.updateDeck();
     } else {

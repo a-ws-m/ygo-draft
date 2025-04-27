@@ -120,7 +120,7 @@
                 type="file"
                 id="cube-file"
                 accept=".csv"
-                on:change={handleFileUpload}
+                onchange={handleFileUpload}
                 class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border file:border-gray-300 file:text-sm file:font-medium file:bg-gray-50 file:text-gray-700 hover:file:bg-gray-100"
                 disabled={isProcessing}
             />
@@ -164,7 +164,7 @@
         <select
             id="draft-method"
             bind:value={draftMethod}
-            on:change={validateOptions}
+            onchange={validateOptions}
             class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
         >
             <option value="winston">Winston Draft</option>
@@ -182,7 +182,7 @@
             id="pool-size"
             bind:value={poolSize}
             min="1"
-            on:input={validateOptions}
+            oninput={validateOptions}
             class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
         />
     </div>
@@ -197,7 +197,7 @@
             id="number-of-players"
             bind:value={numberOfPlayers}
             min="2"
-            on:input={validateOptions}
+            oninput={validateOptions}
             class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
         />
     </div>
@@ -213,7 +213,7 @@
                 id="pack-size"
                 bind:value={packSize}
                 min="1"
-                on:input={validateOptions}
+                oninput={validateOptions}
                 class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
             />
         </div>
@@ -226,7 +226,7 @@
                 id="packs-per-round"
                 bind:value={packsPerRound}
                 min="1"
-                on:input={validateOptions}
+                oninput={validateOptions}
                 class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
             />
         </div>
@@ -243,7 +243,7 @@
                 id="number-of-piles"
                 bind:value={numberOfPiles}
                 min="1"
-                on:input={validateOptions}
+                oninput={validateOptions}
                 class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
             />
         </div>
@@ -259,7 +259,7 @@
         <button
             type="button"
             class="w-full bg-indigo-600 text-white py-2 px-4 rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:bg-gray-400 disabled:cursor-not-allowed"
-            on:click={startDraft}
+            onclick={startDraft}
             disabled={!isCubeValid || isProcessing || optionErrorMessage}
         >
             Start Draft

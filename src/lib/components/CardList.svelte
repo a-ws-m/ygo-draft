@@ -1,5 +1,4 @@
 <script>
-	import { onMount } from 'svelte'; // Import Svelte's onMount lifecycle function
 	import Card from '$lib/components/Card.svelte'; // Import the Card component
 
 	export let cube = []; // The cube data passed as a prop
