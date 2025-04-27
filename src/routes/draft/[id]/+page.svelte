@@ -111,28 +111,28 @@
 		}
 
 		// Set user ID in store
-		draftStore.setUserId(
+		draftStore.store.userId = (
 			session?.session?.user?.id || `guest-${Math.random().toString(36).substring(2, 12)}`
 		);
 		console.log('User ID:', draftStore.store.userId);
 
 		// Join the presence channel for the draft
-		const channel = supabase.channel(`draft-room-${data.id}`, {
+		draftStore.store.channel = supabase.channel(`draft-room-${data.id}`, {
 			config: {
 				presence: {
 					key: draftStore.store.userId
 				}
 			}
 		});
-		draftStore.setChannel(channel);
+		const channel = draftStore.store.channel;
 
 		// Subscribe to presence state changes
 		channel.on('presence', { event: 'sync' }, () => {
 			const state = channel.presenceState();
 			console.log('Presence state updated:', state);
-			draftStore.setConnectedUsers(Object.keys(state).length);
-			draftStore.setParticipants(Object.keys(state));
-			draftStore.setDraftReady(draftStore.store.connectedUsers === draftData.numberOfPlayers);
+			draftStore.store.connectedUsers = Object.keys(state).length;
+			draftStore.store.participants = Object.keys(state);
+			draftStore.store.draftReady = (draftStore.store.connectedUsers === draftData.numberOfPlayers);
 		});
 
 		// Subscribe to presence join events
@@ -168,7 +168,7 @@
 		// Listen for the "draft started" broadcast
 		channel.on('broadcast', { event: 'draft-started' }, async (payload) => {
 			console.log('Draft started broadcast received:', payload);
-			draftStore.setDraftStarted(true);
+			draftStore.store.draftStarted = true;
 
 			if (draftData.draftMethod === 'winston') {
 				const success = await initializeWinstonDraft(3);
@@ -181,7 +181,7 @@
 		// Listen for the "new player" broadcast
 		channel.on('broadcast', { event: 'new-player' }, async (payload) => {
 			console.log('New player broadcast received:', payload);
-			draftStore.updateCurrentPlayer(payload.currentPlayer);
+			draftStore.store.currentPlayer = payload.currentPlayer;
 
 			// Update the local state based on the database
 			await draftStore.updateDeck();
@@ -211,7 +211,7 @@
 				throw response.error;
 			}
 
-			draftStore.setDraftStarted(true);
+			draftStore.store.draftStarted = true;
 
 			if (draftData.draftMethod === 'winston') {
 				const success = await initializeWinstonDraft(3);

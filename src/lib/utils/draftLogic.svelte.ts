@@ -53,7 +53,7 @@ export async function moveToNextPlayer(
         );
 
         // Update the store
-        draftStore.updateCurrentPlayer(nextPlayer);
+        draftStore.store.currentPlayer = nextPlayer;
         
         // Broadcast the new player ID to all clients
         await draftStore.store.channel.send({

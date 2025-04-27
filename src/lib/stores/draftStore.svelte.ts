@@ -83,34 +83,6 @@ export function incrementCurrentPileIndex() {
     }
 }
 
-export function updateCurrentPlayer(newPlayer) {
-    store.currentPlayer = newPlayer;
-}
-
 export function addToDraftedDeck(cards) {
     store.draftedDeck = [...store.draftedDeck, ...cards];
-}
-
-export function setUserId(id) {
-    store.userId = id;
-}
-
-export function setChannel(newChannel) {
-    store.channel = newChannel;
-}
-
-export function setDraftStarted(started) {
-    store.draftStarted = started;
-}
-
-export function setDraftReady(ready) {
-    store.draftReady = ready;
-}
-
-export function setConnectedUsers(count) {
-    store.connectedUsers = count;
-}
-
-export function setParticipants(newParticipants) {
-    store.participants = newParticipants;
 }
