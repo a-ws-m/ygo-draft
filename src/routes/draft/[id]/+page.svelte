@@ -181,8 +181,7 @@
 		channel.on('broadcast', { event: 'draft-finished' }, async (broadcast) => {
 			console.log('Draft finished broadcast received:', broadcast);
 
-			// TODO: Handle draft finished logic
-			// Show summary or end screen
+			draftStore.store.allFinished = true;
 		});
 	});
 
@@ -245,10 +244,9 @@
 		</div>
 	{:else}
 		<p class="text-lg text-gray-600">Draft ID: {data.id}</p>
-		<p class="text-lg text-gray-600">
+		<p class="text-lg font-medium text-gray-700">
 			Connected Users: {draftStore.store.connectedUsers}/{draftData.numberOfPlayers}
 		</p>
-
 		{#if !draftStore.store.draftStarted}
 			<button
 				class="mt-4 rounded bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-400"
@@ -257,46 +255,66 @@
 			>
 				Start Draft
 			</button>
-		{:else if draftData.draftMethod === 'winston'}
-			<div class="flex w-full flex-row">
-				<!-- Piles for Winston Draft -->
-				<div class="flex-1 rounded bg-white p-4 shadow">
-					<h2 class="mb-4 text-xl font-bold">Winston Draft</h2>
-					<div class="grid grid-cols-3 gap-4">
-						{#if isActivePlayer}
-							<!-- Show only the current pile to the active player -->
-							<div class="rounded border p-2 shadow">
-								{#if draftStore.store.piles.length > draftStore.store.currentPileIndex}
-									<CardList cube={draftStore.store.piles[draftStore.store.currentPileIndex]} />
-									<div class="mt-2 flex justify-between">
-										<button
-											class="rounded bg-green-500 px-4 py-2 text-white"
-											onclick={handleAcceptPile}
-										>
-											Accept
-										</button>
-										<button
-											class="rounded bg-red-500 px-4 py-2 text-white"
-											onclick={handleDeclineCurrentPile}
-										>
-											Decline
-										</button>
-									</div>
-								{:else}
-									<p class="text-gray-500">Loading pile data...</p>
-								{/if}
-							</div>
-						{:else}
-							<!-- Placeholder for other players -->
-							<p class="text-gray-500">Waiting for the current player...</p>
-						{/if}
-					</div>
-				</div>
-
-				<!-- Drafted Deck for Current Player -->
+		{:else if draftStore.store.allFinished}
+			<div class="flex w-full flex-col items-center">
+				<h2 class="mb-4 text-2xl font-bold text-green-600">Draft Finished!</h2>
 				<div class="w-1/3 rounded bg-gray-100 p-4 shadow">
 					<h2 class="mb-4 text-xl font-bold">Your Drafted Deck</h2>
 					<CardList cube={draftStore.store.draftedDeck} />
+				</div>
+			</div>
+		{:else if draftData.draftMethod === 'winston'}
+			<div class="flex min-h-screen min-w-screen flex-col bg-gray-100 p-6">
+				<!-- Main Section: Split View -->
+				<div class="flex flex-1 gap-4">
+					<!-- Left: Current Pile -->
+					<div class="flex-1 overflow-y-auto border-r border-gray-300 pr-4">
+						{#if isActivePlayer}
+							<div class="mb-4 flex items-center justify-between">
+								<div class="flex space-x-2">
+									{#each draftStore.store.piles as pile, index}
+										<div
+											class="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 text-sm font-medium text-gray-700"
+											title={`Pile ${index + 1}: ${pile.length} cards`}
+										>
+											{pile.length}
+										</div>
+									{/each}
+								</div>
+							</div>
+
+							{#if draftStore.store.piles.length > draftStore.store.currentPileIndex}
+								<CardList
+									cube={draftStore.store.piles[draftStore.store.currentPileIndex]}
+									border={false}
+								/>
+								<div class="mt-2 flex justify-between">
+									<button
+										class="rounded bg-green-500 px-4 py-2 text-white"
+										onclick={handleAcceptPile}
+									>
+										Accept
+									</button>
+									<button
+										class="rounded bg-red-500 px-4 py-2 text-white"
+										onclick={handleDeclineCurrentPile}
+									>
+										Decline
+									</button>
+								</div>
+							{:else}
+								<p class="text-gray-500">Loading pile data...</p>
+							{/if}
+						{:else}
+							<p class="text-gray-500">Waiting for the current player...</p>
+						{/if}
+					</div>
+
+					<!-- Right: Drafted Deck -->
+					<div class="flex-1 overflow-y-auto pl-4">
+						<h2 class="mb-4 text-xl font-bold text-gray-700">Your Drafted Deck</h2>
+						<CardList cube={draftStore.store.draftedDeck} border={true} />
+					</div>
 				</div>
 			</div>
 		{:else}

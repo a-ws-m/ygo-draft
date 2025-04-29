@@ -55,6 +55,8 @@ export async function finishDraft() {
             event: 'draft-finished',
         });
 
+        draftStore.store.allFinished = true;
+
         console.log('Draft has been finished successfully.');
     } catch (error) {
         console.error('Error finishing the draft:', error);

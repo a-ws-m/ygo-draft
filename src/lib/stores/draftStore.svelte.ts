@@ -18,6 +18,7 @@ export const store = $state({
     draftMethod: '',
     numberOfPlayers: 0,
     finished: [] as boolean[],
+    allFinished: false,
 });
 
 // Initialize the draft store with data
