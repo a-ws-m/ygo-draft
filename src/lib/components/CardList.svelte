@@ -1,27 +1,23 @@
-<script>
-	import Card from '$lib/components/Card.svelte'; // Import the Card component
+<script lang="ts">
+	import Card from '$lib/components/Card.svelte';
 
-	export let cube = []; // The cube data passed as a prop
-	let viewMode = 'list'; // Controls the view mode: "tile" or "list"
-	let isListView = true; // Checkbox state for list view
+	// Props using $props rune
+	const { cube = [], border = true } = $props<{
+		cube: any[];
+		border?: boolean;
+	}>();
 
-	// Update viewMode when isListView changes
-	$: viewMode = isListView ? 'list' : 'tile';
+	// Reactive state
+	let isListView = $state(true);
+	let hoveredCard = $state(null);
 
-	// Map card types to colors
-	const typeColors = {
-		spell: 'border-green-500',
-		monster: 'border-yellow-400',
-		trap: 'border-fuchsia-400'
-	};
+	// Derived values
+	const viewMode = $derived(isListView ? 'list' : 'tile');
+	const totalCards = $derived(cube.reduce((sum, card) => sum + (card.quantity || 1), 0));
 
-	// Function to determine the card type color
-	const getTypeColor = (type) => {
-		if (type.toLowerCase().includes('spell')) return typeColors.spell;
-		if (type.toLowerCase().includes('monster')) return typeColors.monster;
-		if (type.toLowerCase().includes('trap')) return typeColors.trap;
-		return 'border-gray-500'; // Default color
-	};
+	function handleHover(card) {
+		hoveredCard = card;
+	}
 </script>
 
 <div class="relative space-y-4">
@@ -38,41 +34,91 @@
 
 	<!-- Total Cards -->
 	<p class="text-lg font-medium text-gray-700">
-		Total Cards: {cube.reduce((sum, card) => sum + (card.quantity || 1), 0)}
+		Total Cards: {totalCards}
 	</p>
 
-	<!-- Card Previews -->
-	<div class="overflow-y-auto rounded shadow-sm overflow-x-hidden" style="max-height: 400px;">
-		{#if viewMode === 'tile'}
-			<div class="grid grid-cols-4 gap-4 p-2">
-				{#each cube as card}
-					<div class="flex flex-col items-center">
-						<!-- Use the Card component with small size -->
-						<Card {card} size="small" />
-						<!-- Card Name and Quantity -->
-						<p class="mt-1 text-center text-sm text-gray-600">{card.name}</p>
-						{#if card.quantity}
-							<p class="text-xs text-gray-500">x{card.quantity}</p>
-						{/if}
+	<!-- Container for cards and details -->
+	<div class="relative flex flex-col h-[60vh]">
+		<!-- Card Previews -->
+		<div class={`flex-1 overflow-y-auto rounded shadow-sm ${border ? 'border' : ''}`}>
+			{#if viewMode === 'tile'}
+				<div class="grid grid-cols-4 gap-4 p-2">
+					{#each cube as card}
+						<div class="flex flex-col items-center">
+							<!-- Use the Card component with small size -->
+							<Card
+								{card}
+								size="small"
+								handleMouseEnter={() => {
+									handleHover(card);
+								}}
+								handleMouseLeave={() => {
+									handleHover(null);
+								}}
+							/>
+							<!-- Card Name and Quantity -->
+							<p class="mt-1 text-center text-sm text-gray-600">{card.name}</p>
+							{#if card.quantity}
+								<p class="text-xs text-gray-500">x{card.quantity}</p>
+							{/if}
+						</div>
+					{/each}
+				</div>
+			{:else}
+				<div class="space-y-2 p-2">
+					{#each cube as card}
+						<Card {card} variation="text" />
+					{/each}
+				</div>
+			{/if}
+		</div>
+
+		<!-- Pop-up Details - now part of the flex layout -->
+		{#if hoveredCard && viewMode === 'tile'}
+			<div class="p-4 bg-white border-t border-gray-200 shadow-lg">
+				<h3 class="text-lg font-bold text-gray-800">{hoveredCard.name}</h3>
+				<p class="text-sm text-gray-600">
+					<span class="font-medium">Type:</span>
+					{hoveredCard.type}
+				</p>
+				{#if hoveredCard.apiData.archetype}
+					<p class="text-sm text-gray-600">
+						<span class="font-medium">Archetype:</span>
+						{hoveredCard.apiData.archetype}
+					</p>
+				{/if}
+				<p class="mt-2 text-sm text-gray-600">
+					<span class="font-medium">Description:</span>
+					{hoveredCard.apiData.desc}
+				</p>
+				{#if hoveredCard.apiData.type.toLowerCase().includes('monster')}
+					<div class="mt-2 space-y-1">
+						<p class="text-sm text-gray-600">
+							<span class="font-medium">ATK:</span>
+							{hoveredCard.apiData.atk}
+						</p>
+						<p class="text-sm text-gray-600">
+							<span class="font-medium">DEF:</span>
+							{hoveredCard.apiData.def}
+						</p>
+						<p class="text-sm text-gray-600">
+							<span class="font-medium">Level:</span>
+							{hoveredCard.apiData.level}
+						</p>
+						<p class="text-sm text-gray-600">
+							<span class="font-medium">Race:</span>
+							{hoveredCard.apiData.race}
+						</p>
+						<p class="text-sm text-gray-600">
+							<span class="font-medium">Attribute:</span>
+							{hoveredCard.apiData.attribute}
+						</p>
 					</div>
-				{/each}
-			</div>
-		{:else}
-			<div class="space-y-2 p-2">
-				{#each cube as card}
-					<div
-						class={`flex items-center justify-between rounded border-l-4 p-2 shadow-sm ${getTypeColor(
-							card.type
-						)}`}
-					>
-						<!-- Card Name -->
-						<p class="text-sm font-medium text-gray-700">{card.name}</p>
-						<!-- Card Quantity -->
-						{#if card.quantity}
-							<p class="text-xs text-gray-500">x{card.quantity}</p>
-						{/if}
+				{:else}
+					<div class="mt-2">
+						<p class="text-sm text-gray-600">{hoveredCard.apiData.race}</p>
 					</div>
-				{/each}
+				{/if}
 			</div>
 		{/if}
 	</div>
