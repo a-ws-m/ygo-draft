@@ -260,7 +260,7 @@
 				<h2 class="mb-4 text-2xl font-bold text-green-600">Draft Finished!</h2>
 				<div class="w-1/3 rounded bg-gray-100 p-4 shadow">
 					<h2 class="mb-4 text-xl font-bold">Your Drafted Deck</h2>
-					<CardList cube={draftStore.store.draftedDeck} />
+					<CardList cube={draftStore.store.draftedDeck} showYdkDownload={true} />
 				</div>
 			</div>
 		{:else if draftData.draftMethod === 'winston'}
@@ -287,6 +287,7 @@
 								<CardList
 									cube={draftStore.store.piles[draftStore.store.currentPileIndex]}
 									border={false}
+									startListView={false}
 								/>
 								<div class="mt-2 flex justify-between">
 									<button
@@ -313,7 +314,7 @@
 					<!-- Right: Drafted Deck -->
 					<div class="flex-1 overflow-y-auto pl-4">
 						<h2 class="mb-4 text-xl font-bold text-gray-700">Your Drafted Deck</h2>
-						<CardList cube={draftStore.store.draftedDeck} border={true} />
+						<CardList cube={draftStore.store.draftedDeck} border={true} showYdkDownload={true} />
 					</div>
 				</div>
 			</div>

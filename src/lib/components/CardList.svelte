@@ -1,14 +1,17 @@
 <script lang="ts">
 	import Card from '$lib/components/Card.svelte';
+	import { convertToYdk, downloadYdkFile } from '$lib/utils/ydkExporter';
 
 	// Props using $props rune
-	const { cube = [], border = true } = $props<{
+	const { cube = [], border = true, startListView = true, showYdkDownload = false } = $props<{
 		cube: any[];
 		border?: boolean;
+		startListView?: boolean;
+		showYdkDownload?: boolean;
 	}>();
 
 	// Reactive state
-	let isListView = $state(true);
+	let isListView = $state(startListView);
 	let hoveredCard = $state(null);
 
 	// Derived values
@@ -17,6 +20,12 @@
 
 	function handleHover(card) {
 		hoveredCard = card;
+	}
+
+	// Handler for YDK download
+	function handleYdkDownload() {
+		const ydkContent = convertToYdk(cube);
+		downloadYdkFile(ydkContent, 'ygo_draft_deck.ydk');
 	}
 </script>
 
@@ -32,10 +41,21 @@
 		</label>
 	</div>
 
-	<!-- Total Cards -->
-	<p class="text-lg font-medium text-gray-700">
-		Total Cards: {totalCards}
-	</p>
+	<!-- Total Cards and Download Button -->
+	<div class="flex items-center space-x-4">
+		<p class="text-lg font-medium text-gray-700">
+			Total Cards: {totalCards}
+		</p>
+		
+		{#if showYdkDownload}
+			<button 
+				on:click={handleYdkDownload}
+				class="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300"
+			>
+				Download YDK
+			</button>
+		{/if}
+	</div>
 
 	<!-- Container for cards and details -->
 	<div class="relative flex flex-col h-[60vh]">
