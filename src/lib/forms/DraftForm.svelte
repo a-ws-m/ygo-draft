@@ -84,7 +84,8 @@
                     name: card.name,
                     quantity: card.quantity,
                     type: card.type,
-                    apiData: card.apiData
+                    apiData: card.apiData,
+                    imageUrl: card.imageUrl,
                 }))
             );
 

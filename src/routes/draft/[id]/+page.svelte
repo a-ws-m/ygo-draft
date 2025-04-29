@@ -4,7 +4,8 @@
 	import {
 		handleAcceptPile,
 		handleDeclineCurrentPile,
-		initializeWinstonDraft
+		initializeWinstonDraft,
+		handleNextPlayer
 	} from '$lib/utils/draftLogic.svelte';
 	import { startDraftInDB } from '$lib/utils/draftManager';
 	import type { PageProps } from './$types';
@@ -30,7 +31,12 @@
 	});
 
 	let isActivePlayer = $derived.by(() => {
-		if (!draftStore.store.participants || !draftStore.store.userId || !draftStore.store.draftStarted) return false;
+		if (
+			!draftStore.store.participants ||
+			!draftStore.store.userId ||
+			!draftStore.store.draftStarted
+		)
+			return false;
 		return (
 			draftStore.store.currentPlayer ===
 			draftStore.store.participants.indexOf(draftStore.store.userId)
@@ -168,11 +174,15 @@
 		// Listen for the "new player" broadcast
 		channel.on('broadcast', { event: 'new-player' }, async (broadcast) => {
 			console.log('New player broadcast received:', broadcast);
-			draftStore.store.currentPlayer = broadcast.payload.currentPlayer;
+			await handleNextPlayer(broadcast.payload);
+		});
 
-			// Update the local state based on the database
-			await draftStore.updateDeck();
-			await draftStore.updatePiles();
+		// Listen for the "draft finished" broadcast
+		channel.on('broadcast', { event: 'draft-finished' }, async (broadcast) => {
+			console.log('Draft finished broadcast received:', broadcast);
+
+			// TODO: Handle draft finished logic
+			// Show summary or end screen
 		});
 	});
 

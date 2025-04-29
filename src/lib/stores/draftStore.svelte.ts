@@ -16,7 +16,8 @@ export const store = $state({
     userId: '',
     channel: null,
     draftMethod: '',
-    numberOfPlayers: 0
+    numberOfPlayers: 0,
+    finished: [] as boolean[],
 });
 
 // Initialize the draft store with data
