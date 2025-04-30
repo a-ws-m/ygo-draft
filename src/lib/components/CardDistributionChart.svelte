@@ -13,7 +13,8 @@
 			{ value: 'type', label: 'Card Type' },
 			{ value: 'archetype', label: 'Archetype' },
 			{ value: 'attribute', label: 'Attribute' },
-			{ value: 'race', label: 'Race/Type' }
+			{ value: 'race', label: 'Race/Type' },
+			{value: "level", label: "Level/Rank"}
 		], // New property for selector options
 	} = $props<{
 		cube: any[];
@@ -45,25 +46,27 @@
 			// Extract the property value based on the property name
 			if (prop === 'type') {
 				// Extract basic type (Monster, Spell, Trap)
-				value = card.apiData?.type || card.type || 'Unknown';
+				value = card.apiData?.type || card.type || null;
 				if (value.includes('Monster')) value = 'Monster';
 				else if (value.includes('Spell')) value = 'Spell';
 				else if (value.includes('Trap')) value = 'Trap';
 			} else if (prop === 'archetype') {
 				// Get archetype or mark as 'Non-Archetype'
-				value = card.apiData?.archetype || 'Non-Archetype';
+				value = card.apiData?.archetype || 'Non-Archetype' || null;
 			} else if (prop === 'attribute') {
-				value = card.apiData?.attribute || 'Unknown';
+				value = card.apiData?.attribute || null;
 			} else if (prop === 'race') {
-				value = card.apiData?.race || 'Unknown';
+				value = card.apiData?.race || null;
 			} else {
 				// Generic fallback for other properties
-				value = card.apiData?.[prop] || card[prop] || 'Unknown';
+				value = card.apiData?.[prop] || card[prop] || null;
 			}
 
 			// Count by quantity if available
-			const quantity = card.quantity || 1;
-			distribution[value] = (distribution[value] || 0) + quantity;
+			if (value !== null) {
+				const quantity = card.quantity || 1;
+				distribution[value] = (distribution[value] || 0) + quantity;
+			}
 		});
 
 		// Convert to array for D3
