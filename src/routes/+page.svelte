@@ -24,7 +24,7 @@
         <!-- Cube Preview -->
         {#if cube.length > 0}
             <div class="w-full max-w-lg bg-white p-6 rounded-lg shadow-md">
-                <CardList {cube} showYdkDownload={true} />
+                <CardList {cube} showYdkDownload={true} showChart={true} />
             </div>
         {/if}
     </div>

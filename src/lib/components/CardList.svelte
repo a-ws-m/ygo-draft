@@ -1,5 +1,6 @@
 <script lang="ts">
 	import TextCard from '$lib/components/TextCard.svelte';
+	import CardDistributionChart from '$lib/components/CardDistributionChart.svelte';
 	import { convertToYdk, downloadYdkFile } from '$lib/utils/ydkExporter';
 
 	// Props using $props rune
@@ -8,13 +9,15 @@
 		border = true,
 		startListView = true,
 		showYdkDownload = false,
-		showDescription = false
+		showDescription = false,
+		showChart = false
 	} = $props<{
 		cube: any[];
 		border?: boolean;
 		startListView?: boolean;
 		showYdkDownload?: boolean;
 		showDescription?: boolean;
+		showChart?: boolean;
 	}>();
 
 	// Reactive state
@@ -122,6 +125,17 @@
 			</button>
 		</div>
 	</div>
+
+	{#if showChart}
+		<!-- Card Distribution Chart with property selector moved into the chart component -->
+		<div class="mb-4 p-4">
+			<div class="w-full max-w-full">
+				<CardDistributionChart
+					{cube}
+				/>
+			</div>
+		</div>
+	{/if}
 
 	<!-- Container for cards and details -->
 	<div class="relative flex h-[60vh] flex-col">
