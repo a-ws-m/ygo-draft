@@ -13,7 +13,7 @@
 			{ value: 'type', label: 'Card Type' },
 			{ value: 'archetype', label: 'Archetype' },
 			{ value: 'attribute', label: 'Attribute' },
-			{ value: 'race', label: 'Race/Type' },
+			{ value: 'race', label: 'Race/Spell Type' },
 			{ value: 'level', label: 'Level/Rank' }
 		] // New property for selector options
 	} = $props<{
@@ -44,14 +44,10 @@
 
 			// Extract the property value based on the property name
 			if (prop === 'type') {
-				// Extract basic type (Monster, Spell, Trap)
 				value = card.apiData?.type || card.type || null;
-				if (value.includes('Monster')) value = 'Monster';
-				else if (value.includes('Spell')) value = 'Spell';
-				else if (value.includes('Trap')) value = 'Trap';
 			} else if (prop === 'archetype') {
 				// Get archetype or mark as 'Non-Archetype'
-				value = card.apiData?.archetype || 'Non-Archetype' || null;
+				value = card.apiData?.archetype || 'Non-Archetype';
 			} else if (prop === 'attribute') {
 				value = card.apiData?.attribute || null;
 			} else if (prop === 'race') {
