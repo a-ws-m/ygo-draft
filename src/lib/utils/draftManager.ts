@@ -89,17 +89,18 @@ export async function createDraft(
         // Shuffle the expanded cube
         const shuffledCube = shuffleArray(expandedCube);
 
+        // Limit to the specified pool size
+        const limitedCube = shuffledCube.slice(0, poolSize);
+
         // Assign shuffled indexes to the cards
-        const cubeWithIndexes = shuffledCube.map((card, index) => ({
+        const cubeWithIndexes = limitedCube.map((card, index) => ({
             ...card,
             index, // Assign a unique index after shuffling
         }));
 
-        // Limit to the specified pool size
-        const limitedCube = cubeWithIndexes.slice(0, poolSize);
 
         // Insert cube data into the `cubes` table
-        const { error: cubeError } = await supabase.from("cubes").insert(limitedCube);
+        const { error: cubeError } = await supabase.from("cubes").insert(cubeWithIndexes);
         if (cubeError) throw cubeError;
 
         console.log("Draft and cube successfully created in the database.");
