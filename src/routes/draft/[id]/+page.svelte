@@ -282,7 +282,7 @@
 			<h2 class="mb-4 text-2xl font-bold text-green-600">Draft Finished!</h2>
 			<div class="w-1/3 rounded bg-gray-100 p-4 shadow">
 				<h2 class="mb-4 text-xl font-bold">Your Drafted Deck</h2>
-				<CardList cube={draftStore.store.draftedDeck} showYdkDownload={true} />
+				<CardList cube={draftStore.store.draftedDeck} showYdkDownload={true} showChart={true} />
 			</div>
 		</div>
 	{:else if draftData.draftMethod === 'winston'}
@@ -292,18 +292,22 @@
 			<div class="flex-1 overflow-y-auto border-r border-gray-300 pr-4">
 				{#if isActivePlayer}
 					<div class="mb-4">
-						<div class="flex items-center space-x-3">
+						<div class="flex items-center space-x-3 p-0.5">
 							{#each draftStore.store.piles as pile, index}
-								<div
-									class={`flex h-10 w-10 items-center justify-center rounded-md text-sm font-medium ${
-										index === draftStore.store.currentPileIndex
-											? 'bg-indigo-600 text-white ring-2 ring-indigo-500 ring-offset-2'
-											: 'bg-gray-200 text-gray-700'
-									}`}
-									title={`Pile ${index + 1}: ${pile.length} cards`}
-								>
-									{pile.length}
-								</div>
+									<div 
+										class="relative"
+									>
+										<div
+											class={`flex h-10 w-10 items-center justify-center rounded-md text-sm font-medium ${
+												index === draftStore.store.currentPileIndex
+													? 'bg-indigo-600 text-white ring-1 ring-indigo-500 ring-offset-1'
+													: 'bg-gray-200 text-gray-700'
+											} overflow-visible`}
+											title={`Pile ${index + 1}: ${pile.length} cards${draftStore.store.lastAcceptedPile === index ? ' (Last Accepted)' : ''}`}
+										>
+											{pile.length}
+										</div>
+									</div>
 							{/each}
 							<div
 								class="flex h-10 items-center justify-center rounded-md border border-gray-300 bg-gray-100 px-3 text-sm font-medium text-gray-700"
@@ -311,6 +315,14 @@
 								<span class="mr-1">Deck:</span>
 								{draftStore.store.deck?.length || 0}
 							</div>
+							{#if draftStore.store.lastAcceptedPile !== null}
+								<div
+									class="flex h-10 items-center justify-center rounded-md border border-gray-300 bg-gray-100 px-3 text-sm font-medium text-gray-700"
+								>
+									<span class="mr-1">Last Accepted:</span>
+									{draftStore.store.lastAcceptedPile + 1}
+								</div>
+							{/if}
 						</div>
 					</div>
 

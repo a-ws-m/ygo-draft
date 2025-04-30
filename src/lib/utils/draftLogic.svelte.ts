@@ -11,6 +11,7 @@ export async function handleNextPlayer(payload: {
         const { playerId, currentPlayer, acceptedPileIndex, finished } = payload;
 
         draftStore.store.allFinished = finished;
+        draftStore.store.lastAcceptedPile = acceptedPileIndex;
 
         // Update the piles
         const newPiles = [...draftStore.store.piles];

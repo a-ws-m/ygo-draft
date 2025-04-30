@@ -17,6 +17,7 @@ export const store = $state({
     draftMethod: '',
     numberOfPlayers: 0,
     allFinished: false,
+    lastAcceptedPile: null,
 });
 
 // Initialize the draft store with data
