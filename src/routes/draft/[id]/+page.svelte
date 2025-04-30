@@ -223,8 +223,14 @@
 	}
 </script>
 
-<div class="flex min-h-screen flex-col items-center justify-center gap-6 bg-gray-100 p-6">
-	<h1 class="text-3xl font-bold text-gray-800">Draft Room</h1>
+<div class="flex min-h-screen flex-col bg-gray-100">
+	<!-- Navbar -->
+	<div class="flex w-full items-center justify-between border-b border-gray-300 bg-white px-6 py-4">
+		<p class="text-lg text-gray-600">Draft ID: {data.id}</p>
+		<p class="text-lg font-medium text-gray-700">
+			Connected Users: {draftStore.store.connectedUsers}/{draftData.numberOfPlayers}
+		</p>
+	</div>
 
 	{#if isLoading}
 		<div class="flex items-center justify-center">
@@ -242,12 +248,8 @@
 				Retry
 			</button>
 		</div>
-	{:else}
-		<p class="text-lg text-gray-600">Draft ID: {data.id}</p>
-		<p class="text-lg font-medium text-gray-700">
-			Connected Users: {draftStore.store.connectedUsers}/{draftData.numberOfPlayers}
-		</p>
-		{#if !draftStore.store.draftStarted}
+	{:else if !draftStore.store.draftStarted}
+		<div class="flex flex-1 items-center justify-center">
 			<button
 				class="mt-4 rounded bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-400"
 				disabled={!draftStore.store.draftReady}
@@ -255,81 +257,79 @@
 			>
 				Start Draft
 			</button>
-		{:else if draftStore.store.allFinished}
-			<div class="flex w-full flex-col items-center">
-				<h2 class="mb-4 text-2xl font-bold text-green-600">Draft Finished!</h2>
-				<div class="w-1/3 rounded bg-gray-100 p-4 shadow">
-					<h2 class="mb-4 text-xl font-bold">Your Drafted Deck</h2>
-					<CardList cube={draftStore.store.draftedDeck} showYdkDownload={true} />
-				</div>
+		</div>
+	{:else if draftStore.store.allFinished}
+		<div class="flex w-full flex-col items-center">
+			<h2 class="mb-4 text-2xl font-bold text-green-600">Draft Finished!</h2>
+			<div class="w-1/3 rounded bg-gray-100 p-4 shadow">
+				<h2 class="mb-4 text-xl font-bold">Your Drafted Deck</h2>
+				<CardList cube={draftStore.store.draftedDeck} showYdkDownload={true} />
 			</div>
-		{:else if draftData.draftMethod === 'winston'}
-			<div class="flex min-h-screen min-w-screen flex-col bg-gray-100 p-6">
-				<!-- Main Section: Split View -->
-				<div class="flex flex-1 gap-4">
-					<!-- Left: Current Pile -->
-					<div class="flex-1 overflow-y-auto border-r border-gray-300 pr-4">
-						{#if isActivePlayer}
-							<div class="mb-4 flex items-center justify-between">
-								<div class="flex space-x-2">
-									{#each draftStore.store.piles as pile, index}
-										<div
-											class="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 text-sm font-medium text-gray-700"
-											title={`Pile ${index + 1}: ${pile.length} cards`}
-										>
-											{pile.length}
-										</div>
-									{/each}
+		</div>
+	{:else if draftData.draftMethod === 'winston'}
+		<!-- Main Section: Split View -->
+		<div class="flex flex-1 gap-4 p-6">
+			<!-- Left: Current Pile -->
+			<div class="flex-1 overflow-y-auto border-r border-gray-300 pr-4">
+				{#if isActivePlayer}
+					<div class="mb-4 flex items-center justify-between">
+						<div class="flex space-x-2">
+							{#each draftStore.store.piles as pile, index}
+								<div
+									class="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 text-sm font-medium text-gray-700"
+									title={`Pile ${index + 1}: ${pile.length} cards`}
+								>
+									{pile.length}
 								</div>
-							</div>
-
-							{#if draftStore.store.piles.length > draftStore.store.currentPileIndex}
-								<CardList
-									cube={draftStore.store.piles[draftStore.store.currentPileIndex]}
-									border={false}
-									startListView={false}
-								/>
-								<div class="mt-2 flex justify-between">
-									<button
-										class="rounded bg-green-500 px-4 py-2 text-white"
-										onclick={handleAcceptPile}
-									>
-										Accept
-									</button>
-									<button
-										class="rounded bg-red-500 px-4 py-2 text-white"
-										onclick={handleDeclineCurrentPile}
-									>
-										Decline
-									</button>
-								</div>
-							{:else}
-								<p class="text-gray-500">Loading pile data...</p>
-							{/if}
-						{:else}
-							<p class="text-gray-500">Waiting for the current player...</p>
-						{/if}
+							{/each}
+						</div>
 					</div>
 
-					<!-- Right: Drafted Deck -->
-					<div class="flex-1 overflow-y-auto pl-4">
-						<h2 class="mb-4 text-xl font-bold text-gray-700">Your Drafted Deck</h2>
-						<CardList cube={draftStore.store.draftedDeck} border={true} showYdkDownload={true} />
-					</div>
-				</div>
+					{#if draftStore.store.piles.length > draftStore.store.currentPileIndex}
+						<CardList
+							cube={draftStore.store.piles[draftStore.store.currentPileIndex]}
+							border={false}
+							startListView={false}
+						/>
+						<div class="mt-2 flex justify-between">
+							<button
+								class="rounded bg-green-500 px-4 py-2 text-white"
+								onclick={handleAcceptPile}
+							>
+								Accept
+							</button>
+							<button
+								class="rounded bg-red-500 px-4 py-2 text-white"
+								onclick={handleDeclineCurrentPile}
+							>
+								Decline
+							</button>
+						</div>
+					{:else}
+						<p class="text-gray-500">Loading pile data...</p>
+					{/if}
+				{:else}
+					<p class="text-gray-500">Waiting for the current player...</p>
+				{/if}
 			</div>
-		{:else}
-			<div class="flex w-full flex-row">
-				<!-- Card Selection UI -->
-				<div class="flex-1 rounded bg-white p-4 shadow">
-					<h2 class="mb-4 text-xl font-bold">Drafting in Progress</h2>
-					<!-- Placeholder for Drafting UI -->
-					<p>Card selection UI goes here.</p>
-				</div>
 
-				<!-- Drafted Card List -->
-				<CardList cube={draftStore.store.draftedDeck} />
+			<!-- Right: Drafted Deck -->
+			<div class="w-1/4 overflow-y-auto pl-4">
+				<h2 class="mb-4 text-xl font-bold text-gray-700">Your Drafted Deck</h2>
+				<CardList cube={draftStore.store.draftedDeck} border={true} showYdkDownload={true} />
 			</div>
-		{/if}
+		</div>
+	{:else}
+		<div class="flex w-full flex-row">
+			<!-- Card Selection UI -->
+			<div class="flex-1 rounded bg-white p-4 shadow">
+				<h2 class="mb-4 text-xl font-bold">Drafting in Progress</h2>
+				<!-- Placeholder for Drafting UI -->
+				<p>Card selection UI goes here.</p>
+			</div>
+
+			<!-- Drafted Card List -->
+			<CardList cube={draftStore.store.draftedDeck} />
+		</div>
 	{/if}
 </div>
