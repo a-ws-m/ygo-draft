@@ -1,6 +1,6 @@
 <script lang="ts">
 	// Props using $props rune
-	const { card, size = 'medium' } = $props<{
+	const { card, showDescription = false } = $props<{
 		card: {
 			imageUrl: string;
 			name: string;
@@ -17,21 +17,14 @@
 			};
 			quantity?: number;
 		};
-		size?: 'small' | 'medium' | 'large';
+		showDescription?: boolean;
 	}>();
 
 	// Reactive state
-	let isExpanded = $state(false);
+	let isExpanded = $state(showDescription);
 
 	// Derived values
 	const isMonsterCard = $derived(card.apiData.type.toLowerCase().includes('monster'));
-
-	// Determine card dimensions based on size
-	const sizeClasses = {
-		small: 'w-16 h-24',
-		medium: 'w-32 h-48',
-		large: 'w-48 h-72'
-	};
 
 	// Helper function to format the race for Spell/Trap cards
 	function formatSpellTrapRace() {

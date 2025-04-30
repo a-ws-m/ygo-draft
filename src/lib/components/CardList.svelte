@@ -7,12 +7,14 @@
 		cube = [],
 		border = true,
 		startListView = true,
-		showYdkDownload = false
+		showYdkDownload = false,
+		showDescription = false
 	} = $props<{
 		cube: any[];
 		border?: boolean;
 		startListView?: boolean;
 		showYdkDownload?: boolean;
+		showDescription?: boolean;
 	}>();
 
 	// Reactive state
@@ -42,7 +44,7 @@
 			{ direction: 'left', space: spaceLeft },
 			{ direction: 'right', space: spaceRight }
 		];
-		
+
 		// Sort by available space (descending) and select the best direction
 		const bestDirection = spaces.sort((a, b) => b.space - a.space)[0].direction;
 		popupPosition = bestDirection;
@@ -57,7 +59,8 @@
 		} else if (popupPosition === 'left') {
 			popupX = rect.left - 10;
 			popupY = rect.top + rect.height / 2;
-		} else { // right
+		} else {
+			// right
 			popupX = rect.right + 10;
 			popupY = rect.top + rect.height / 2;
 		}
@@ -65,6 +68,11 @@
 
 	function handleMouseLeave() {
 		hoveredCard = null;
+	}
+
+	// Set view mode
+	function setViewMode(mode: 'list' | 'tile') {
+		isListView = mode === 'list';
 	}
 
 	// Derived values
@@ -79,31 +87,40 @@
 </script>
 
 <div class="relative space-y-4">
-	<!-- View Mode Toggle -->
-	<div class="absolute top-0 right-0">
-		<label class="flex cursor-pointer items-center space-x-2 text-sm text-gray-500">
-			<span>List View</span>
-			<input type="checkbox" bind:checked={isListView} class="peer sr-only" />
-			<div
-				class="peer relative h-6 w-11 rounded-full bg-gray-200 peer-checked:bg-blue-600 peer-focus:ring-4 peer-focus:ring-blue-300 peer-focus:outline-none after:absolute after:start-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:after:translate-x-full peer-checked:after:border-white rtl:peer-checked:after:-translate-x-full dark:border-gray-600 dark:bg-gray-700 dark:peer-checked:bg-blue-600 dark:peer-focus:ring-blue-800"
-			></div>
-		</label>
-	</div>
+	<!-- Header with all controls aligned on same centerline -->
+	<div class="flex items-center justify-between">
+		<div class="flex items-center space-x-4">
+			<p class="text-lg font-medium text-gray-700">
+				Total Cards: {totalCards}
+			</p>
 
-	<!-- Total Cards and Download Button -->
-	<div class="flex items-center space-x-4">
-		<p class="text-lg font-medium text-gray-700">
-			Total Cards: {totalCards}
-		</p>
+			{#if showYdkDownload}
+				<button
+					onclick={handleYdkDownload}
+					class="rounded bg-blue-600 px-3 py-1 text-sm text-white hover:bg-blue-700 focus:ring-2 focus:ring-blue-300 focus:outline-none"
+				>
+					Download YDK
+				</button>
+			{/if}
+		</div>
 
-		{#if showYdkDownload}
+		<!-- View Mode Button Group -->
+		<div class="inline-flex rounded-md shadow-sm" role="group">
 			<button
-				onclick={handleYdkDownload}
-				class="rounded bg-blue-600 px-3 py-1 text-sm text-white hover:bg-blue-700 focus:ring-2 focus:ring-blue-300 focus:outline-none"
+				type="button"
+				class={`rounded-l-lg px-4 py-2 text-sm font-medium ${!isListView ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-100'} border border-gray-200`}
+				onclick={() => setViewMode('tile')}
 			>
-				Download YDK
+				Tile
 			</button>
-		{/if}
+			<button
+				type="button"
+				class={`rounded-r-lg px-4 py-2 text-sm font-medium ${isListView ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-100'} border border-gray-200`}
+				onclick={() => setViewMode('list')}
+			>
+				List
+			</button>
+		</div>
 	</div>
 
 	<!-- Container for cards and details -->
@@ -111,7 +128,9 @@
 		<!-- Card Previews -->
 		<div class={`flex-1 overflow-y-auto rounded shadow-sm ${border ? 'border' : ''}`}>
 			{#if viewMode === 'tile'}
-				<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 p-2">
+				<div
+					class="grid grid-cols-1 justify-items-center gap-4 p-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
+				>
 					{#each cube as card}
 						<div class="flex flex-col items-center">
 							<div
@@ -126,7 +145,7 @@
 									<img
 										src={card.imageUrl}
 										alt={card.name}
-										class="rounded object-cover shadow w-full h-full"
+										class="h-full w-full rounded object-cover shadow"
 									/>
 								</div>
 							</div>
@@ -141,7 +160,7 @@
 			{:else}
 				<div class="space-y-2 p-2">
 					{#each cube as card}
-						<TextCard {card} />
+						<TextCard {card} {showDescription} />
 					{/each}
 				</div>
 			{/if}
