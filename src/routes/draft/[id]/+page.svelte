@@ -243,13 +243,38 @@
 </script>
 
 <div class="flex min-h-screen flex-col bg-gray-100">
-	<!-- Navbar -->
-	<div class="flex w-full items-center justify-between border-b border-gray-300 bg-white px-6 py-4">
-		<p class="text-lg text-gray-600">Draft ID: {data.id}</p>
-		<p class="text-lg font-medium text-gray-700">
-			Connected Users: {draftStore.store.connectedUsers}/{draftData.numberOfPlayers}
-		</p>
-	</div>
+	{#if !draftStore.store.draftStarted}
+		<!-- Jumbotron for draft details before start -->
+		<div class="mb-6 bg-white p-8 shadow-md">
+			<div class="mx-auto max-w-4xl">
+				<h1 class="mb-2 text-3xl font-bold text-gray-800">Draft Room: {data.id}</h1>
+				<p class="mb-4 text-xl text-gray-600">Waiting for players to join...</p>
+				<div class="flex items-center gap-2 rounded-lg border border-indigo-100 bg-indigo-50 p-3">
+					<span class="text-lg font-medium text-indigo-700">
+						{draftStore.store.connectedUsers}/{draftData.numberOfPlayers} Players Connected
+					</span>
+					<div class="flex-1"></div>
+					<button
+						class="rounded bg-indigo-600 px-6 py-2 text-sm font-medium text-white shadow hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-400"
+						disabled={!draftStore.store.draftReady}
+						onclick={startDraft}
+					>
+						Start Draft
+					</button>
+				</div>
+			</div>
+		</div>
+	{:else}
+		<!-- Standard Navbar for active draft -->
+		<div
+			class="flex w-full items-center justify-between border-b border-gray-300 bg-white px-6 py-4"
+		>
+			<p class="text-lg text-gray-600">Draft ID: {data.id}</p>
+			<p class="text-lg font-medium text-gray-700">
+				Connected Users: {draftStore.store.connectedUsers}/{draftData.numberOfPlayers}
+			</p>
+		</div>
+	{/if}
 
 	{#if isLoading}
 		<div class="flex items-center justify-center">
@@ -269,13 +294,17 @@
 		</div>
 	{:else if !draftStore.store.draftStarted}
 		<div class="flex flex-1 items-center justify-center">
-			<button
-				class="mt-4 rounded bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-400"
-				disabled={!draftStore.store.draftReady}
-				onclick={startDraft}
-			>
-				Start Draft
-			</button>
+			<div class="max-w-md rounded-lg bg-white p-8 text-center shadow-md">
+				<h2 class="mb-4 text-2xl font-bold text-gray-700">Waiting for Draft to Start</h2>
+				<p class="mb-4 text-gray-600">
+					Once all players have joined, the host can start the draft.
+				</p>
+				{#if !draftStore.store.draftReady}
+					<p class="font-medium text-amber-600">Waiting for more players to join...</p>
+				{:else}
+					<p class="font-medium text-green-600">All players have joined! Ready to start.</p>
+				{/if}
+			</div>
 		</div>
 	{:else if draftStore.store.allFinished}
 		<div class="flex w-full flex-col items-center">
@@ -294,20 +323,18 @@
 					<div class="mb-4">
 						<div class="flex items-center space-x-3 p-0.5">
 							{#each draftStore.store.piles as pile, index}
-									<div 
-										class="relative"
+								<div class="relative">
+									<div
+										class={`flex h-10 w-10 items-center justify-center rounded-md text-sm font-medium ${
+											index === draftStore.store.currentPileIndex
+												? 'bg-indigo-600 text-white ring-1 ring-indigo-500 ring-offset-1'
+												: 'bg-gray-200 text-gray-700'
+										} overflow-visible`}
+										title={`Pile ${index + 1}: ${pile.length} cards${draftStore.store.lastAcceptedPile === index ? ' (Last Accepted)' : ''}`}
 									>
-										<div
-											class={`flex h-10 w-10 items-center justify-center rounded-md text-sm font-medium ${
-												index === draftStore.store.currentPileIndex
-													? 'bg-indigo-600 text-white ring-1 ring-indigo-500 ring-offset-1'
-													: 'bg-gray-200 text-gray-700'
-											} overflow-visible`}
-											title={`Pile ${index + 1}: ${pile.length} cards${draftStore.store.lastAcceptedPile === index ? ' (Last Accepted)' : ''}`}
-										>
-											{pile.length}
-										</div>
+										{pile.length}
 									</div>
+								</div>
 							{/each}
 							<div
 								class="flex h-10 items-center justify-center rounded-md border border-gray-300 bg-gray-100 px-3 text-sm font-medium text-gray-700"
