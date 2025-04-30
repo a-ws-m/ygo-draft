@@ -34,7 +34,6 @@
 	let selectedProperty = $state(property);
 	let distributionData = $state([]);
 	let colorScale;
-	let tooltip;
 
 	// Process data to get distribution based on the selected property
 	function getDistribution(cards, prop) {
@@ -205,21 +204,6 @@
 
 		const totalCount = data.reduce((sum, d) => sum + d.count, 0);
 
-		// Create tooltip
-		tooltip = d3
-			.select(chartElement.parentElement)
-			.append('div')
-			.attr('class', 'tooltip')
-			.style('opacity', 0)
-			.style('position', 'absolute')
-			.style('background-color', 'rgba(0, 0, 0, 0.8)')
-			.style('color', 'white')
-			.style('padding', '5px 10px')
-			.style('border-radius', '5px')
-			.style('pointer-events', 'none')
-			.style('font-size', '12px')
-			.style('z-index', '100');
-
 		// Draw pie chart
 		const paths = svg
 			.selectAll('path')
@@ -241,15 +225,6 @@
 					.style('font-weight', 'bold')
 					.style('transform', 'scale(1.05)')
 					.style('transition', 'all 0.2s');
-
-				// Add tooltip
-				tooltip
-					.style('opacity', 1)
-					.html(
-						`${d.data.category}: ${d.data.count} (${Math.round((d.data.count / totalCount) * 100)}%)`
-					)
-					.style('left', `${event.pageX + 10}px`)
-					.style('top', `${event.pageY - 25}px`);
 			})
 			.on('mouseout', function (event, d) {
 				// Return pie segment to normal
@@ -259,9 +234,6 @@
 				d3.selectAll(`.legend-item[data-category="${d.data.category}"]`)
 					.style('font-weight', 'normal')
 					.style('transform', 'scale(1)');
-
-				// Hide tooltip
-				tooltip.style('opacity', 0);
 			});
 
 		// Add percentage labels
