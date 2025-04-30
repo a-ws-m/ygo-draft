@@ -95,8 +95,11 @@ export async function createDraft(
             index, // Assign a unique index after shuffling
         }));
 
+        // Limit to the specified pool size
+        const limitedCube = cubeWithIndexes.slice(0, poolSize);
+
         // Insert cube data into the `cubes` table
-        const { error: cubeError } = await supabase.from("cubes").insert(cubeWithIndexes);
+        const { error: cubeError } = await supabase.from("cubes").insert(limitedCube);
         if (cubeError) throw cubeError;
 
         console.log("Draft and cube successfully created in the database.");

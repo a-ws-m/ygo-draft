@@ -12,12 +12,10 @@ export const store = $state({
     deck: [],
     draftedDeck: [],
     currentPlayer: 0,
-    minimumDeckSize: 40,
     userId: '',
     channel: null,
     draftMethod: '',
     numberOfPlayers: 0,
-    finished: [] as boolean[],
     allFinished: false,
 });
 
@@ -73,7 +71,11 @@ export async function updatePiles() {
 }
 
 export function resetCurrentPileIndex() {
-    store.currentPileIndex = 0;
+    // Find the first non-empty pile
+    const firstNonEmptyPileIndex = store.piles.findIndex(pile => pile && pile.length > 0);
+
+    // Set to the first non-empty pile if one exists, otherwise set to 0
+    store.currentPileIndex = firstNonEmptyPileIndex >= 0 ? firstNonEmptyPileIndex : 0;
 }
 
 export function incrementCurrentPileIndex() {

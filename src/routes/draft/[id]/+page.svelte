@@ -43,6 +43,25 @@
 		);
 	});
 
+	let canDecline = $derived.by(() => {
+		// Can decline if the deck is not empty
+		if (draftStore.store.deck && draftStore.store.deck.length > 0) {
+			return true;
+		}
+
+		// Can decline if there's a non-empty pile with index greater than current pile index
+		if (
+			draftStore.store.piles &&
+			draftStore.store.currentPileIndex < draftStore.store.piles.length - 1
+		) {
+			return draftStore.store.piles.some(
+				(pile, index) => index > draftStore.store.currentPileIndex && pile.length > 0
+			);
+		}
+
+		return false;
+	});
+
 	// Load draft data
 	async function loadDraftData() {
 		isLoading = true;
@@ -272,16 +291,26 @@
 			<!-- Left: Current Pile -->
 			<div class="flex-1 overflow-y-auto border-r border-gray-300 pr-4">
 				{#if isActivePlayer}
-					<div class="mb-4 flex items-center justify-between">
-						<div class="flex space-x-2">
+					<div class="mb-4">
+						<div class="flex items-center space-x-3">
 							{#each draftStore.store.piles as pile, index}
 								<div
-									class="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 text-sm font-medium text-gray-700"
+									class={`flex h-10 w-10 items-center justify-center rounded-md text-sm font-medium ${
+										index === draftStore.store.currentPileIndex
+											? 'bg-indigo-600 text-white ring-2 ring-indigo-500 ring-offset-2'
+											: 'bg-gray-200 text-gray-700'
+									}`}
 									title={`Pile ${index + 1}: ${pile.length} cards`}
 								>
 									{pile.length}
 								</div>
 							{/each}
+							<div
+								class="flex h-10 items-center justify-center rounded-md border border-gray-300 bg-gray-100 px-3 text-sm font-medium text-gray-700"
+							>
+								<span class="mr-1">Deck:</span>
+								{draftStore.store.deck?.length || 0}
+							</div>
 						</div>
 					</div>
 
@@ -293,18 +322,17 @@
 							showDescription={true}
 						/>
 						<div class="mt-2 flex justify-between">
-							<button
-								class="rounded bg-green-500 px-4 py-2 text-white"
-								onclick={handleAcceptPile}
-							>
+							<button class="rounded bg-green-500 px-4 py-2 text-white" onclick={handleAcceptPile}>
 								Accept
 							</button>
-							<button
-								class="rounded bg-red-500 px-4 py-2 text-white"
-								onclick={handleDeclineCurrentPile}
-							>
-								Decline
-							</button>
+							{#if canDecline}
+								<button
+									class="rounded bg-red-500 px-4 py-2 text-white"
+									onclick={handleDeclineCurrentPile}
+								>
+									Decline
+								</button>
+							{/if}
 						</div>
 					{:else}
 						<p class="text-gray-500">Loading pile data...</p>
@@ -317,7 +345,12 @@
 			<!-- Right: Drafted Deck -->
 			<div class="w-1/4 overflow-y-auto pl-4">
 				<h2 class="mb-4 text-xl font-bold text-gray-700">Your Drafted Deck</h2>
-				<CardList cube={draftStore.store.draftedDeck} border={true} showYdkDownload={true} showChart={true} />
+				<CardList
+					cube={draftStore.store.draftedDeck}
+					border={true}
+					showYdkDownload={true}
+					showChart={true}
+				/>
 			</div>
 		</div>
 	{:else}
