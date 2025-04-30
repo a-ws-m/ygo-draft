@@ -317,7 +317,7 @@
 			<!-- Right: Drafted Deck -->
 			<div class="w-1/4 overflow-y-auto pl-4">
 				<h2 class="mb-4 text-xl font-bold text-gray-700">Your Drafted Deck</h2>
-				<CardList cube={draftStore.store.draftedDeck} border={true} showYdkDownload={true} />
+				<CardList cube={draftStore.store.draftedDeck} border={true} showYdkDownload={true} showChart={true} />
 			</div>
 		</div>
 	{:else}
