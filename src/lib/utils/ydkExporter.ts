@@ -17,7 +17,7 @@ export function convertToYdk(cube: any[]): string {
 
         // Add card ID the appropriate number of times based on quantity
         const quantity = card.quantity || 1;
-        const cardId = card.id;
+        const cardId = card.apiData.id;
 
         for (let i = 0; i < quantity; i++) {
             if (isExtraDeck) {
