@@ -14,8 +14,8 @@
 			{ value: 'archetype', label: 'Archetype' },
 			{ value: 'attribute', label: 'Attribute' },
 			{ value: 'race', label: 'Race/Type' },
-			{value: "level", label: "Level/Rank"}
-		], // New property for selector options
+			{ value: 'level', label: 'Level/Rank' }
+		] // New property for selector options
 	} = $props<{
 		cube: any[];
 		property?: string;
@@ -324,34 +324,37 @@
 	});
 </script>
 
-<div class="card-distribution">
-	<!-- Chart Title with Property Selector (replacing the title) -->
-	{#if chartProperties && chartProperties.length > 0}
-		<div class="chart-title">
-			<span class="font-bold">
-				<select
-					bind:value={selectedProperty}
-					class="cursor-pointer appearance-auto bg-transparent font-bold focus:outline-none focus:ring-0 focus:border-gray-400 border-0 border-b-2 border-gray-200"
-				>
-					{#each chartProperties as option}
-						<option value={option.value}>{option.label}</option>
-					{/each}
-				</select>
-			</span>
-		</div>
-	{:else}
-		<div class="chart-title">
-			<span class="font-bold">{title}</span>
-		</div>
-	{/if}
-
-	<div class="chart-layout">
-		{#if showLegend}
-			<div class="legend-container" bind:this={legendElement}></div>
+<details class="card-distribution-accordion w-full" open>
+	<summary class="card-distribution-summary text-center cursor-pointer py-2 px-4 border border-gray-200 rounded select-none">Card Distribution Graph</summary>
+	<div class="card-distribution">
+		<!-- Chart Title with Property Selector (replacing the title) -->
+		{#if chartProperties && chartProperties.length > 0}
+			<div class="chart-title">
+				<span class="font-bold">
+					<select
+						bind:value={selectedProperty}
+						class="cursor-pointer appearance-auto border-0 border-b-2 border-gray-200 bg-transparent font-bold focus:border-gray-400 focus:ring-0 focus:outline-none"
+					>
+						{#each chartProperties as option}
+							<option value={option.value}>{option.label}</option>
+						{/each}
+					</select>
+				</span>
+			</div>
+		{:else}
+			<div class="chart-title">
+				<span class="font-bold">{title}</span>
+			</div>
 		{/if}
-		<div class="chart-container" bind:this={chartElement}></div>
+
+		<div class="chart-layout">
+			{#if showLegend}
+				<div class="legend-container" bind:this={legendElement}></div>
+			{/if}
+			<div class="chart-container" bind:this={chartElement}></div>
+		</div>
 	</div>
-</div>
+</details>
 
 <style>
 	.card-distribution {
@@ -408,5 +411,15 @@
 		transform: scale(1.05);
 		font-weight: bold;
 		cursor: pointer;
+	}
+
+	.card-distribution-summary {
+		cursor: pointer;
+		padding: 10px;
+		user-select: none;
+	}
+
+	.card-distribution-accordion {
+		width: 100%;
 	}
 </style>

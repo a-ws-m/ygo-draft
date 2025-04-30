@@ -128,13 +128,7 @@
 
 	{#if showChart}
 		<!-- Card Distribution Chart with property selector moved into the chart component -->
-		<div class="mb-4 p-4">
-			<div class="w-full max-w-full">
-				<CardDistributionChart
-					{cube}
-				/>
-			</div>
-		</div>
+		<CardDistributionChart {cube} />
 	{/if}
 
 	<!-- Container for cards and details -->
