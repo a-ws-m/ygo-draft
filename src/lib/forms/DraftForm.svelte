@@ -12,6 +12,7 @@
 	let numberOfPiles = $state(3);
 	let packsPerRound = $state(1);
 	let packSize = $state(15);
+	let extraDeckAtEnd = $state(false); // New state for extra deck option
 	let cubeFile = $state(null);
 	let isCubeValid = $state(false);
 	let isProcessing = $state(false);
@@ -89,7 +90,8 @@
 					imageUrl: card.imageUrl
 				})),
 				draftMethod === 'winston' ? numberOfPiles : 3,
-				draftMethod === 'rochester' ? packSize : 5
+				draftMethod === 'rochester' ? packSize : 5,
+				extraDeckAtEnd // Pass the extra deck option to createDraft
 			);
 
 			// Store draft settings in sessionStorage for additional backup
@@ -101,7 +103,8 @@
 					numberOfPlayers,
 					numberOfPiles: draftMethod === 'winston' ? numberOfPiles : undefined,
 					packsPerRound: draftMethod === 'rochester' ? packsPerRound : undefined,
-					packSize: draftMethod === 'rochester' ? packSize : undefined
+					packSize: draftMethod === 'rochester' ? packSize : undefined,
+					extraDeckAtEnd // Include in saved settings
 				})
 			);
 
@@ -199,6 +202,19 @@
 			oninput={validateOptions}
 			class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
 		/>
+	</div>
+
+	<!-- Extra Deck at End Option -->
+	<div class="flex items-center">
+		<input
+			type="checkbox"
+			id="extra-deck-at-end"
+			bind:checked={extraDeckAtEnd}
+			class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+		/>
+		<label for="extra-deck-at-end" class="ml-2 block text-sm text-gray-700">
+			Move extra deck cards to end of the pool
+		</label>
 	</div>
 
 	<!-- Rochester Draft Options -->

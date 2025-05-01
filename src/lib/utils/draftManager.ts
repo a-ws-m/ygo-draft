@@ -50,6 +50,7 @@ function shuffleArray<T>(array: T[]): T[] {
  * @param cube - The cube data (array of cards).
  * @param numberOfPiles - The number of piles for winston draft.
  * @param packSize - The pack size for rochester draft.
+ * @param extraDeckAtEnd - Whether to move extra deck cards to the end of the pool.
  * @returns A promise that resolves with the draft ID.
  */
 export async function createDraft(
@@ -58,7 +59,8 @@ export async function createDraft(
     numberOfPlayers: number,
     cube: { name: string; quantity: number; type: string; imageUrl: string; apiData: any }[],
     numberOfPiles: number = 3,
-    packSize: number = 5
+    packSize: number = 5,
+    extraDeckAtEnd: boolean = false
 ): Promise<string> {
     try {
         // Create a new draft session in the `drafts` table
@@ -72,6 +74,7 @@ export async function createDraft(
                 status: "waiting",
                 number_of_piles: numberOfPiles,
                 pack_size: packSize,
+                extra_deck_at_end: extraDeckAtEnd, // Save this setting to the database
             })
             .select()
             .single();
@@ -92,11 +95,28 @@ export async function createDraft(
             }
         }
 
-        // Shuffle the expanded cube
         const shuffledCube = shuffleArray(expandedCube);
 
         // Limit to the specified pool size
-        const limitedCube = shuffledCube.slice(0, poolSize);
+        let limitedCube = shuffledCube.slice(0, poolSize);
+
+        if (extraDeckAtEnd) {
+            // Separate main deck and extra deck cards
+            const mainDeckCards = [];
+            const extraDeckCards = [];
+
+            for (const card of limitedCube) {
+                if (isExtraDeckCard(card)) {
+                    extraDeckCards.push(card);
+                } else {
+                    mainDeckCards.push(card);
+                }
+            }
+
+            // Combine them with extra deck at the end
+            limitedCube = [...mainDeckCards, ...extraDeckCards];
+        }
+
 
         // Assign shuffled indexes to the cards
         const cubeWithIndexes = limitedCube.map((card, index) => ({
@@ -115,6 +135,22 @@ export async function createDraft(
         console.error("Error creating draft:", error);
         throw error;
     }
+}
+
+/**
+ * Determines if a card belongs in the Extra Deck
+ */
+function isExtraDeckCard(card: any): boolean {
+    // Get the card type from the apiData
+    const cardType = card.apiData.type.toLowerCase();
+
+    // These types go in the Extra Deck
+    return (
+        cardType.includes('fusion') ||
+        cardType.includes('synchro') ||
+        cardType.includes('xyz') ||
+        cardType.includes('link')
+    );
 }
 
 /**
