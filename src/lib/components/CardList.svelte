@@ -164,10 +164,10 @@
 			{#if viewMode === 'tile'}
 				<div
 					class="grid auto-cols-max grid-cols-1 justify-items-center gap-4 p-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6"
-					style="grid-template-columns: repeat(auto-fill, minmax(min(100%, 444px), 1fr));"
+					style="grid-template-columns: repeat(auto-fill, minmax(min(calc(100% / 3 - 16px), 313px), 1fr));"
 				>
 					{#each cube as card}
-						<div class="flex w-full max-w-[444px] flex-col items-center">
+						<div class="flex w-full max-w-[313px] flex-col items-center">
 							<div
 								class="group card relative w-full {clickable
 									? 'cursor-pointer hover:ring-2 hover:ring-blue-400'
@@ -179,7 +179,7 @@
 								onclick={() => handleCardClick(card)}
 							>
 								<!-- Card Image -->
-								<div class="aspect-[2/3] w-full">
+								<div class="aspect-[2/3] w-full max-w-[313px]">
 									<img
 										src={card.imageUrl}
 										alt={card.name}
@@ -198,7 +198,12 @@
 			{:else}
 				<div class="space-y-2 p-2">
 					{#each cube as card}
-						<TextCard {card} {showDescription} />
+						<TextCard 
+							{card} 
+							{showDescription} 
+							{clickable} 
+							onSelect={() => handleCardClick(card)}
+						/>
 					{/each}
 				</div>
 			{/if}

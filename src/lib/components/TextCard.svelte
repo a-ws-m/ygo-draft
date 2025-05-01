@@ -1,6 +1,6 @@
 <script lang="ts">
 	// Props using $props rune
-	const { card, showDescription = false } = $props<{
+	const { card, showDescription = false, clickable = false, onSelect = () => {} } = $props<{
 		card: {
 			imageUrl: string;
 			name: string;
@@ -18,6 +18,8 @@
 			quantity?: number;
 		};
 		showDescription?: boolean;
+		clickable?: boolean;
+		onSelect?: () => void;
 	}>();
 
 	// Reactive state
@@ -51,6 +53,11 @@
 		if (type.toLowerCase().includes('trap')) return typeColors.trap;
 		return 'border-gray-500'; // Default color
 	};
+
+	function handleSelect(event) {
+		event.stopPropagation();
+		onSelect();
+	}
 </script>
 
 <div
@@ -61,6 +68,17 @@
 		<p class="text-sm font-medium text-gray-700">{card.name}</p>
 		{#if card.quantity}
 			<p class="text-xs text-gray-500">x{card.quantity}</p>
+		{/if}
+		{#if clickable}
+			<button
+				class="ml-2 flex h-8 w-8 items-center justify-center rounded-full bg-green-500 text-white hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-50"
+				aria-label="Select card"
+				onclick={handleSelect}
+			>
+				<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+					<path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+				</svg>
+			</button>
 		{/if}
 	</div>
 
