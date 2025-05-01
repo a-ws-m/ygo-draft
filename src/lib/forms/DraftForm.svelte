@@ -86,7 +86,9 @@
                     type: card.type,
                     apiData: card.apiData,
                     imageUrl: card.imageUrl,
-                }))
+                })),
+                draftMethod === "winston" ? numberOfPiles : 3,
+                draftMethod === "rochester" ? packSize : 5
             );
 
             // Store draft settings in sessionStorage for additional backup

@@ -16,6 +16,8 @@ export const store = $state({
     channel: null,
     draftMethod: '',
     numberOfPlayers: 0,
+    numberOfPiles: 3,  // Default to 3
+    packSize: 5,       // Default to 5
     allFinished: false,
     lastAcceptedPile: null,
 });
@@ -25,6 +27,8 @@ export function initializeDraft(data) {
     store.draftId = data.id;
     store.draftMethod = data.draftMethod;
     store.numberOfPlayers = data.numberOfPlayers;
+    store.numberOfPiles = data.numberOfPiles || 3;
+    store.packSize = data.packSize || 5;
 }
 
 // Helpers to update state without returning values
@@ -63,7 +67,7 @@ export async function updatePiles() {
             return;
         }
 
-        store.piles = Array.from({ length: 3 }, (_, i) =>
+        store.piles = Array.from({ length: store.numberOfPiles }, (_, i) =>
             updatedPiles.filter(card => card.pile === i)
         );
     } catch (error) {

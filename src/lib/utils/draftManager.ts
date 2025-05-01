@@ -48,13 +48,17 @@ function shuffleArray<T>(array: T[]): T[] {
  * @param poolSize - The size of the card pool.
  * @param numberOfPlayers - The number of players in the draft.
  * @param cube - The cube data (array of cards).
+ * @param numberOfPiles - The number of piles for winston draft.
+ * @param packSize - The pack size for rochester draft.
  * @returns A promise that resolves with the draft ID.
  */
 export async function createDraft(
     draftMethod: string,
     poolSize: number,
     numberOfPlayers: number,
-    cube: { name: string; quantity: number; type: string; imageUrl: string; apiData: any }[]
+    cube: { name: string; quantity: number; type: string; imageUrl: string; apiData: any }[],
+    numberOfPiles: number = 3,
+    packSize: number = 5
 ): Promise<string> {
     try {
         // Create a new draft session in the `drafts` table
@@ -66,6 +70,8 @@ export async function createDraft(
                 number_of_players: numberOfPlayers,
                 connected_users: 0,
                 status: "waiting",
+                number_of_piles: numberOfPiles,
+                pack_size: packSize,
             })
             .select()
             .single();

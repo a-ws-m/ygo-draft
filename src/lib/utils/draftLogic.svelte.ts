@@ -109,7 +109,7 @@ export async function moveToNextPlayer(
     }
 }
 
-export async function initializeWinstonDraft(numberOfPiles: number) {
+export async function initializeWinstonDraft(numberOfPiles: number = draftStore.store.numberOfPiles) {
     try {
         // Fetch cards from the `cubes` table ordered by `index`
         const { data: cards, error } = await supabase

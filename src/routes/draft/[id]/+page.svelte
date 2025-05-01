@@ -95,7 +95,9 @@
 				draftMethod: draft.draft_method,
 				poolSize: draft.pool_size,
 				numberOfPlayers: draft.number_of_players,
-				connectedUsers: draft.connected_users
+				connectedUsers: draft.connected_users,
+				numberOfPiles: draft.number_of_piles || 3,
+				packSize: draft.pack_size || 5
 			};
 
 			// Initialize the draft store
@@ -183,7 +185,7 @@
 			draftStore.store.draftStarted = true;
 
 			if (draftData.draftMethod === 'winston') {
-				const success = await initializeWinstonDraft(3);
+				const success = await initializeWinstonDraft(draftData.numberOfPiles);
 				if (!success) {
 					console.error('Failed to initialize Winston draft.');
 				}
@@ -229,7 +231,7 @@
 			draftStore.store.draftStarted = true;
 
 			if (draftData.draftMethod === 'winston') {
-				const success = await initializeWinstonDraft(3);
+				const success = await initializeWinstonDraft(draftData.numberOfPiles);
 
 				if (!success) {
 					console.error('Failed to initialize Winston draft.');
@@ -347,7 +349,9 @@
 									class="flex h-10 items-center justify-center rounded-md border border-gray-300 bg-gray-100 px-3 text-sm font-medium text-gray-700"
 								>
 									<span class="mr-1">Last Accepted:</span>
-									{draftStore.store.lastAcceptedPile + 1}
+									{draftStore.store.lastAcceptedPile == draftStore.store.numberOfPiles
+										? 'Deck'
+										: draftStore.store.lastAcceptedPile + 1}
 								</div>
 							{/if}
 						</div>
