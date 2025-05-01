@@ -12,7 +12,7 @@
 	let numberOfPiles = $state(3);
 	let packsPerRound = $state(1);
 	let packSize = $state(15);
-	let extraDeckAtEnd = $state(false); // New state for extra deck option
+	let extraDeckAtEnd = $state(true); // New state for extra deck option
 	let cubeFile = $state(null);
 	let isCubeValid = $state(false);
 	let isProcessing = $state(false);
