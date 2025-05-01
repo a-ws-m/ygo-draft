@@ -74,7 +74,6 @@ export async function createDraft(
                 status: "waiting",
                 number_of_piles: numberOfPiles,
                 pack_size: packSize,
-                extra_deck_at_end: extraDeckAtEnd, // Save this setting to the database
             })
             .select()
             .single();
@@ -113,8 +112,8 @@ export async function createDraft(
                 }
             }
 
-            // Combine them with extra deck at the end
-            limitedCube = [...mainDeckCards, ...extraDeckCards];
+            // Combine them with extra deck at the start (because we POP the first card)
+            limitedCube = [...extraDeckCards, ...mainDeckCards, ];
         }
 
 

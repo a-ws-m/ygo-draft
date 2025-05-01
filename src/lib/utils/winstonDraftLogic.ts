@@ -128,7 +128,7 @@ export async function initializeWinstonDraft(numberOfPiles: number = draftStore.
         draftStore.store.deck = cards;
 
         // Create the specified number of piles, each starting with one card
-        const newPiles = Array.from({ length: numberOfPiles }, () => [draftStore.store.deck.shift()]);
+        const newPiles = Array.from({ length: numberOfPiles }, () => [draftStore.store.deck.pop()]);
         draftStore.store.piles = newPiles;
 
         return true;

@@ -67,7 +67,8 @@
 			const { data: cube, error: cubeError } = await supabase
 				.from('cubes')
 				.select('*')
-				.eq('draft_id', data.id);
+				.eq('draft_id', data.id)
+				.order('index', { ascending: true });
 
 			if (cubeError) {
 				throw new Error('Failed to fetch cube data: ' + cubeError.message);

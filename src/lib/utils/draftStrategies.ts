@@ -33,7 +33,7 @@ export class WinstonDraftStrategy implements DraftStrategy {
             store.deck = cards;
 
             // Create the specified number of piles, each starting with one card
-            const newPiles = Array.from({ length: store.numberOfPiles }, () => [store.deck.shift()]);
+            const newPiles = Array.from({ length: store.numberOfPiles }, () => [store.deck.pop()]);
             store.piles = newPiles;
 
             return true;
@@ -109,7 +109,7 @@ export class RochesterDraftStrategy implements DraftStrategy {
                 const pack = [];
                 for (let j = 0; j < store.packSize; j++) {
                     if (store.deck.length > 0) {
-                        pack.push(store.deck.shift());
+                        pack.push(store.deck.pop());
                     }
                 }
                 packs.push(pack);
