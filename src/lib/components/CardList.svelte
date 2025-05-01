@@ -10,7 +10,9 @@
 		startListView = true,
 		showYdkDownload = false,
 		showDescription = false,
-		showChart = false
+		showChart = false,
+		clickable = false,
+		onCardClick = undefined
 	} = $props<{
 		cube: any[];
 		border?: boolean;
@@ -18,6 +20,8 @@
 		showYdkDownload?: boolean;
 		showDescription?: boolean;
 		showChart?: boolean;
+		clickable?: boolean;
+		onCardClick?: (index: number) => void;
 	}>();
 
 	// Reactive state
@@ -71,6 +75,12 @@
 
 	function handleMouseLeave() {
 		hoveredCard = null;
+	}
+
+	function handleCardClick(card) {
+		if (clickable && onCardClick) {
+			onCardClick(card.index);
+		}
 	}
 
 	// Set view mode
@@ -142,11 +152,12 @@
 					{#each cube as card}
 						<div class="flex flex-col items-center">
 							<div
-								class="group relative w-full"
+								class="group relative w-full card {clickable ? 'cursor-pointer hover:ring-2 hover:ring-blue-400' : ''}"
 								role="button"
 								tabindex="0"
 								onmouseenter={(e) => handleMouseEnter(card, e)}
 								onmouseleave={handleMouseLeave}
+								onclick={() => handleCardClick(card)}
 							>
 								<!-- Card Image -->
 								<div class="aspect-[2/3] w-full">

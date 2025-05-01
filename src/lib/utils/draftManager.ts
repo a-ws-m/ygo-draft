@@ -204,7 +204,7 @@ export async function updateDraftState(
             for (let i = 0; i < piles.length; i++) {
                 if (piles[i] && piles[i].length > 0) {
                     const pileCardIndexes = piles[i].map((card) => card.index);
-                    
+
                     const { error: pileError } = await supabase
                         .from('cubes')
                         .update({ pile: i })
