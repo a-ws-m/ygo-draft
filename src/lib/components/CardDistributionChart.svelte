@@ -352,6 +352,7 @@
 	.chart-container {
 		flex: 2;
 		position: relative;
+		max-width: 300px; /* Add maximum width constraint */
 	}
 
 	.chart-title {
