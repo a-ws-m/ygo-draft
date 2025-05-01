@@ -204,19 +204,6 @@
 		/>
 	</div>
 
-	<!-- Extra Deck at End Option -->
-	<div class="flex items-center">
-		<input
-			type="checkbox"
-			id="extra-deck-at-end"
-			bind:checked={extraDeckAtEnd}
-			class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-		/>
-		<label for="extra-deck-at-end" class="ml-2 block text-sm text-gray-700">
-			Move extra deck cards to end of the pool
-		</label>
-	</div>
-
 	<!-- Rochester Draft Options -->
 	{#if draftMethod === 'rochester'}
 		<div>
@@ -232,7 +219,7 @@
 				class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
 			/>
 		</div>
-	<!-- Winston Draft Options -->
+		<!-- Winston Draft Options -->
 	{:else if draftMethod === 'winston'}
 		<div>
 			<label for="number-of-piles" class="mb-1 block text-sm font-medium text-gray-700">
@@ -248,6 +235,19 @@
 			/>
 		</div>
 	{/if}
+
+	<!-- Extra Deck at End Option -->
+	<div class="flex items-center">
+		<input
+			type="checkbox"
+			id="extra-deck-at-end"
+			bind:checked={extraDeckAtEnd}
+			class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+		/>
+		<label for="extra-deck-at-end" class="ml-2 block text-sm text-gray-700">
+			Move extra deck cards to end of the pool
+		</label>
+	</div>
 
 	<!-- Option Validation Error -->
 	{#if optionErrorMessage}
