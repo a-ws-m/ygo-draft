@@ -1,20 +1,18 @@
+// import type { PageLoad } from './$types';
 import type { PageLoad } from './$types';
 import { redirect } from '@sveltejs/kit';
 import { browser } from '$app/environment';
 import { store as authStore } from '$lib/stores/authStore.svelte';
 
-export const load: PageLoad = async ({ params, parent }) => {
-    // Check both parent.session (from layout load) and client-side auth store
-    // The browser check prevents this from running during SSR
+export const load: PageLoad = async ({ url, parent }) => {
+    // Check authentication
     const isAuthenticated = parent.session || (browser && authStore.session);
-    
+
     if (!isAuthenticated) {
-        const redirectPath = `/draft/${params.id}`;
+        const redirectPath = `/draft?id=${url.searchParams.get('id')}`;
         throw redirect(303, `/auth?redirect=${encodeURIComponent(redirectPath)}`);
     }
 
-    // User is authenticated, pass along the draft ID from the URL
-    return {
-        id: params.id
-    };
+    // Return empty props - we'll load data client-side
+    return {};
 };
