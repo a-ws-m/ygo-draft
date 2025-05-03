@@ -1,6 +1,7 @@
 <script lang="ts">
 	import TextCard from '$lib/components/TextCard.svelte';
 	import CardDistributionChart from '$lib/components/CardDistributionChart.svelte';
+	import CardDetails from '$lib/components/CardDetails.svelte';
 	import { convertToYdk, downloadYdkFile } from '$lib/utils/ydkExporter';
 
 	// Props using $props rune
@@ -168,15 +169,15 @@
 				>
 					{#each cube as card}
 						<div class="flex w-full max-w-[313px] flex-col items-center">
-							<div
+							<button
 								class="group card relative w-full {clickable
 									? 'cursor-pointer hover:ring-2 hover:ring-blue-400'
 									: ''}"
-								role="button"
-								tabindex="0"
+								type="button"
 								onmouseenter={(e) => handleMouseEnter(card, e)}
 								onmouseleave={handleMouseLeave}
 								onclick={() => handleCardClick(card)}
+								onkeydown={(e) => e.key === 'Enter' && handleCardClick(card)}
 							>
 								<!-- Card Image -->
 								<div class="aspect-[2/3] w-full max-w-[313px]">
@@ -186,7 +187,7 @@
 										class="h-full w-full rounded object-cover shadow"
 									/>
 								</div>
-							</div>
+							</button>
 							<!-- Card Name and Quantity -->
 							<p class="mt-1 text-center text-sm text-gray-600">{card.name}</p>
 							{#if card.quantity}
@@ -198,12 +199,7 @@
 			{:else}
 				<div class="space-y-2 p-2">
 					{#each cube as card}
-						<TextCard 
-							{card} 
-							{showDescription} 
-							{clickable} 
-							onSelect={() => handleCardClick(card)}
-						/>
+						<TextCard {card} {showDescription} {clickable} onSelect={() => handleCardClick(card)} />
 					{/each}
 				</div>
 			{/if}
@@ -219,74 +215,38 @@
 				class:translate-x-[-100%]={popupPosition === 'left'}
 				style="left: {popupX}px; top: {popupY}px;"
 			>
-				<div class="w-64 rounded border border-gray-200 bg-white p-3 shadow-lg">
-					<h3 class="text-lg font-bold text-gray-800">{hoveredCard.name}</h3>
-					<p class="text-sm text-gray-600">
-						<span class="font-medium">Type:</span>
-						{hoveredCard.type}
-					</p>
-					{#if hoveredCard.apiData.archetype}
-						<p class="text-sm text-gray-600">
-							<span class="font-medium">Archetype:</span>
-							{hoveredCard.apiData.archetype}
-						</p>
-					{/if}
-					<p class="mt-2 text-sm text-gray-600">
-						{hoveredCard.apiData.desc}
-					</p>
-					{#if hoveredCard.apiData.type.toLowerCase().includes('monster')}
-						<div class="mt-2 space-y-1">
-							<p class="text-sm text-gray-600">
-								<span class="font-medium">ATK:</span>
-								{hoveredCard.apiData.atk}
-							</p>
-							<p class="text-sm text-gray-600">
-								<span class="font-medium">DEF:</span>
-								{hoveredCard.apiData.def}
-							</p>
-							<p class="text-sm text-gray-600">
-								<span class="font-medium">Level:</span>
-								{hoveredCard.apiData.level}
-							</p>
-							<p class="text-sm text-gray-600">
-								<span class="font-medium">Race:</span>
-								{hoveredCard.apiData.race}
-							</p>
-							<p class="text-sm text-gray-600">
-								<span class="font-medium">Attribute:</span>
-								{hoveredCard.apiData.attribute}
-							</p>
-						</div>
-					{:else}
-						<div class="mt-2">
-							<p class="text-sm text-gray-600">{hoveredCard.apiData.race}</p>
-						</div>
-					{/if}
-				</div>
+				<CardDetails card={hoveredCard} />
 			</div>
 		{/if}
 
 		<!-- Confirmation Modal -->
 		{#if showConfirmModal && selectedCard}
-			<div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50" role="dialog" aria-modal="true">
+			<div
+				class="bg-opacity-50 fixed inset-0 z-50 flex items-center justify-center bg-black"
+				role="dialog"
+				aria-modal="true"
+			>
 				<div class="relative mx-4 max-w-md rounded-lg bg-white p-6 shadow-xl sm:mx-0">
 					<div class="text-center">
-						<h3 class="text-xl font-medium text-gray-900 mb-2">Confirm Selection</h3>
-						<div class="flex justify-center mb-4">
+						<h3 class="mb-2 text-xl font-medium text-gray-900">Confirm Selection</h3>
+						<div class="mb-4 flex justify-center">
 							<div class="w-40">
 								<img src={selectedCard.imageUrl} alt={selectedCard.name} class="rounded shadow" />
 							</div>
 						</div>
-						<p class="mb-4 text-gray-700">Are you sure you want to select <span class="font-semibold">{selectedCard.name}</span>?</p>
+						<p class="mb-4 text-gray-700">
+							Are you sure you want to select <span class="font-semibold">{selectedCard.name}</span
+							>?
+						</p>
 						<div class="flex justify-center space-x-4">
-							<button 
-								class="rounded bg-gray-200 px-4 py-2 text-gray-700 hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400"
+							<button
+								class="rounded bg-gray-200 px-4 py-2 text-gray-700 hover:bg-gray-300 focus:ring-2 focus:ring-gray-400 focus:outline-none"
 								onclick={cancelCardSelection}
 							>
 								Cancel
 							</button>
-							<button 
-								class="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+							<button
+								class="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:outline-none"
 								onclick={confirmCardSelection}
 							>
 								Confirm

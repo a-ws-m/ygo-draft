@@ -1,6 +1,13 @@
 <script lang="ts">
+	import CardDetails from '$lib/components/CardDetails.svelte';
+
 	// Props using $props rune
-	const { card, showDescription = false, clickable = false, onSelect = () => {} } = $props<{
+	const {
+		card,
+		showDescription = false,
+		clickable = false,
+		onSelect = () => {}
+	} = $props<{
 		card: {
 			imageUrl: string;
 			name: string;
@@ -21,23 +28,6 @@
 		clickable?: boolean;
 		onSelect?: () => void;
 	}>();
-
-	// Reactive state
-	let isExpanded = $state(showDescription);
-
-	// Derived values
-	const isMonsterCard = $derived(card.apiData.type.toLowerCase().includes('monster'));
-
-	// Helper function to format the race for Spell/Trap cards
-	function formatSpellTrapRace() {
-		const type = card.apiData.type.toLowerCase();
-		if (type.includes('spell')) {
-			return `${card.apiData.race} Spell`;
-		} else if (type.includes('trap')) {
-			return `${card.apiData.race} Trap`;
-		}
-		return card.apiData.race; // Fallback in case it's neither
-	}
 
 	// Map card types to colors
 	const typeColors = {
@@ -60,61 +50,38 @@
 	}
 </script>
 
-<div
-	class={`flex cursor-pointer flex-col rounded border-l-4 p-2 shadow-sm ${getTypeColor(card.type)}`}
-	onclick={() => (isExpanded = !isExpanded)}
->
-	<div class="flex items-center justify-between">
-		<p class="text-sm font-medium text-gray-700">{card.name}</p>
-		{#if card.quantity}
-			<p class="text-xs text-gray-500">x{card.quantity}</p>
-		{/if}
-		{#if clickable}
-			<button
-				class="ml-2 flex h-8 w-8 items-center justify-center rounded-full bg-green-500 text-white hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-50"
-				aria-label="Select card"
-				onclick={handleSelect}
-			>
-				<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-					<path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
-				</svg>
-			</button>
-		{/if}
-	</div>
-
-	{#if isExpanded}
-		<div class="mt-2 text-sm text-gray-600">
-			<p>
-				{card.apiData.desc}
-			</p>
-			{#if isMonsterCard}
-				<div class="mt-2 space-y-1">
-					<p>
-						<span class="font-medium">ATK:</span>
-						{card.apiData.atk}
-					</p>
-					<p>
-						<span class="font-medium">DEF:</span>
-						{card.apiData.def}
-					</p>
-					<p>
-						<span class="font-medium">Level:</span>
-						{card.apiData.level}
-					</p>
-					<p>
-						<span class="font-medium">Race:</span>
-						{card.apiData.race}
-					</p>
-					<p>
-						<span class="font-medium">Attribute:</span>
-						{card.apiData.attribute}
-					</p>
-				</div>
-			{:else}
-				<div class="mt-2">
-					<p>{formatSpellTrapRace()}</p>
-				</div>
-			{/if}
+<div class={`rounded border-l-4 p-2 shadow-sm ${getTypeColor(card.type)}`}>
+	<details open={showDescription}>
+		<summary class="flex cursor-pointer items-center justify-between">
+			<p class="text-sm font-medium text-gray-700">{card.name}</p>
+			<div class="flex items-center">
+				{#if card.quantity}
+					<p class="text-xs text-gray-500">x{card.quantity}</p>
+				{/if}
+				{#if clickable}
+					<button
+						class="focus:ring-opacity-50 ml-2 flex h-8 w-8 items-center justify-center rounded-full bg-green-500 text-white hover:bg-green-600 focus:ring-2 focus:ring-green-400 focus:outline-none"
+						aria-label="Select card"
+						onclick={handleSelect}
+					>
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							class="h-5 w-5"
+							viewBox="0 0 20 20"
+							fill="currentColor"
+						>
+							<path
+								fill-rule="evenodd"
+								d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+								clip-rule="evenodd"
+							/>
+						</svg>
+					</button>
+				{/if}
+			</div>
+		</summary>
+		<div class="mt-2">
+			<CardDetails {card} compact={true} />
 		</div>
-	{/if}
+	</details>
 </div>
