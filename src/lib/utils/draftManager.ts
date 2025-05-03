@@ -8,6 +8,29 @@ import { supabase } from "$lib/supabaseClient";
  */
 export async function startDraftInDB(draftId: string, participants: string[]) {
     try {
+        // Get the current authenticated user
+        const { data: { user } } = await supabase.auth.getUser();
+
+        if (!user) {
+            throw new Error("User must be authenticated to start a draft");
+        }
+
+        // Get the draft to check if the current user is the creator
+        const { data: draft, error: fetchError } = await supabase
+            .from("drafts")
+            .select("created_by")
+            .eq("id", draftId)
+            .single();
+
+        if (fetchError) {
+            console.error("Error fetching draft:", fetchError);
+            throw new Error("Failed to fetch draft details.");
+        }
+
+        if (draft.created_by !== user.id) {
+            throw new Error("Only the creator of the draft can start it");
+        }
+
         // Update the draft with the list of participants and set the status to active
         const { error } = await supabase
             .from("drafts")
@@ -63,6 +86,13 @@ export async function createDraft(
     extraDeckAtEnd: boolean = false
 ): Promise<string> {
     try {
+        // Get the current authenticated user
+        const { data: { user } } = await supabase.auth.getUser();
+
+        if (!user) {
+            throw new Error("User must be authenticated to create a draft");
+        }
+
         // Create a new draft session in the `drafts` table
         const { data: draft, error: draftError } = await supabase
             .from("drafts")
@@ -74,6 +104,8 @@ export async function createDraft(
                 status: "waiting",
                 number_of_piles: numberOfPiles,
                 pack_size: packSize,
+                created_by: user.id, // Store the creator's ID
+                participants: [user.id] // Initialize with the creator as first participant
             })
             .select()
             .single();
@@ -114,7 +146,7 @@ export async function createDraft(
             }
 
             // Combine them with extra deck at the start (because we POP the first card)
-            limitedCube = [...extraDeckCards, ...mainDeckCards, ];
+            limitedCube = [...extraDeckCards, ...mainDeckCards,];
         }
 
 

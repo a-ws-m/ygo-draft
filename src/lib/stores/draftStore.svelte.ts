@@ -40,6 +40,12 @@ export function initializeDraft(data) {
     store.packSize = data.packSize || 15;
 }
 
+// Get current user ID
+export async function getCurrentUserId() {
+    const { data } = await supabase.auth.getUser();
+    return data?.user?.id || null;
+}
+
 // Reset all fields to default values
 export function resetDraftStore() {
     store.piles = [];
