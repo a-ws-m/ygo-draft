@@ -16,8 +16,19 @@ export const store = $state({
     channel: null,
     draftMethod: '',
     numberOfPlayers: 0,
+    numberOfPiles: 3,  // Default to 3
+    packSize: 15,       // Default to 5
     allFinished: false,
     lastAcceptedPile: null,
+    playerFinished: false, // Added flag for individual player completion
+
+    // Rochester draft specific fields
+    rounds: [],            // Array of rounds, each containing packs
+    currentRound: 0,       // Current draft round
+    currentPackIndex: {},  // Map of player index to their current pack index
+    selectedPlayers: new Set(), // Set of players who have made selections for the current turn
+    draftStrategy: null,   // The current draft strategy instance
+    hasSelected: false, // Flag to indicate if the player has selected a card
 });
 
 // Initialize the draft store with data
@@ -25,6 +36,22 @@ export function initializeDraft(data) {
     store.draftId = data.id;
     store.draftMethod = data.draftMethod;
     store.numberOfPlayers = data.numberOfPlayers;
+    store.numberOfPiles = data.numberOfPiles || 3;
+    store.packSize = data.packSize || 15;
+}
+
+// Reset all fields to default values
+export function resetDraftStore() {
+    store.piles = [];
+    store.deck = [];
+    store.rounds = [];
+    store.currentRound = 0;
+    store.currentPackIndex = {};
+    store.selectedPlayers = new Set();
+    store.currentPileIndex = 0;
+    store.lastAcceptedPile = null;
+    store.allFinished = false;
+    store.hasSelected = false;
 }
 
 // Helpers to update state without returning values
@@ -63,7 +90,7 @@ export async function updatePiles() {
             return;
         }
 
-        store.piles = Array.from({ length: 3 }, (_, i) =>
+        store.piles = Array.from({ length: store.numberOfPiles }, (_, i) =>
             updatedPiles.filter(card => card.pile === i)
         );
     } catch (error) {
@@ -89,4 +116,15 @@ export function incrementCurrentPileIndex() {
 
 export function addToDraftedDeck(cards) {
     store.draftedDeck = [...store.draftedDeck, ...cards];
+}
+
+// Get the current pack for a player in Rochester draft
+export function getCurrentPack(playerIndex) {
+    if (store.draftMethod !== 'rochester') return null;
+    if (store.rounds.length === 0) return null;
+
+    const packIndex = store.currentPackIndex[playerIndex];
+    if (packIndex === undefined || store.currentRound >= store.rounds.length) return null;
+
+    return store.rounds[store.currentRound][packIndex];
 }

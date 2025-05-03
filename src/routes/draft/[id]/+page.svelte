@@ -1,18 +1,14 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { supabase } from '$lib/supabaseClient';
-	import {
-		handleAcceptPile,
-		handleDeclineCurrentPile,
-		initializeWinstonDraft,
-		handleNextPlayer
-	} from '$lib/utils/draftLogic.svelte';
+	import { handleAcceptPile, handleDeclineCurrentPile } from '$lib/utils/winstonDraftLogic';
+	import { initializeDraft, handleDraftBroadcast } from '$lib/utils/draftManager.svelte';
 	import { startDraftInDB } from '$lib/utils/draftManager';
 	import type { PageProps } from './$types';
 	import CardList from '$lib/components/CardList.svelte';
+	import RochesterDraftView from '$lib/components/RochesterDraftView.svelte';
 	import * as draftStore from '$lib/stores/draftStore.svelte';
-
-	$inspect('draftStore', draftStore.store);
+	import { canPlayerDeclineCurrentOption } from '$lib/utils/draftManager.svelte';
 
 	// Get the draft ID from the page params
 	let { data }: PageProps = $props();
@@ -44,21 +40,9 @@
 	});
 
 	let canDecline = $derived.by(() => {
-		// Can decline if the deck is not empty
-		if (draftStore.store.deck && draftStore.store.deck.length > 0) {
-			return true;
+		if (draftStore.store.draftMethod === 'winston') {
+			return canPlayerDeclineCurrentOption();
 		}
-
-		// Can decline if there's a non-empty pile with index greater than current pile index
-		if (
-			draftStore.store.piles &&
-			draftStore.store.currentPileIndex < draftStore.store.piles.length - 1
-		) {
-			return draftStore.store.piles.some(
-				(pile, index) => index > draftStore.store.currentPileIndex && pile.length > 0
-			);
-		}
-
 		return false;
 	});
 
@@ -83,7 +67,8 @@
 			const { data: cube, error: cubeError } = await supabase
 				.from('cubes')
 				.select('*')
-				.eq('draft_id', data.id);
+				.eq('draft_id', data.id)
+				.order('index', { ascending: true });
 
 			if (cubeError) {
 				throw new Error('Failed to fetch cube data: ' + cubeError.message);
@@ -95,7 +80,9 @@
 				draftMethod: draft.draft_method,
 				poolSize: draft.pool_size,
 				numberOfPlayers: draft.number_of_players,
-				connectedUsers: draft.connected_users
+				connectedUsers: draft.connected_users,
+				numberOfPiles: draft.number_of_piles || 3,
+				packSize: draft.pack_size || 5
 			};
 
 			// Initialize the draft store
@@ -180,27 +167,30 @@
 		// Listen for the "draft started" broadcast
 		channel.on('broadcast', { event: 'draft-started' }, async (payload) => {
 			console.log('Draft started broadcast received:', payload);
-			draftStore.store.draftStarted = true;
-
-			if (draftData.draftMethod === 'winston') {
-				const success = await initializeWinstonDraft(3);
-				if (!success) {
-					console.error('Failed to initialize Winston draft.');
-				}
-			}
+			await handleDraftBroadcast('draft-started', payload);
 		});
 
 		// Listen for the "new player" broadcast
 		channel.on('broadcast', { event: 'new-player' }, async (broadcast) => {
 			console.log('New player broadcast received:', broadcast);
-			await handleNextPlayer(broadcast.payload);
+			await handleDraftBroadcast('new-player', broadcast.payload);
 		});
 
 		// Listen for the "draft finished" broadcast
 		channel.on('broadcast', { event: 'draft-finished' }, async (broadcast) => {
 			console.log('Draft finished broadcast received:', broadcast);
+			await handleDraftBroadcast('draft-finished', broadcast.payload);
+		});
 
-			draftStore.store.allFinished = true;
+		// Rochester-specific broadcasts
+		channel.on('broadcast', { event: 'player-selected' }, async (broadcast) => {
+			console.log('Player selected broadcast received:', broadcast);
+			await handleDraftBroadcast('player-selected', broadcast.payload);
+		});
+
+		channel.on('broadcast', { event: 'packs-rotated' }, async (broadcast) => {
+			console.log('Packs rotated broadcast received:', broadcast);
+			await handleDraftBroadcast('packs-rotated', broadcast.payload);
 		});
 	});
 
@@ -227,15 +217,7 @@
 			}
 
 			draftStore.store.draftStarted = true;
-
-			if (draftData.draftMethod === 'winston') {
-				const success = await initializeWinstonDraft(3);
-
-				if (!success) {
-					console.error('Failed to initialize Winston draft.');
-					return;
-				}
-			}
+			await initializeDraft();
 		} catch (error) {
 			console.error('Error starting draft:', error);
 		}
@@ -306,7 +288,7 @@
 				{/if}
 			</div>
 		</div>
-	{:else if draftStore.store.allFinished}
+	{:else if draftStore.store.allFinished || (draftData.draftMethod === 'rochester' && draftStore.store.playerFinished)}
 		<div class="flex w-full flex-col items-center">
 			<h2 class="mb-4 text-2xl font-bold text-green-600">Draft Finished!</h2>
 			<div class="w-1/3 rounded bg-gray-100 p-4 shadow">
@@ -315,7 +297,7 @@
 			</div>
 		</div>
 	{:else if draftData.draftMethod === 'winston'}
-		<!-- Main Section: Split View -->
+		<!-- Main Section: Split View for Winston Draft -->
 		<div class="flex flex-1 gap-4 p-6">
 			<!-- Left: Current Pile -->
 			<div class="flex-1 overflow-y-auto border-r border-gray-300 pr-4">
@@ -347,7 +329,9 @@
 									class="flex h-10 items-center justify-center rounded-md border border-gray-300 bg-gray-100 px-3 text-sm font-medium text-gray-700"
 								>
 									<span class="mr-1">Last Accepted:</span>
-									{draftStore.store.lastAcceptedPile + 1}
+									{draftStore.store.lastAcceptedPile == draftStore.store.numberOfPiles
+										? 'Deck'
+										: draftStore.store.lastAcceptedPile + 1}
 								</div>
 							{/if}
 						</div>
@@ -392,13 +376,17 @@
 				/>
 			</div>
 		</div>
+	{:else if draftData.draftMethod === 'rochester'}
+		<!-- Rochester Draft View -->
+		<div class="flex-1 p-6">
+			<RochesterDraftView />
+		</div>
 	{:else}
 		<div class="flex w-full flex-row">
 			<!-- Card Selection UI -->
 			<div class="flex-1 rounded bg-white p-4 shadow">
-				<h2 class="mb-4 text-xl font-bold">Drafting in Progress</h2>
-				<!-- Placeholder for Drafting UI -->
-				<p>Card selection UI goes here.</p>
+				<h2 class="mb-4 text-xl font-bold">Unsupported Draft Type</h2>
+				<p>The draft type "{draftData.draftMethod}" is not currently supported.</p>
 			</div>
 
 			<!-- Drafted Card List -->

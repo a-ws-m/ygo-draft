@@ -10,7 +10,9 @@
 		startListView = true,
 		showYdkDownload = false,
 		showDescription = false,
-		showChart = false
+		showChart = false,
+		clickable = false,
+		onCardClick = undefined
 	} = $props<{
 		cube: any[];
 		border?: boolean;
@@ -18,6 +20,8 @@
 		showYdkDownload?: boolean;
 		showDescription?: boolean;
 		showChart?: boolean;
+		clickable?: boolean;
+		onCardClick?: (index: number) => void;
 	}>();
 
 	// Reactive state
@@ -28,6 +32,10 @@
 	let popupX = $state(0);
 	let popupY = $state(0);
 	let popupPosition = $state('below'); // 'above', 'below', 'left', or 'right'
+
+	// Modal state
+	let showConfirmModal = $state(false);
+	let selectedCard = $state(null);
 
 	// Handle mouse events
 	function handleMouseEnter(card, event) {
@@ -71,6 +79,24 @@
 
 	function handleMouseLeave() {
 		hoveredCard = null;
+	}
+
+	function handleCardClick(card) {
+		if (clickable) {
+			selectedCard = card;
+			showConfirmModal = true;
+		}
+	}
+
+	function confirmCardSelection() {
+		if (onCardClick && selectedCard) {
+			onCardClick(selectedCard.index);
+		}
+		showConfirmModal = false;
+	}
+
+	function cancelCardSelection() {
+		showConfirmModal = false;
 	}
 
 	// Set view mode
@@ -137,19 +163,23 @@
 		<div class={`flex-1 overflow-y-auto rounded shadow-sm ${border ? 'border' : ''}`}>
 			{#if viewMode === 'tile'}
 				<div
-					class="grid grid-cols-1 justify-items-center gap-4 p-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
+					class="grid auto-cols-max grid-cols-1 justify-items-center gap-4 p-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6"
+					style="grid-template-columns: repeat(auto-fill, minmax(min(calc(100% / 3 - 16px), 313px), 1fr));"
 				>
 					{#each cube as card}
-						<div class="flex flex-col items-center">
+						<div class="flex w-full max-w-[313px] flex-col items-center">
 							<div
-								class="group relative w-full"
+								class="group card relative w-full {clickable
+									? 'cursor-pointer hover:ring-2 hover:ring-blue-400'
+									: ''}"
 								role="button"
 								tabindex="0"
 								onmouseenter={(e) => handleMouseEnter(card, e)}
 								onmouseleave={handleMouseLeave}
+								onclick={() => handleCardClick(card)}
 							>
 								<!-- Card Image -->
-								<div class="aspect-[2/3] w-full">
+								<div class="aspect-[2/3] w-full max-w-[313px]">
 									<img
 										src={card.imageUrl}
 										alt={card.name}
@@ -168,7 +198,12 @@
 			{:else}
 				<div class="space-y-2 p-2">
 					{#each cube as card}
-						<TextCard {card} {showDescription} />
+						<TextCard 
+							{card} 
+							{showDescription} 
+							{clickable} 
+							onSelect={() => handleCardClick(card)}
+						/>
 					{/each}
 				</div>
 			{/if}
@@ -227,6 +262,37 @@
 							<p class="text-sm text-gray-600">{hoveredCard.apiData.race}</p>
 						</div>
 					{/if}
+				</div>
+			</div>
+		{/if}
+
+		<!-- Confirmation Modal -->
+		{#if showConfirmModal && selectedCard}
+			<div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50" role="dialog" aria-modal="true">
+				<div class="relative mx-4 max-w-md rounded-lg bg-white p-6 shadow-xl sm:mx-0">
+					<div class="text-center">
+						<h3 class="text-xl font-medium text-gray-900 mb-2">Confirm Selection</h3>
+						<div class="flex justify-center mb-4">
+							<div class="w-40">
+								<img src={selectedCard.imageUrl} alt={selectedCard.name} class="rounded shadow" />
+							</div>
+						</div>
+						<p class="mb-4 text-gray-700">Are you sure you want to select <span class="font-semibold">{selectedCard.name}</span>?</p>
+						<div class="flex justify-center space-x-4">
+							<button 
+								class="rounded bg-gray-200 px-4 py-2 text-gray-700 hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400"
+								onclick={cancelCardSelection}
+							>
+								Cancel
+							</button>
+							<button 
+								class="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+								onclick={confirmCardSelection}
+							>
+								Confirm
+							</button>
+						</div>
+					</div>
 				</div>
 			</div>
 		{/if}

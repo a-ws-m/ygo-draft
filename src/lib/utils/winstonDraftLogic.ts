@@ -109,7 +109,7 @@ export async function moveToNextPlayer(
     }
 }
 
-export async function initializeWinstonDraft(numberOfPiles: number) {
+export async function initializeWinstonDraft(numberOfPiles: number = draftStore.store.numberOfPiles) {
     try {
         // Fetch cards from the `cubes` table ordered by `index`
         const { data: cards, error } = await supabase
@@ -128,7 +128,7 @@ export async function initializeWinstonDraft(numberOfPiles: number) {
         draftStore.store.deck = cards;
 
         // Create the specified number of piles, each starting with one card
-        const newPiles = Array.from({ length: numberOfPiles }, () => [draftStore.store.deck.shift()]);
+        const newPiles = Array.from({ length: numberOfPiles }, () => [draftStore.store.deck.pop()]);
         draftStore.store.piles = newPiles;
 
         return true;
