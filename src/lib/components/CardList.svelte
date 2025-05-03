@@ -165,10 +165,10 @@
 			{#if viewMode === 'tile'}
 				<div
 					class="grid auto-cols-max grid-cols-1 justify-items-center gap-4 p-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6"
-					style="grid-template-columns: repeat(auto-fill, minmax(min(calc(100% / 3 - 16px), 313px), 1fr));"
+					style="grid-template-columns: repeat(auto-fill, minmax(min(calc(100% / 3 - 16px), 271px), 1fr));"
 				>
 					{#each cube as card}
-						<div class="flex w-full max-w-[313px] flex-col items-center">
+						<div class="flex w-full max-w-[271px] flex-col items-center">
 							<button
 								class="group card relative w-full {clickable
 									? 'cursor-pointer hover:ring-2 hover:ring-blue-400'
@@ -180,12 +180,19 @@
 								onkeydown={(e) => e.key === 'Enter' && handleCardClick(card)}
 							>
 								<!-- Card Image -->
-								<div class="aspect-[2/3] w-full max-w-[313px]">
-									<img
-										src={card.imageUrl}
-										alt={card.name}
-										class="h-full w-full rounded object-cover shadow"
-									/>
+								<div class="aspect-[813/1185] w-full max-w-[271px]">
+									<picture>
+										<source
+											media="(max-width: 296px)"
+											srcset={card.smallImageUrl || card.imageUrl}
+										/>
+										<source media="(min-width: 297px)" srcset={card.imageUrl} />
+										<img
+											src={card.imageUrl}
+											alt={card.name}
+											class="h-full w-full rounded object-cover shadow"
+										/>
+									</picture>
 								</div>
 							</button>
 							<!-- Card Name and Quantity -->

@@ -7,7 +7,7 @@ export function formatCardForComponent(cubeCard: {
     card_name: string;
     type: string;
     apiData: {
-        card_images: { image_url: string }[];
+        card_images: { image_url: string; image_url_small: string }[];
         type: string;
         desc: string;
         atk?: number;
@@ -20,6 +20,7 @@ export function formatCardForComponent(cubeCard: {
 }) {
     return {
         imageUrl: cubeCard.apiData.card_images[0]?.image_url || "",
+        smallImageUrl: cubeCard.apiData.card_images[0]?.image_url_small || "",
         name: cubeCard.card_name,
         type: cubeCard.type,
         apiData: {

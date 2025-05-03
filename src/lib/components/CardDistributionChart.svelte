@@ -292,8 +292,11 @@
 	});
 </script>
 
-<details class="card-distribution-accordion w-full" open>
-	<summary class="card-distribution-summary text-center cursor-pointer py-2 px-4 border border-gray-200 rounded select-none">Card Distribution Graph</summary>
+<details class="card-distribution-accordion w-full">
+	<summary
+		class="card-distribution-summary cursor-pointer rounded border border-gray-200 px-4 py-2 text-center select-none"
+		>Card Distribution Graph</summary
+	>
 	<div class="card-distribution">
 		<!-- Chart Title with Property Selector (replacing the title) -->
 		{#if chartProperties && chartProperties.length > 0}

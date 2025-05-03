@@ -57,7 +57,7 @@ export async function createDraft(
     draftMethod: string,
     poolSize: number,
     numberOfPlayers: number,
-    cube: { name: string; quantity: number; type: string; imageUrl: string; apiData: any }[],
+    cube: { name: string; quantity: number; type: string; imageUrl: string; smallImageUrl: string; apiData: any }[],
     numberOfPiles: number = 3,
     packSize: number = 5,
     extraDeckAtEnd: boolean = false
@@ -89,6 +89,7 @@ export async function createDraft(
                     name: card.name,
                     type: card.type,
                     imageUrl: card.imageUrl,
+                    smallImageUrl: card.smallImageUrl,
                     apiData: card.apiData,
                 });
             }

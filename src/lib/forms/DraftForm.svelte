@@ -87,7 +87,8 @@
 					quantity: card.quantity,
 					type: card.type,
 					apiData: card.apiData,
-					imageUrl: card.imageUrl
+					imageUrl: card.imageUrl,
+					smallImageUrl: card.smallImageUrl
 				})),
 				draftMethod === 'winston' ? numberOfPiles : 3,
 				draftMethod === 'rochester' ? packSize : 5,

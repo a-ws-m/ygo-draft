@@ -57,6 +57,7 @@ export async function processCubeFile(file: File): Promise<any[]> {
             type: card.type,
             quantity: card.quantity,
             imageUrl: apiCard.card_images[0]?.image_url,
+            smallImageUrl: apiCard.card_images[0]?.image_url_small,
             apiData: apiCard,
         });
     }
