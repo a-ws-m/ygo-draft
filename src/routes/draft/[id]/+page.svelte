@@ -9,6 +9,7 @@
 	import RochesterDraftView from '$lib/components/RochesterDraftView.svelte';
 	import * as draftStore from '$lib/stores/draftStore.svelte';
 	import { canPlayerDeclineCurrentOption } from '$lib/utils/draftManager.svelte';
+	import { store as authStore } from '$lib/stores/authStore.svelte';
 
 	// Get the draft ID from the page params
 	let { data }: PageProps = $props();
@@ -16,6 +17,7 @@
 	// Local state for loading and errors
 	let isLoading = $state(true);
 	let loadError = $state(null);
+	let isCreator = $state(false);
 
 	// Draft data
 	let draftData = $state({
@@ -63,6 +65,12 @@
 				throw new Error('Failed to fetch draft data: ' + draftError.message);
 			}
 
+			// Check if the current user is the creator of the draft
+			const {
+				data: { user }
+			} = await supabase.auth.getUser();
+			isCreator = user && draft.created_by === user.id;
+
 			// Fetch cube cards
 			const { data: cube, error: cubeError } = await supabase
 				.from('cubes')
@@ -104,16 +112,14 @@
 		// Load draft data first
 		await loadDraftData();
 
-		// Then set up real-time connections
-		const { data: session, error } = await supabase.auth.getSession();
-		if (error) {
-			console.error('Error fetching session:', error);
-		}
-
-		// Set user ID in store
-		draftStore.store.userId =
-			session?.session?.user?.id || `guest-${Math.random().toString(36).substring(2, 12)}`;
+		// Get the authenticated user's ID
+		draftStore.store.userId = authStore.session?.user?.id || '';
 		console.log('User ID:', draftStore.store.userId);
+
+		if (!draftStore.store.userId) {
+			loadError = 'You must be logged in to participate in a draft.';
+			return;
+		}
 
 		// Join the presence channel for the draft
 		const channel = supabase.channel(`draft-room-${data.id}`, {
@@ -236,13 +242,17 @@
 						{draftStore.store.connectedUsers}/{draftData.numberOfPlayers} Players Connected
 					</span>
 					<div class="flex-1"></div>
-					<button
-						class="rounded bg-indigo-600 px-6 py-2 text-sm font-medium text-white shadow hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-400"
-						disabled={!draftStore.store.draftReady}
-						onclick={startDraft}
-					>
-						Start Draft
-					</button>
+					{#if isCreator}
+						<button
+							class="rounded bg-indigo-600 px-6 py-2 text-sm font-medium text-white shadow hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-400"
+							disabled={!draftStore.store.draftReady}
+							onclick={startDraft}
+						>
+							Start Draft
+						</button>
+					{:else}
+						<span class="font-medium text-indigo-700">Waiting for host to start the draft...</span>
+					{/if}
 				</div>
 			</div>
 		</div>
