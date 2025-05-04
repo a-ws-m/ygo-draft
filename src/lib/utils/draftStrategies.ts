@@ -1,6 +1,7 @@
 import * as draftStore from '$lib/stores/draftStore.svelte';
 import { supabase } from '$lib/supabaseClient';
 import {handleAcceptPile, handleDeclineCurrentPile } from './winstonDraftLogic';
+import { fetchCubeWithCardData } from '$lib/services/cardService';
 
 export interface DraftStrategy {
     initialize(): Promise<boolean>;
@@ -12,25 +13,23 @@ export interface DraftStrategy {
 // Winston Draft Implementation
 export class WinstonDraftStrategy implements DraftStrategy {
     async initialize(): Promise<boolean> {
-        // Existing Winston initialization logic
+        // Updated Winston initialization logic to use cardService
         const { store } = draftStore;
 
         try {
-            // Fetch cards from the `cubes` table ordered by `index`
-            const { data: cards, error } = await supabase
-                .from('cubes')
-                .select('*')
-                .eq('draft_id', store.draftId)
-                .is('owner', null) // Only fetch cards that are not yet owned
-                .order('index', { ascending: true });
+            // Fetch cards using the cardService
+            const { cube, error } = await fetchCubeWithCardData(store.draftId);
 
             if (error) {
                 console.error('Error fetching cards for Winston draft:', error);
                 return false;
             }
 
+            // Filter cards that don't have an owner
+            const availableCards = cube.filter(card => !card.owner);
+
             // Initialize the deck with the fetched cards
-            store.deck = cards;
+            store.deck = availableCards;
 
             // Create the specified number of piles, each starting with one card
             const newPiles = Array.from({ length: store.numberOfPiles }, () => [store.deck.pop()]);
@@ -80,21 +79,19 @@ export class RochesterDraftStrategy implements DraftStrategy {
         const { store } = draftStore;
 
         try {
-            // Fetch cards from the `cubes` table ordered by `index`
-            const { data: cards, error } = await supabase
-                .from('cubes')
-                .select('*')
-                .eq('draft_id', store.draftId)
-                .is('owner', null) // Only fetch cards that are not yet owned
-                .order('index', { ascending: true });
+            // Fetch cards using the cardService
+            const { cube, error } = await fetchCubeWithCardData(store.draftId);
 
             if (error) {
                 console.error('Error fetching cards for Rochester draft:', error);
                 return false;
             }
 
+            // Filter cards that haven't been drafted yet
+            const availableCards = cube.filter(card => !card.owner);
+
             // Initialize the deck with the fetched cards
-            store.deck = cards;
+            store.deck = availableCards;
 
             // Calculate the number of cards per player
             const cardsPerPlayer = Math.floor(store.deck.length / store.numberOfPlayers);

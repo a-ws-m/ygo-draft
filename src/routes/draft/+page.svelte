@@ -3,13 +3,12 @@
 	import { supabase } from '$lib/supabaseClient';
 	import { handleAcceptPile, handleDeclineCurrentPile } from '$lib/utils/winstonDraftLogic';
 	import { initializeDraft, handleDraftBroadcast } from '$lib/utils/draftManager.svelte';
-	import { startDraftInDB } from '$lib/utils/draftManager';
+	import { startDraftInDB } from '$lib/utils/supabaseDraftManager';
 	import CardList from '$lib/components/CardList.svelte';
 	import RochesterDraftView from '$lib/components/RochesterDraftView.svelte';
 	import * as draftStore from '$lib/stores/draftStore.svelte';
 	import { canPlayerDeclineCurrentOption } from '$lib/utils/draftManager.svelte';
 	import { store as authStore } from '$lib/stores/authStore.svelte';
-	import { fetchCubeWithCardData } from '$lib/services/cardService';
 
 	// Get the draft ID from URL query parameter
 	let draftId = $state('');
@@ -18,7 +17,6 @@
 	let isLoading = $state(true);
 	let loadError = $state(null);
 	let isCreator = $state(false);
-
 	// Draft data
 	let draftData = $state({
 		cube: [],
@@ -71,16 +69,9 @@
 			} = await supabase.auth.getUser();
 			isCreator = user && draft.created_by === user.id;
 
-			// Fetch cube cards with full card data using the cardService
-			const { cube, error: cubeError } = await fetchCubeWithCardData(draftId);
-
-			if (cubeError) {
-				throw new Error('Failed to fetch cube data: ' + cubeError);
-			}
-
-			// Store data in local state
+			 // Store data in local state without fetching the cube data
+			// since the draftStrategies will fetch it when needed
 			draftData = {
-				cube,
 				draftMethod: draft.draft_method,
 				poolSize: draft.pool_size,
 				numberOfPlayers: draft.number_of_players,
@@ -227,6 +218,7 @@
 				throw response.error;
 			}
 
+			// Set draftStarted to true before initializing the draft
 			draftStore.store.draftStarted = true;
 			await initializeDraft();
 		} catch (error) {

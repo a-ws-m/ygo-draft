@@ -117,7 +117,7 @@ export async function createDraft(
         for (const card of cube) {
             for (let i = 0; i < card.quantity; i++) {
                 expandedCube.push({
-                    card_id: card.id,
+                    card_id: card.id, // Ensure card_id is properly set from the card.id
                     draft_id: draft.id
                 });
             }
@@ -142,8 +142,8 @@ export async function createDraft(
                 }
             }
 
-            // Combine them with extra deck at the start (because we POP the first card)
-            limitedCube = [...extraDeckCards, ...mainDeckCards];
+            // Combine them with extra deck at the start (because we are using pop to remove)
+            limitedCube = [...extraDeckCards, ...mainDeckCards ];
         }
 
         // Assign shuffled indexes to the cards

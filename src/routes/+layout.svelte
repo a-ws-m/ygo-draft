@@ -14,7 +14,7 @@
 
 	// Check if the current route is public (doesn't require authentication)
 	const publicRoutes = ['/auth'];
-	const isPublicRoute = $derived(publicRoutes.includes(page.url.pathname));
+	const isPublicRoute = $derived(publicRoutes.some(route => page.url.pathname.startsWith(route)));
 
 	// Combined check for access - allow if the route is public or the user is authenticated
 	const hasAccess = $derived(!authStore.loading && (isPublicRoute || authStore.session !== null));
@@ -68,10 +68,11 @@
 
 			<!-- Footer could go here -->
 		{:else}
-			<!-- Redirect to auth page if not authenticated and trying to access a protected route -->
-			<script>
-				window.location.href = '/auth';
-			</script>
+			 <!-- Loading indicator instead of direct redirect script -->
+			<div class="flex h-screen w-full items-center justify-center">
+				<div class="h-12 w-12 animate-spin rounded-full border-b-2 border-indigo-600"></div>
+				<span class="ml-4">Redirecting to login...</span>
+			</div>
 		{/if}
 	{:else}
 		<!-- Loading state -->
