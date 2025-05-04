@@ -69,7 +69,7 @@
 			} = await supabase.auth.getUser();
 			isCreator = user && draft.created_by === user.id;
 
-			 // Store data in local state without fetching the cube data
+			// Store data in local state without fetching the cube data
 			// since the draftStrategies will fetch it when needed
 			draftData = {
 				draftMethod: draft.draft_method,
@@ -290,8 +290,12 @@
 				</p>
 				{#if !draftStore.store.draftReady}
 					<p class="font-medium text-amber-600">Waiting for more players to join...</p>
-				{:else}
+				{:else if isCreator}
 					<p class="font-medium text-green-600">All players have joined! Ready to start.</p>
+				{:else}
+					<p class="font-medium text-green-600">
+						All players have joined! Waiting for host to start draft.
+					</p>
 				{/if}
 			</div>
 		</div>
