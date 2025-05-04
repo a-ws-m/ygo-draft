@@ -110,7 +110,7 @@
 			);
 
 			// Navigate to the draft page
-			goto(`/draft/${draftId}`);
+			goto(`/draft?id=${draftId}`);
 		} catch (error) {
 			console.error('Error starting draft:', error);
 			errorMessage = 'Failed to start draft. Please try again.';

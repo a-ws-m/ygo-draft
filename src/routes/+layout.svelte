@@ -8,6 +8,7 @@
 		signOut
 	} from '$lib/stores/authStore.svelte';
 	import { page } from '$app/state';
+	import { goto } from '$app/navigation';
 
 	let { children } = $props();
 
@@ -17,6 +18,14 @@
 
 	// Combined check for access - allow if the route is public or the user is authenticated
 	const hasAccess = $derived(!authStore.loading && (isPublicRoute || authStore.session !== null));
+
+	// Handle redirection for protected routes
+	$effect(() => {
+		if (!authStore.loading && !isPublicRoute && !authStore.session) {
+			const currentPath = page.url.pathname + page.url.search;
+			goto(`/auth?redirect=${encodeURIComponent(currentPath)}`);
+		}
+	});
 
 	onMount(async () => {
 		// Initialize auth and subscribe to changes

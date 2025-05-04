@@ -4,15 +4,14 @@
 	import { handleAcceptPile, handleDeclineCurrentPile } from '$lib/utils/winstonDraftLogic';
 	import { initializeDraft, handleDraftBroadcast } from '$lib/utils/draftManager.svelte';
 	import { startDraftInDB } from '$lib/utils/draftManager';
-	import type { PageProps } from './$types';
 	import CardList from '$lib/components/CardList.svelte';
 	import RochesterDraftView from '$lib/components/RochesterDraftView.svelte';
 	import * as draftStore from '$lib/stores/draftStore.svelte';
 	import { canPlayerDeclineCurrentOption } from '$lib/utils/draftManager.svelte';
 	import { store as authStore } from '$lib/stores/authStore.svelte';
 
-	// Get the draft ID from the page params
-	let { data }: PageProps = $props();
+	// Get the draft ID from URL query parameter
+	let draftId = $state('');
 
 	// Local state for loading and errors
 	let isLoading = $state(true);
@@ -58,7 +57,7 @@
 			const { data: draft, error: draftError } = await supabase
 				.from('drafts')
 				.select('*')
-				.eq('id', data.id)
+				.eq('id', draftId)
 				.single();
 
 			if (draftError) {
@@ -75,7 +74,7 @@
 			const { data: cube, error: cubeError } = await supabase
 				.from('cubes')
 				.select('*')
-				.eq('draft_id', data.id)
+				.eq('draft_id', draftId)
 				.order('index', { ascending: true });
 
 			if (cubeError) {
@@ -95,7 +94,7 @@
 
 			// Initialize the draft store
 			draftStore.initializeDraft({
-				id: data.id,
+				id: draftId,
 				...draftData
 			});
 
@@ -108,9 +107,18 @@
 		}
 	}
 
-	onMount(async () => {
-		// Load draft data first
-		await loadDraftData();
+	onMount(() => {
+		// Get draft ID from the URL query parameter
+		draftId = new URLSearchParams(window.location.search).get('id') || '';
+
+		if (!draftId) {
+			loadError = 'No draft ID provided. Please check the URL.';
+			isLoading = false;
+			return;
+		}
+
+		// Now load the draft data
+		loadDraftData();
 
 		// Get the authenticated user's ID
 		draftStore.store.userId = authStore.session?.user?.id || '';
@@ -122,7 +130,7 @@
 		}
 
 		// Join the presence channel for the draft
-		const channel = supabase.channel(`draft-room-${data.id}`, {
+		const channel = supabase.channel(`draft-room-${draftId}`, {
 			config: {
 				presence: {
 					key: draftStore.store.userId
@@ -210,12 +218,12 @@
 		if (!draftStore.store.draftReady) return;
 
 		try {
-			await startDraftInDB(data.id, draftStore.store.participants);
+			await startDraftInDB(draftId, draftStore.store.participants);
 
 			const response = await draftStore.store.channel.send({
 				type: 'broadcast',
 				event: 'draft-started',
-				payload: { draftId: data.id }
+				payload: { draftId }
 			});
 
 			if (response.error) {
@@ -235,7 +243,7 @@
 		<!-- Jumbotron for draft details before start -->
 		<div class="mb-6 bg-white p-8 shadow-md">
 			<div class="mx-auto max-w-4xl">
-				<h1 class="mb-2 text-3xl font-bold text-gray-800">Draft Room: {data.id}</h1>
+				<h1 class="mb-2 text-3xl font-bold text-gray-800">Draft Room: {draftId}</h1>
 				<p class="mb-4 text-xl text-gray-600">Waiting for players to join...</p>
 				<div class="flex items-center gap-2 rounded-lg border border-indigo-100 bg-indigo-50 p-3">
 					<span class="text-lg font-medium text-indigo-700">
@@ -261,7 +269,7 @@
 		<div
 			class="flex w-full items-center justify-between border-b border-gray-300 bg-white px-6 py-4"
 		>
-			<p class="text-lg text-gray-600">Draft ID: {data.id}</p>
+			<p class="text-lg text-gray-600">Draft ID: {draftId}</p>
 			<p class="text-lg font-medium text-gray-700">
 				Connected Users: {draftStore.store.connectedUsers}/{draftData.numberOfPlayers}
 			</p>
