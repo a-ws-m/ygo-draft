@@ -1,0 +1,8 @@
+{
+  "recommendations": [
+    "denoland.vscode-deno",
+    "dbaeumer.vscode-eslint",
+    "svelte.svelte-vscode",
+    "stivo.tailwind-fold"
+  ]
+}
