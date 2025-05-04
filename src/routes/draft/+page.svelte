@@ -95,7 +95,7 @@
 		}
 	}
 
-	onMount(() => {
+	onMount(async () => {
 		// Get draft ID from the URL query parameter
 		draftId = new URLSearchParams(window.location.search).get('id') || '';
 
@@ -116,6 +116,10 @@
 			loadError = 'You must be logged in to participate in a draft.';
 			return;
 		}
+
+		 // Apply workaround for Supabase Realtime auth issue #1111
+		// https://github.com/supabase/realtime/issues/1111
+		await supabase.realtime.setAuth();
 
 		// Join the presence channel for the draft
 		const channel = supabase.channel(`draft-room-${draftId}`, {
