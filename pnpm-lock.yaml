@@ -19,13 +19,13 @@ importers:
         version: 5.5.2
     devDependencies:
       '@eslint/compat':
-        specifier: ^1.2.5
+        specifier: ^1.2.9
         version: 1.2.9(eslint@9.26.0(jiti@2.4.2))
       '@eslint/js':
-        specifier: ^9.18.0
+        specifier: ^9.26.0
         version: 9.26.0
       '@playwright/test':
-        specifier: ^1.49.1
+        specifier: ^1.52.0
         version: 1.52.0
       '@sveltejs/adapter-auto':
         specifier: ^6.0.0
@@ -34,37 +34,37 @@ importers:
         specifier: ^3.0.8
         version: 3.0.8(@sveltejs/kit@2.20.8(@sveltejs/vite-plugin-svelte@5.0.3(svelte@5.28.2)(vite@6.3.4(@types/node@22.15.3)(jiti@2.4.2)(lightningcss@1.29.2)))(svelte@5.28.2)(vite@6.3.4(@types/node@22.15.3)(jiti@2.4.2)(lightningcss@1.29.2)))
       '@sveltejs/kit':
-        specifier: ^2.16.0
+        specifier: ^2.20.8
         version: 2.20.8(@sveltejs/vite-plugin-svelte@5.0.3(svelte@5.28.2)(vite@6.3.4(@types/node@22.15.3)(jiti@2.4.2)(lightningcss@1.29.2)))(svelte@5.28.2)(vite@6.3.4(@types/node@22.15.3)(jiti@2.4.2)(lightningcss@1.29.2))
       '@sveltejs/vite-plugin-svelte':
-        specifier: ^5.0.0
+        specifier: ^5.0.3
         version: 5.0.3(svelte@5.28.2)(vite@6.3.4(@types/node@22.15.3)(jiti@2.4.2)(lightningcss@1.29.2))
       '@tailwindcss/forms':
-        specifier: ^0.5.9
+        specifier: ^0.5.10
         version: 0.5.10(tailwindcss@4.1.5)
       '@tailwindcss/typography':
-        specifier: ^0.5.15
+        specifier: ^0.5.16
         version: 0.5.16(tailwindcss@4.1.5)
       '@tailwindcss/vite':
-        specifier: ^4.0.0
+        specifier: ^4.1.5
         version: 4.1.5(vite@6.3.4(@types/node@22.15.3)(jiti@2.4.2)(lightningcss@1.29.2))
       '@types/papaparse':
         specifier: ^5.3.15
         version: 5.3.15
       eslint:
-        specifier: ^9.18.0
+        specifier: ^9.26.0
         version: 9.26.0(jiti@2.4.2)
       eslint-config-prettier:
-        specifier: ^10.0.1
+        specifier: ^10.1.2
         version: 10.1.2(eslint@9.26.0(jiti@2.4.2))
       eslint-plugin-svelte:
-        specifier: ^3.0.0
+        specifier: ^3.5.1
         version: 3.5.1(eslint@9.26.0(jiti@2.4.2))(svelte@5.28.2)
       globals:
         specifier: ^16.0.0
         version: 16.0.0
       prettier:
-        specifier: ^3.4.2
+        specifier: ^3.5.3
         version: 3.5.3
       prettier-plugin-svelte:
         specifier: ^3.3.3
@@ -73,22 +73,22 @@ importers:
         specifier: ^0.6.11
         version: 0.6.11(prettier-plugin-svelte@3.3.3(prettier@3.5.3)(svelte@5.28.2))(prettier@3.5.3)
       svelte:
-        specifier: ^5.0.0
+        specifier: ^5.28.2
         version: 5.28.2
       svelte-check:
-        specifier: ^4.0.0
+        specifier: ^4.1.7
         version: 4.1.7(picomatch@4.0.2)(svelte@5.28.2)(typescript@5.8.3)
       tailwindcss:
-        specifier: ^4.0.0
+        specifier: ^4.1.5
         version: 4.1.5
       typescript:
-        specifier: ^5.0.0
+        specifier: ^5.8.3
         version: 5.8.3
       typescript-eslint:
-        specifier: ^8.20.0
+        specifier: ^8.31.1
         version: 8.31.1(eslint@9.26.0(jiti@2.4.2))(typescript@5.8.3)
       vite:
-        specifier: ^6.2.5
+        specifier: ^6.3.4
         version: 6.3.4(@types/node@22.15.3)(jiti@2.4.2)(lightningcss@1.29.2)
 
 packages:
