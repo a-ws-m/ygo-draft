@@ -1,6 +1,6 @@
 import * as draftStore from '$lib/stores/draftStore.svelte';
 import { supabase } from '$lib/supabaseClient';
-import {handleAcceptPile, handleDeclineCurrentPile } from './winstonDraftLogic';
+import { handleAcceptPile, handleDeclineCurrentPile } from './winstonDraftLogic';
 import { fetchCubeWithCardData } from '$lib/services/cardService';
 
 export interface DraftStrategy {
@@ -197,19 +197,19 @@ export class RochesterDraftStrategy implements DraftStrategy {
     // Check if a player has completed their draft
     checkPlayerDraftComplete(playerIndex: number): void {
         const { store } = draftStore;
-        
+
         // If we're in the last round and all packs are empty or have only 1 card left in other players' packs
         if (store.currentRound === store.rounds.length - 1) {
             const availableCards = store.rounds[store.currentRound].reduce(
-                (total, pack) => total + pack.length, 
+                (total, pack) => total + pack.length,
                 0
             );
-            
+
             // If there are no more cards or the remaining cards are in other players' packs
             // and this player has already selected
-            if (availableCards === 0 || 
-                (store.selectedPlayers.has(playerIndex) && 
-                 store.rounds[store.currentRound][store.currentPackIndex[playerIndex]].length === 0)) {
+            if (availableCards === 0 ||
+                (store.selectedPlayers.has(playerIndex) &&
+                    store.rounds[store.currentRound][store.currentPackIndex[playerIndex]].length === 0)) {
                 store.playerFinished = true;
             }
         }
