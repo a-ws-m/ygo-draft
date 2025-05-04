@@ -11,17 +11,49 @@ export async function fetchCardData(cardIds: number[]) {
             return { cards: [], error: null };
         }
 
-        // Call the Supabase edge function to fetch and cache card data
+        // First check if cards already exist in the database
+        const { data: existingCards, error: dbError } = await supabase
+            .from('cards')
+            .select('*')
+            .in('id', cardIds);
+
+        if (dbError) {
+            console.error("Error fetching cards from database:", dbError);
+            // Continue to try the edge function as fallback
+        } else {
+            // Check if all requested cards were found in the database
+            const foundCardIds = existingCards.map(card => card.id);
+            const missingCardIds = cardIds.filter(id => !foundCardIds.includes(id));
+
+            // If all cards were found in the database, return them
+            if (missingCardIds.length === 0) {
+                return { cards: existingCards, error: null };
+            }
+
+            // If some cards are missing, we need to fetch them
+            // Only request the missing card IDs from the edge function
+            cardIds = missingCardIds;
+        }
+
+        // Call the Supabase edge function to fetch and cache missing card data
         const { data, error } = await supabase.functions.invoke("fetch-card-data", {
             body: { cardIds }
         });
 
         if (error) {
             console.error("Error fetching card data:", error);
-            return { cards: [], error: error.message };
+            return { cards: existingCards || [], error: error.message };
         }
 
-        return { cards: data.data, error: null };
+        // Combine existing cards with newly fetched cards
+        const allCards = [...(existingCards || []), ...(data.data || [])];
+
+        // Remove duplicates (in case there were any)
+        const uniqueCards = Array.from(
+            new Map(allCards.map(card => [card.id, card])).values()
+        );
+
+        return { cards: uniqueCards, error: null };
     } catch (error) {
         console.error("Error in fetchCardData:", error);
         return { cards: [], error: error.message };
