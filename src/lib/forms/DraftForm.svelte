@@ -21,6 +21,11 @@
 	let totalCards = $state(0);
 	let cube = $state([]);
 
+	// Constants for limits
+	const MAX_POOL_SIZE = 1000;
+	const MAX_PLAYERS = 10;
+	const DAILY_DRAFT_LIMIT = 100; // Not used directly in UI but useful for reference
+
 	function handleFileUpload(event: Event) {
 		const target = event.target as HTMLInputElement;
 		cubeFile = target.files?.[0] || null;
@@ -55,6 +60,18 @@
 	function validateOptions() {
 		optionErrorMessage = '';
 
+		// First check database limits
+		if (poolSize > MAX_POOL_SIZE) {
+			optionErrorMessage = `Pool size cannot exceed ${MAX_POOL_SIZE} cards.`;
+			return;
+		}
+
+		if (numberOfPlayers > MAX_PLAYERS) {
+			optionErrorMessage = `Number of players cannot exceed ${MAX_PLAYERS}.`;
+			return;
+		}
+
+		// Then check other validations
 		if (poolSize > totalCards) {
 			optionErrorMessage = 'Pool size cannot exceed the total number of cards in the cube.';
 		} else if (draftMethod === 'rochester') {
@@ -180,12 +197,15 @@
 
 	<!-- Pool Size -->
 	<div>
-		<label for="pool-size" class="mb-1 block text-sm font-medium text-gray-700"> Pool Size </label>
+		<label for="pool-size" class="mb-1 block text-sm font-medium text-gray-700"> 
+			Pool Size <span class="text-xs text-gray-500">(max: {MAX_POOL_SIZE})</span>
+		</label>
 		<input
 			type="number"
 			id="pool-size"
 			bind:value={poolSize}
 			min="1"
+			max={MAX_POOL_SIZE}
 			oninput={validateOptions}
 			class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
 		/>
@@ -194,13 +214,14 @@
 	<!-- Number of Players -->
 	<div>
 		<label for="number-of-players" class="mb-1 block text-sm font-medium text-gray-700">
-			Number of Players
+			Number of Players <span class="text-xs text-gray-500">(max: {MAX_PLAYERS})</span>
 		</label>
 		<input
 			type="number"
 			id="number-of-players"
 			bind:value={numberOfPlayers}
 			min="2"
+			max={MAX_PLAYERS}
 			oninput={validateOptions}
 			class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
 		/>
