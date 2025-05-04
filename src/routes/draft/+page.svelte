@@ -69,7 +69,7 @@
 			} = await supabase.auth.getUser();
 			isCreator = user && draft.created_by === user.id;
 
-			 // Store data in local state without fetching the cube data
+			// Store data in local state without fetching the cube data
 			// since the draftStrategies will fetch it when needed
 			draftData = {
 				draftMethod: draft.draft_method,
@@ -95,7 +95,7 @@
 		}
 	}
 
-	onMount(() => {
+	onMount(async () => {
 		// Get draft ID from the URL query parameter
 		draftId = new URLSearchParams(window.location.search).get('id') || '';
 
@@ -117,12 +117,20 @@
 			return;
 		}
 
+		 // Apply workaround for Supabase Realtime auth issue #1111
+		// https://github.com/supabase/realtime/issues/1111
+		await supabase.realtime.setAuth();
+
 		// Join the presence channel for the draft
 		const channel = supabase.channel(`draft-room-${draftId}`, {
 			config: {
 				presence: {
 					key: draftStore.store.userId
-				}
+				},
+				broadcast: {
+					ack: true
+				},
+				private: true
 			}
 		});
 		draftStore.store.channel = channel;
@@ -158,11 +166,53 @@
 
 				if (trackResponse.error) {
 					console.error('Error tracking presence:', trackResponse.error);
+
+					// Add debug info for presence tracking errors
+					console.debug('Debug info for presence tracking error:');
+					console.debug('- Draft ID:', draftId);
+					console.debug('- User ID:', draftStore.store.userId);
+
+					// Check if user is participant using RPC
+					try {
+						const { data, error } = await supabase.rpc('is_draft_participant', {
+							draft_id: draftId
+						});
+						console.debug('- is_draft_participant result:', data);
+						if (error) console.debug('- is_draft_participant error:', error);
+					} catch (e) {
+						console.debug('- Failed to call is_draft_participant:', e);
+					}
+
+					// Check draft status
+					try {
+						const { data, error } = await supabase
+							.from('drafts')
+							.select('status, participants')
+							.eq('id', draftId)
+							.single();
+						console.debug('- Draft status:', data?.status);
+						console.debug('- Participants:', data?.participants);
+						if (error) console.debug('- Draft query error:', error);
+					} catch (e) {
+						console.debug('- Failed to query draft:', e);
+					}
 				} else {
 					console.log('User presence tracked successfully');
 				}
 			} else {
 				console.error('Failed to subscribe to presence channel:', status);
+				// Add debug info for subscription failures
+				console.debug('Debug info for subscription failure:');
+				console.debug('- Draft ID:', draftId);
+				console.debug('- User ID:', draftStore.store.userId);
+
+				try {
+					const { data, error } = await supabase.rpc('is_draft_participant', { draft_id: draftId });
+					console.debug('- is_draft_participant result:', data);
+					if (error) console.debug('- is_draft_participant error:', error);
+				} catch (e) {
+					console.debug('- Failed to call is_draft_participant:', e);
+				}
 			}
 		});
 
@@ -206,8 +256,10 @@
 		if (!draftStore.store.draftReady) return;
 
 		try {
+			// Use the updated startDraftInDB function which now uses our secure RPC function
 			await startDraftInDB(draftId, draftStore.store.participants);
 
+			// Send broadcast to all participants that the draft has started
 			const response = await draftStore.store.channel.send({
 				type: 'broadcast',
 				event: 'draft-started',
@@ -215,6 +267,39 @@
 			});
 
 			if (response.error) {
+				console.error('Error sending broadcast:', response.error);
+
+				// Add debug info for broadcast errors
+				console.debug('Debug info for broadcast error:');
+				console.debug('- Draft ID:', draftId);
+				console.debug('- User ID:', draftStore.store.userId);
+				console.debug('- Participants:', draftStore.store.participants);
+
+				// Check if user is participant using RPC
+				try {
+					const { data, error } = await supabase.rpc('is_draft_participant', { draft_id: draftId });
+					console.debug('- is_draft_participant result:', data);
+					if (error) console.debug('- is_draft_participant error:', error);
+				} catch (e) {
+					console.debug('- Failed to call is_draft_participant:', e);
+				}
+
+				// Check draft status
+				try {
+					const { data, error } = await supabase
+						.from('drafts')
+						.select('created_by, status, participants')
+						.eq('id', draftId)
+						.single();
+					console.debug('- Draft created by:', data?.created_by);
+					console.debug('- Draft status:', data?.status);
+					console.debug('- Participants:', data?.participants);
+					console.debug('- Is creator match:', data?.created_by === draftStore.store.userId);
+					if (error) console.debug('- Draft query error:', error);
+				} catch (e) {
+					console.debug('- Failed to query draft:', e);
+				}
+
 				throw response.error;
 			}
 
@@ -223,6 +308,7 @@
 			await initializeDraft();
 		} catch (error) {
 			console.error('Error starting draft:', error);
+			loadError = `Failed to start draft: ${error.message}`;
 		}
 	}
 </script>
@@ -290,8 +376,12 @@
 				</p>
 				{#if !draftStore.store.draftReady}
 					<p class="font-medium text-amber-600">Waiting for more players to join...</p>
-				{:else}
+				{:else if isCreator}
 					<p class="font-medium text-green-600">All players have joined! Ready to start.</p>
+				{:else}
+					<p class="font-medium text-green-600">
+						All players have joined! Waiting for host to start draft.
+					</p>
 				{/if}
 			</div>
 		</div>
