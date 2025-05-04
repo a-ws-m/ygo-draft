@@ -1,4 +1,5 @@
 import Papa from "papaparse";
+import { fetchCardData } from "$lib/services/cardService";
 
 export async function processCubeFile(file: File): Promise<any[]> {
     const text = await file.text();
@@ -12,10 +13,8 @@ export async function processCubeFile(file: File): Promise<any[]> {
         throw new Error(`CSV parsing errors: ${errors.map((e) => e.message).join(", ")}`);
     }
 
-    const cube = [];
-
-    // Validate and process each row
-    const cardData = data.map((columns) => {
+    // Validate and extract card IDs from each row
+    const cardEntries = data.map((columns) => {
         if (columns.length !== 4) {
             throw new Error(`Invalid row format: "${columns.join(",")}". Expected 4 columns.`);
         }
@@ -26,43 +25,55 @@ export async function processCubeFile(file: File): Promise<any[]> {
             throw new Error(`Invalid data in row: "${columns.join(",")}". Ensure all fields are valid.`);
         }
 
-        return { id, name, type, quantity: Number(quantity) };
+        return {
+            id: Number(id),
+            name,
+            type,
+            quantity: Number(quantity)
+        };
     });
 
-    const ids = cardData.map((card) => card.id).join(",");
+    // Extract all unique card IDs for fetching
+    const cardIds = [...new Set(cardEntries.map(entry => entry.id))];
 
-    const response = await fetch(`https://db.ygoprodeck.com/api/v7/cardinfo.php?id=${ids}`);
-    if (!response.ok) {
-        throw new Error(`Failed to fetch data for cards: ${response.statusText}`);
+    // Fetch card data from our edge function (which will check the database first)
+    const { cards, error } = await fetchCardData(cardIds);
+
+    if (error) {
+        throw new Error(`Failed to fetch card data: ${error}`);
     }
 
-    const apiData = await response.json();
+    // Create a map for quick lookups of card data
+    const cardMap = new Map(cards.map(card => [card.id, card]));
 
-    for (const card of cardData) {
-        const apiCard = apiData.data.find((apiEntry) => apiEntry.id.toString() === card.id);
+    // Create the final cube with card data and quantities
+    const cube = [];
 
-        if (!apiCard) {
-            throw new Error(`Card ID ${card.id} not found in API response.`);
+    for (const entry of cardEntries) {
+        const cardData = cardMap.get(entry.id);
+
+        if (!cardData) {
+            throw new Error(`Card ID ${entry.id} not found in API response.`);
         }
 
-        if (apiCard.name !== card.name) {
+        if (cardData.name !== entry.name) {
             throw new Error(
-                `Card name mismatch for ID: ${card.id}. Expected name: "${card.name}". Got name: "${apiCard.name}".`
+                `Card name mismatch for ID: ${entry.id}. Expected name: "${entry.name}". Got name: "${cardData.name}".`
             );
         }
 
         cube.push({
-            id: card.id,
-            name: card.name,
-            type: card.type,
-            quantity: card.quantity,
-            imageUrl: apiCard.card_images[0]?.image_url,
-            smallImageUrl: apiCard.card_images[0]?.image_url_small,
-            apiData: apiCard,
+            id: entry.id,
+            name: entry.name,
+            type: entry.type,
+            quantity: entry.quantity,
+            imageUrl: cardData.image_url,
+            smallImageUrl: cardData.small_image_url,
+            apiData: cardData.api_data,
         });
     }
 
     console.log("Cube processed successfully:", cube);
 
-    return cube; // Return the cube array
+    return cube;
 }

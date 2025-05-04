@@ -9,6 +9,7 @@
 	import * as draftStore from '$lib/stores/draftStore.svelte';
 	import { canPlayerDeclineCurrentOption } from '$lib/utils/draftManager.svelte';
 	import { store as authStore } from '$lib/stores/authStore.svelte';
+	import { fetchCubeWithCardData } from '$lib/services/cardService';
 
 	// Get the draft ID from URL query parameter
 	let draftId = $state('');
@@ -70,15 +71,11 @@
 			} = await supabase.auth.getUser();
 			isCreator = user && draft.created_by === user.id;
 
-			// Fetch cube cards
-			const { data: cube, error: cubeError } = await supabase
-				.from('cubes')
-				.select('*')
-				.eq('draft_id', draftId)
-				.order('index', { ascending: true });
+			// Fetch cube cards with full card data using the cardService
+			const { cube, error: cubeError } = await fetchCubeWithCardData(draftId);
 
 			if (cubeError) {
-				throw new Error('Failed to fetch cube data: ' + cubeError.message);
+				throw new Error('Failed to fetch cube data: ' + cubeError);
 			}
 
 			// Store data in local state

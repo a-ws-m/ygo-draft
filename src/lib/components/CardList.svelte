@@ -197,7 +197,7 @@
 							</button>
 							<!-- Card Name and Quantity -->
 							<p class="mt-1 text-center text-sm text-gray-600">{card.name}</p>
-							{#if card.quantity}
+							{#if card.quantity && card.quantity > 1}
 								<p class="text-xs text-gray-500">x{card.quantity}</p>
 							{/if}
 						</div>
