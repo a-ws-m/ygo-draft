@@ -95,31 +95,16 @@
 		}
 	}
 
-	onMount(async () => {
-		// Get draft ID from the URL query parameter
-		draftId = new URLSearchParams(window.location.search).get('id') || '';
-
-		if (!draftId) {
-			loadError = 'No draft ID provided. Please check the URL.';
-			isLoading = false;
-			return;
-		}
-
-		// Now load the draft data
-		loadDraftData();
-
-		// Get the authenticated user's ID
-		draftStore.store.userId = authStore.session?.user?.id || '';
-		console.log('User ID:', draftStore.store.userId);
-
-		if (!draftStore.store.userId) {
-			loadError = 'You must be logged in to participate in a draft.';
-			return;
-		}
-
-		 // Apply workaround for Supabase Realtime auth issue #1111
+	// Function to create and set up the draft channel
+	async function createDraftChannel() {
+		// Apply workaround for Supabase Realtime auth issue #1111
 		// https://github.com/supabase/realtime/issues/1111
 		await supabase.realtime.setAuth();
+
+		 // Clean up existing channel if it exists
+		if (draftStore.store.channel) {
+			draftStore.store.channel.unsubscribe();
+		}
 
 		// Join the presence channel for the draft
 		const channel = supabase.channel(`draft-room-${draftId}`, {
@@ -216,9 +201,17 @@
 			}
 		});
 
+		 // Set up broadcast event listeners
+		setupBroadcastListeners(channel);
+
+		return channel;
+	}
+
+	function setupBroadcastListeners(channel) {
 		// Listen for the "draft started" broadcast
 		channel.on('broadcast', { event: 'draft-started' }, async (payload) => {
 			console.log('Draft started broadcast received:', payload);
+			await createDraftChannel();
 			await handleDraftBroadcast('draft-started', payload);
 		});
 
@@ -244,6 +237,32 @@
 			console.log('Packs rotated broadcast received:', broadcast);
 			await handleDraftBroadcast('packs-rotated', broadcast.payload);
 		});
+	}
+
+	onMount(async () => {
+		// Get draft ID from the URL query parameter
+		draftId = new URLSearchParams(window.location.search).get('id') || '';
+
+		if (!draftId) {
+			loadError = 'No draft ID provided. Please check the URL.';
+			isLoading = false;
+			return;
+		}
+
+		// Now load the draft data
+		loadDraftData();
+
+		// Get the authenticated user's ID
+		draftStore.store.userId = authStore.session?.user?.id || '';
+		console.log('User ID:', draftStore.store.userId);
+
+		if (!draftStore.store.userId) {
+			loadError = 'You must be logged in to participate in a draft.';
+			return;
+		}
+
+		// Create and subscribe to the draft channel
+		await createDraftChannel();
 	});
 
 	onDestroy(() => {
