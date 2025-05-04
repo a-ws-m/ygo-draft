@@ -33,11 +33,33 @@ export const store = $state({
 
 // Initialize the draft store with data
 export function initializeDraft(data) {
+    // Set basic draft properties
     store.draftId = data.id;
     store.draftMethod = data.draftMethod;
     store.numberOfPlayers = data.numberOfPlayers;
     store.numberOfPiles = data.numberOfPiles || 3;
     store.packSize = data.packSize || 15;
+    
+    // Set optional properties if provided
+    if (data.participants) store.participants = data.participants;
+    if (data.connectedUsers !== undefined) store.connectedUsers = data.connectedUsers;
+    if (data.draftReady !== undefined) store.draftReady = data.draftReady;
+    if (data.draftStarted !== undefined) store.draftStarted = data.draftStarted;
+    if (data.currentPlayer !== undefined) store.currentPlayer = data.currentPlayer;
+    if (data.piles) store.piles = data.piles;
+    if (data.deck) store.deck = data.deck;
+    if (data.draftedDeck) store.draftedDeck = data.draftedDeck;
+    if (data.allFinished !== undefined) store.allFinished = data.allFinished;
+    if (data.playerFinished !== undefined) store.playerFinished = data.playerFinished;
+    
+    // Rochester specific fields
+    if (data.rounds) store.rounds = data.rounds;
+    if (data.currentRound !== undefined) store.currentRound = data.currentRound;
+    if (data.currentPackIndex) store.currentPackIndex = data.currentPackIndex;
+    if (data.draftStrategy) store.draftStrategy = data.draftStrategy;
+    
+    console.log('Draft store initialized with data:', data);
+    return store;
 }
 
 // Get current user ID
@@ -48,16 +70,40 @@ export async function getCurrentUserId() {
 
 // Reset all fields to default values
 export function resetDraftStore() {
+    // First clean up any existing channel
+    if (store.channel) {
+        store.channel.unsubscribe();
+        store.channel = null;
+    }
+    
+    // Reset all store properties
+    store.draftId = '';
+    store.connectedUsers = 0;
+    store.currentPileIndex = 0;
+    store.draftReady = false;
+    store.participants = [];
+    store.draftStarted = false;
     store.piles = [];
     store.deck = [];
+    store.draftedDeck = [];
+    store.currentPlayer = 0;
+    store.channel = null;
+    store.draftMethod = '';
+    store.numberOfPlayers = 0;
+    store.numberOfPiles = 3;
+    store.packSize = 15;
+    store.allFinished = false;
+    store.lastAcceptedPile = null;
+    store.playerFinished = false;
     store.rounds = [];
     store.currentRound = 0;
     store.currentPackIndex = {};
     store.selectedPlayers = new Set();
-    store.currentPileIndex = 0;
-    store.lastAcceptedPile = null;
-    store.allFinished = false;
+    store.draftStrategy = null;
     store.hasSelected = false;
+    
+    // Keep userId as it's related to the logged-in user, not the draft
+    // store.userId = '';
 }
 
 export function resetCurrentPileIndex() {

@@ -5,9 +5,6 @@ import { handleNextPlayer } from './winstonDraftLogic';
 export async function initializeDraft() {
     const { store } = draftStore;
 
-    // Reset the store for a fresh start
-    draftStore.resetDraftStore();
-
     // Create the appropriate draft strategy
     const strategy = createDraftStrategy(store.draftMethod);
     store.draftStrategy = strategy;
