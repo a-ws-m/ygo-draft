@@ -10,6 +10,8 @@
 	import { canPlayerDeclineCurrentOption } from '$lib/utils/draftManager.svelte';
 	import { store as authStore } from '$lib/stores/authStore.svelte';
 
+	$inspect('draftMethod', draftStore.store.draftMethod);
+
 	// Get the draft ID from URL query parameter
 	let draftId = $state('');
 
@@ -17,14 +19,6 @@
 	let isLoading = $state(true);
 	let loadError = $state(null);
 	let isCreator = $state(false);
-	// Draft data
-	let draftData = $state({
-		cube: [],
-		draftMethod: '',
-		poolSize: 0,
-		numberOfPlayers: 0,
-		connectedUsers: 0
-	});
 
 	let isActivePlayer = $derived.by(() => {
 		if (
@@ -69,24 +63,22 @@
 			} = await supabase.auth.getUser();
 			isCreator = user && draft.created_by === user.id;
 
-			// Store data in local state without fetching the cube data
-			// since the draftStrategies will fetch it when needed
-			draftData = {
+			// Transform database model to app model and initialize the draft store
+			const draftInfo = {
+				id: draftId,
 				draftMethod: draft.draft_method,
 				poolSize: draft.pool_size,
 				numberOfPlayers: draft.number_of_players,
 				connectedUsers: draft.connected_users,
 				numberOfPiles: draft.number_of_piles || 3,
-				packSize: draft.pack_size || 5
+				packSize: draft.pack_size || 15,
+				draftStarted: draft.status === 'active',
 			};
 
 			// Initialize the draft store
-			draftStore.initializeDraft({
-				id: draftId,
-				...draftData
-			});
+			draftStore.initializeDraft(draftInfo);
 
-			console.log('Draft initialized with data:', draftData);
+			console.log('Draft initialized with data:', draftInfo);
 		} catch (error) {
 			console.error('Error loading draft:', error);
 			loadError = error.message;
@@ -95,31 +87,16 @@
 		}
 	}
 
-	onMount(async () => {
-		// Get draft ID from the URL query parameter
-		draftId = new URLSearchParams(window.location.search).get('id') || '';
-
-		if (!draftId) {
-			loadError = 'No draft ID provided. Please check the URL.';
-			isLoading = false;
-			return;
-		}
-
-		// Now load the draft data
-		loadDraftData();
-
-		// Get the authenticated user's ID
-		draftStore.store.userId = authStore.session?.user?.id || '';
-		console.log('User ID:', draftStore.store.userId);
-
-		if (!draftStore.store.userId) {
-			loadError = 'You must be logged in to participate in a draft.';
-			return;
-		}
-
-		 // Apply workaround for Supabase Realtime auth issue #1111
+	// Function to create and set up the draft channel
+	async function createDraftChannel() {
+		// Apply workaround for Supabase Realtime auth issue #1111
 		// https://github.com/supabase/realtime/issues/1111
 		await supabase.realtime.setAuth();
+
+		 // Clean up existing channel if it exists
+		if (draftStore.store.channel) {
+			draftStore.store.channel.unsubscribe();
+		}
 
 		// Join the presence channel for the draft
 		const channel = supabase.channel(`draft-room-${draftId}`, {
@@ -141,7 +118,7 @@
 			console.log('Presence state updated:', state);
 			draftStore.store.connectedUsers = Object.keys(state).length;
 			draftStore.store.participants = Object.keys(state);
-			draftStore.store.draftReady = draftStore.store.connectedUsers === draftData.numberOfPlayers;
+			draftStore.store.draftReady = draftStore.store.connectedUsers === draftStore.store.numberOfPlayers;
 		});
 
 		// Subscribe to presence join events
@@ -216,9 +193,17 @@
 			}
 		});
 
+		 // Set up broadcast event listeners
+		setupBroadcastListeners(channel);
+
+		return channel;
+	}
+
+	function setupBroadcastListeners(channel) {
 		// Listen for the "draft started" broadcast
 		channel.on('broadcast', { event: 'draft-started' }, async (payload) => {
 			console.log('Draft started broadcast received:', payload);
+			await createDraftChannel();
 			await handleDraftBroadcast('draft-started', payload);
 		});
 
@@ -244,11 +229,45 @@
 			console.log('Packs rotated broadcast received:', broadcast);
 			await handleDraftBroadcast('packs-rotated', broadcast.payload);
 		});
+	}
+
+	onMount(async () => {
+		// Get draft ID from the URL query parameter
+		const newDraftId = new URLSearchParams(window.location.search).get('id') || '';
+
+		if (!newDraftId) {
+			loadError = 'No draft ID provided. Please check the URL.';
+			isLoading = false;
+			return;
+		}
+
+		// If we're loading a different draft ID than before, reset the store
+		if (draftId !== newDraftId) {
+			// Reset draft store completely before initializing new draft
+			draftStore.resetDraftStore();
+			draftId = newDraftId;
+		}
+
+		// Now load the draft data
+		await loadDraftData();
+
+		// Get the authenticated user's ID
+		draftStore.store.userId = authStore.session?.user?.id || '';
+		console.log('User ID:', draftStore.store.userId);
+
+		if (!draftStore.store.userId) {
+			loadError = 'You must be logged in to participate in a draft.';
+			return;
+		}
+
+		// Create and subscribe to the draft channel
+		await createDraftChannel();
 	});
 
 	onDestroy(() => {
 		if (draftStore.store.channel) {
 			draftStore.store.channel.unsubscribe();
+			draftStore.store.channel = null;
 		}
 	});
 
@@ -322,7 +341,7 @@
 				<p class="mb-4 text-xl text-gray-600">Waiting for players to join...</p>
 				<div class="flex items-center gap-2 rounded-lg border border-indigo-100 bg-indigo-50 p-3">
 					<span class="text-lg font-medium text-indigo-700">
-						{draftStore.store.connectedUsers}/{draftData.numberOfPlayers} Players Connected
+						{draftStore.store.connectedUsers}/{draftStore.store.numberOfPlayers} Players Connected
 					</span>
 					<div class="flex-1"></div>
 					{#if isCreator}
@@ -346,7 +365,7 @@
 		>
 			<p class="text-lg text-gray-600">Draft ID: {draftId}</p>
 			<p class="text-lg font-medium text-gray-700">
-				Connected Users: {draftStore.store.connectedUsers}/{draftData.numberOfPlayers}
+				Connected Users: {draftStore.store.connectedUsers}/{draftStore.store.numberOfPlayers}
 			</p>
 		</div>
 	{/if}
@@ -385,7 +404,7 @@
 				{/if}
 			</div>
 		</div>
-	{:else if draftStore.store.allFinished || (draftData.draftMethod === 'rochester' && draftStore.store.playerFinished)}
+	{:else if draftStore.store.allFinished || (draftStore.store.draftMethod === 'rochester' && draftStore.store.playerFinished)}
 		<div class="flex w-full flex-col items-center">
 			<h2 class="mb-4 text-2xl font-bold text-green-600">Draft Finished!</h2>
 			<div class="w-1/3 rounded bg-gray-100 p-4 shadow">
@@ -393,7 +412,7 @@
 				<CardList cube={draftStore.store.draftedDeck} showYdkDownload={true} showChart={true} />
 			</div>
 		</div>
-	{:else if draftData.draftMethod === 'winston'}
+	{:else if draftStore.store.draftMethod === 'winston'}
 		<!-- Main Section: Split View for Winston Draft -->
 		<div class="flex flex-1 gap-4 p-6">
 			<!-- Left: Current Pile -->
@@ -473,7 +492,7 @@
 				/>
 			</div>
 		</div>
-	{:else if draftData.draftMethod === 'rochester'}
+	{:else if draftStore.store.draftMethod === 'rochester'}
 		<!-- Rochester Draft View -->
 		<div class="flex-1 p-6">
 			<RochesterDraftView />
@@ -483,7 +502,7 @@
 			<!-- Card Selection UI -->
 			<div class="flex-1 rounded bg-white p-4 shadow">
 				<h2 class="mb-4 text-xl font-bold">Unsupported Draft Type</h2>
-				<p>The draft type "{draftData.draftMethod}" is not currently supported.</p>
+				<p>The draft type "{draftStore.store.draftMethod}" is not currently supported.</p>
 			</div>
 
 			<!-- Drafted Card List -->
