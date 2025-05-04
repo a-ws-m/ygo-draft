@@ -8,41 +8,15 @@ import { supabase } from "$lib/supabaseClient";
  */
 export async function startDraftInDB(draftId: string, participants: string[]) {
     try {
-        // Get the current authenticated user
-        const { data: { user } } = await supabase.auth.getUser();
-
-        if (!user) {
-            throw new Error("User must be authenticated to start a draft");
-        }
-
-        // Get the draft to check if the current user is the creator
-        const { data: draft, error: fetchError } = await supabase
-            .from("drafts")
-            .select("created_by")
-            .eq("id", draftId)
-            .single();
-
-        if (fetchError) {
-            console.error("Error fetching draft:", fetchError);
-            throw new Error("Failed to fetch draft details.");
-        }
-
-        if (draft.created_by !== user.id) {
-            throw new Error("Only the creator of the draft can start it");
-        }
-
-        // Update the draft with the list of participants and set the status to active
-        const { error } = await supabase
-            .from("drafts")
-            .update({
-                participants,
-                status: "active",
-            })
-            .eq("id", draftId);
+        // Call the start_draft database function which enforces permission checks
+        const { error } = await supabase.rpc('start_draft', { 
+            draft_id: draftId,
+            participant_list: participants
+        });
 
         if (error) {
-            console.error("Error updating draft in database:", error);
-            throw new Error("Failed to start the draft.");
+            console.error("Error starting draft in database:", error);
+            throw new Error("Failed to start the draft: " + error.message);
         }
 
         console.log("Draft successfully started in the database.");
