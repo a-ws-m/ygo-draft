@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { createDraft } from '$lib/utils/draftManager';
+	import { createDraft } from '$lib/utils/supabaseDraftManager';
 
 	const dispatch = createEventDispatcher();
 
@@ -83,6 +83,7 @@
 				poolSize,
 				numberOfPlayers,
 				cube.map((card) => ({
+					id: card.id, // Add the id field which is required for card_id
 					name: card.name,
 					quantity: card.quantity,
 					type: card.type,

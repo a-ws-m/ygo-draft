@@ -80,7 +80,7 @@ export async function createDraft(
     draftMethod: string,
     poolSize: number,
     numberOfPlayers: number,
-    cube: { name: string; quantity: number; type: string; imageUrl: string; smallImageUrl: string; apiData: any }[],
+    cube: { id: number; name: string; quantity: number; type: string; imageUrl: string; smallImageUrl: string; apiData: any }[],
     numberOfPiles: number = 3,
     packSize: number = 5,
     extraDeckAtEnd: boolean = false
@@ -117,12 +117,8 @@ export async function createDraft(
         for (const card of cube) {
             for (let i = 0; i < card.quantity; i++) {
                 expandedCube.push({
-                    draft_id: draft.id,
-                    name: card.name,
-                    type: card.type,
-                    imageUrl: card.imageUrl,
-                    smallImageUrl: card.smallImageUrl,
-                    apiData: card.apiData,
+                    card_id: card.id, // Ensure card_id is properly set from the card.id
+                    draft_id: draft.id
                 });
             }
         }
@@ -137,25 +133,24 @@ export async function createDraft(
             const mainDeckCards = [];
             const extraDeckCards = [];
 
-            for (const card of limitedCube) {
-                if (isExtraDeckCard(card)) {
-                    extraDeckCards.push(card);
+            for (const entry of limitedCube) {
+                const card = cube.find(c => c.id === entry.card_id);
+                if (card && isExtraDeckCard(card)) {
+                    extraDeckCards.push(entry);
                 } else {
-                    mainDeckCards.push(card);
+                    mainDeckCards.push(entry);
                 }
             }
 
-            // Combine them with extra deck at the start (because we POP the first card)
-            limitedCube = [...extraDeckCards, ...mainDeckCards,];
+            // Combine them with extra deck at the start (because we are using pop to remove)
+            limitedCube = [...extraDeckCards, ...mainDeckCards ];
         }
 
-
         // Assign shuffled indexes to the cards
-        const cubeWithIndexes = limitedCube.map((card, index) => ({
-            ...card,
+        const cubeWithIndexes = limitedCube.map((entry, index) => ({
+            ...entry,
             index, // Assign a unique index after shuffling
         }));
-
 
         // Insert cube data into the `cubes` table
         const { error: cubeError } = await supabase.from("cubes").insert(cubeWithIndexes);

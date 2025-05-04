@@ -60,50 +60,6 @@ export function resetDraftStore() {
     store.hasSelected = false;
 }
 
-// Helpers to update state without returning values
-export async function updateDeck() {
-    try {
-        const { data: remainingCards, error } = await supabase
-            .from('cubes')
-            .select('*')
-            .eq('draft_id', store.draftId)
-            .is('owner', null)
-            .is('pile', null)
-            .order('index', { ascending: true });
-
-        if (error) {
-            console.error('Error fetching remaining cards for the deck:', error);
-            return;
-        }
-
-        store.deck = remainingCards;
-    } catch (error) {
-        console.error('Error updating deck:', error);
-    }
-}
-
-export async function updatePiles() {
-    try {
-        const { data: updatedPiles, error } = await supabase
-            .from('cubes')
-            .select('*')
-            .eq('draft_id', store.draftId)
-            .not('pile', 'is', null)
-            .order('pile', { ascending: true });
-
-        if (error) {
-            console.error('Error fetching updated piles:', error);
-            return;
-        }
-
-        store.piles = Array.from({ length: store.numberOfPiles }, (_, i) =>
-            updatedPiles.filter(card => card.pile === i)
-        );
-    } catch (error) {
-        console.error('Error updating piles:', error);
-    }
-}
-
 export function resetCurrentPileIndex() {
     // Find the first non-empty pile
     const firstNonEmptyPileIndex = store.piles.findIndex(pile => pile && pile.length > 0);
