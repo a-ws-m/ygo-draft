@@ -11,14 +11,6 @@
       <p class="text-gray-600 mb-6">
         Oops! The page you're looking for seems to have been banished to the shadow realm.
       </p>
-      <div class="mb-6">
-        <img 
-          src="{base}/card-back.png" 
-          alt="Yu-Gi-Oh Card Back" 
-          class="h-60 mx-auto"
-          onerror="this.onerror=''; this.src='{base}/images/placeholder.png';"
-        />
-      </div>
       <a 
         href="{base}/"
         class="inline-block bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-6 rounded-lg transition-colors duration-200"
