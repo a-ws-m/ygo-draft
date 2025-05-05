@@ -1,12 +1,24 @@
 <!doctype html>
 <html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" href="%sveltekit.assets%/favicon.svg" />
-		<meta name="viewport" content="width=device-width, initial-scale=1" />
-		%sveltekit.head%
-	</head>
-	<body data-sveltekit-preload-data="hover">
-		<div style="display: contents">%sveltekit.body%</div>
-	</body>
+
+<head>
+	<meta charset="utf-8" />
+	<link rel="icon" href="%sveltekit.assets%/favicon.svg" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<meta name="author" content="Alex Moriarty" />
+
+	<!-- OpenGraph Metadata -->
+	<meta property="og:title" content="YGO Draft - Custom Yu-Gi-Oh! Draft Experience" />
+	<meta property="og:description"
+		content="Create and participate in custom Yu-Gi-Oh! card drafts with your friends. Upload your cube, configure draft settings, and draft in real-time." />
+	<meta property="og:url" content="https://a-ws-m.github.io/ygo-draft/" />
+	<meta property="og:type" content="website" />
+
+	%sveltekit.head%
+</head>
+
+<body data-sveltekit-preload-data="hover">
+	<div style="display: contents">%sveltekit.body%</div>
+</body>
+
 </html>
