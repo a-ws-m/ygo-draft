@@ -18,7 +18,7 @@
 	let numberOfPiles = $state(3);
 	let packsPerRound = $state(1);
 	let packSize = $state(15);
-	let extraDeckAtEnd = $state(true); // New state for extra deck option
+	let extraDeckAtEnd = $state(false); // Changed default to false
 	let useRarityDistribution = $state(false); // New state for rarity distribution option
 	let commonPerPack = $state(7);
 	let rarePerPack = $state(5);
@@ -82,9 +82,7 @@
 
 	function checkForCardsWithoutRarity() {
 		if (useRarityDistribution && draftMethod === 'rochester') {
-			cardsWithoutRarity = cube.filter(
-				(card) => !card?.apiData?.rarity
-			);
+			cardsWithoutRarity = cube.filter((card) => !card?.apiData?.rarity);
 
 			if (cardsWithoutRarity.length > 0) {
 				showRarityWarning = true;
@@ -107,6 +105,13 @@
 
 		if (numberOfPlayers > MAX_PLAYERS) {
 			optionErrorMessage = `Number of players cannot exceed ${MAX_PLAYERS}.`;
+			return;
+		}
+
+		// Check if both extraDeckAtEnd and useRarityDistribution are enabled
+		if (extraDeckAtEnd && useRarityDistribution) {
+			optionErrorMessage =
+				'You cannot use both "Move extra deck cards to end" and "Rarity distribution" options together.';
 			return;
 		}
 
@@ -404,10 +409,21 @@
 					type="checkbox"
 					id="use-rarity-distribution"
 					bind:checked={useRarityDistribution}
-					onchange={validateOptions}
-					class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+					onchange={() => {
+						if (useRarityDistribution) {
+							extraDeckAtEnd = false;
+						}
+						validateOptions();
+					}}
+					disabled={extraDeckAtEnd}
+					class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
 				/>
-				<label for="use-rarity-distribution" class="ml-2 block text-sm text-gray-700">
+				<label
+					for="use-rarity-distribution"
+					class="ml-2 block text-sm text-gray-700"
+					class:text-gray-400={extraDeckAtEnd}
+					class:cursor-not-allowed={extraDeckAtEnd}
+				>
 					Use pack rarity distribution
 				</label>
 			</div>
@@ -500,9 +516,21 @@
 				type="checkbox"
 				id="extra-deck-at-end"
 				bind:checked={extraDeckAtEnd}
-				class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+				onchange={() => {
+					if (extraDeckAtEnd) {
+						useRarityDistribution = false;
+					}
+					validateOptions();
+				}}
+				disabled={useRarityDistribution}
+				class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
 			/>
-			<label for="extra-deck-at-end" class="ml-2 block text-sm text-gray-700">
+			<label
+				for="extra-deck-at-end"
+				class="ml-2 block text-sm text-gray-700"
+				class:text-gray-400={useRarityDistribution}
+				class:cursor-not-allowed={useRarityDistribution}
+			>
 				Move extra deck cards to end of the pool
 			</label>
 		</div>
