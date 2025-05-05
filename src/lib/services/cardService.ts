@@ -255,6 +255,7 @@ export async function formatCardsFromDatabase(cards: Array<{
             race: card.api_data.race,
             attribute: card.api_data.attribute,
             archetype: card.api_data.archetype,
+            rarity: card.api_data.misc_info[0]?.md_rarity,
         },
         quantity: card.quantity || 1
     }));

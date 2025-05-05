@@ -12,13 +12,19 @@
 	const dispatch = createEventDispatcher();
 
 	// Use $state for reactive variables in Svelte 5
-	let draftMethod = $state('winston');
+	let draftMethod = $state('rochester');
 	let poolSize = $state(120);
+	let draftedDeckSize = $state(60); // New variable for drafted deck size
 	let numberOfPlayers = $state(2);
 	let numberOfPiles = $state(3);
 	let packsPerRound = $state(1);
 	let packSize = $state(15);
-	let extraDeckAtEnd = $state(true); // New state for extra deck option
+	let extraDeckAtEnd = $state(false); // Changed default to false
+	let useRarityDistribution = $state(false); // New state for rarity distribution option
+	let commonPerPack = $state(7);
+	let rarePerPack = $state(5);
+	let superRarePerPack = $state(2);
+	let ultraRarePerPack = $state(1);
 	let cubeFile = $state(null);
 	let isCubeValid = $state(false);
 	let isProcessing = $state(false);
@@ -29,11 +35,17 @@
 	let showMethodTooltip = $state(false);
 	let showCubeTooltip = $state(false); // New state for cube tooltip
 	let isAuthenticated = $derived(!!authStore.session);
+	let showRarityWarning = $state(false);
+	let cardsWithoutRarity = $state([]);
+	let showUnevenPoolWarning = $state(false); // New state for uneven pool warning
 
 	// Constants for limits
 	const MAX_POOL_SIZE = 1000;
 	const MAX_PLAYERS = 10;
 	const DAILY_DRAFT_LIMIT = 100; // Not used directly in UI but useful for reference
+
+	// Derived value for max drafted deck size
+	let maxDraftedDeckSize = $derived(Math.floor(MAX_POOL_SIZE / numberOfPlayers));
 
 	// Draft method descriptions
 	const draftMethodDescriptions = {
@@ -56,6 +68,7 @@
 						totalCards = cube.reduce((sum, card) => sum + card.quantity, 0);
 						dispatch('cubeUploaded', { cube });
 						validateOptions();
+						checkForCardsWithoutRarity();
 					})
 					.catch((error) => {
 						console.error('Error processing cube file:', error);
@@ -72,10 +85,30 @@
 		}
 	}
 
+	function checkForCardsWithoutRarity() {
+		if (useRarityDistribution && draftMethod === 'rochester') {
+			cardsWithoutRarity = cube.filter((card) => !card?.apiData?.rarity);
+
+			if (cardsWithoutRarity.length > 0) {
+				showRarityWarning = true;
+			} else {
+				showRarityWarning = false;
+			}
+		} else {
+			showRarityWarning = false;
+		}
+	}
+
 	function validateOptions() {
 		optionErrorMessage = '';
+		showUnevenPoolWarning = false; // Reset the warning flag
 
 		// First check database limits
+		if (draftMethod === 'rochester') {
+			// For Rochester, calculate pool size from drafted deck size
+			poolSize = draftedDeckSize * numberOfPlayers;
+		}
+
 		if (poolSize > MAX_POOL_SIZE) {
 			optionErrorMessage = `Pool size cannot exceed ${MAX_POOL_SIZE} cards.`;
 			return;
@@ -83,6 +116,13 @@
 
 		if (numberOfPlayers > MAX_PLAYERS) {
 			optionErrorMessage = `Number of players cannot exceed ${MAX_PLAYERS}.`;
+			return;
+		}
+
+		// Check if both extraDeckAtEnd and useRarityDistribution are enabled
+		if (extraDeckAtEnd && useRarityDistribution) {
+			optionErrorMessage =
+				'You cannot use both "Move extra deck cards to end" and "Rarity distribution" options together.';
 			return;
 		}
 
@@ -95,12 +135,30 @@
 			} else if (poolSize < packSize * packsPerRound) {
 				optionErrorMessage =
 					'Pool size must be at least equal to pack size times the number of packs.';
+				return;
+			}
+
+			// Validation for rarity distribution
+			if (useRarityDistribution) {
+				const rarityTotal = commonPerPack + rarePerPack + superRarePerPack + ultraRarePerPack;
+				if (rarityTotal !== packSize) {
+					optionErrorMessage = `Rarity distribution total (${rarityTotal}) must equal pack size (${packSize}).`;
+					return;
+				}
+
+				// Check if pool is evenly divisible for rarity distribution
+				const totalPackCards = packSize * numberOfPlayers;
+				if (poolSize % totalPackCards !== 0) {
+					showUnevenPoolWarning = true;
+				}
 			}
 		} else if (draftMethod === 'winston') {
 			if (poolSize < numberOfPiles) {
 				optionErrorMessage = 'Pool size must be at least equal to the number of piles.';
 			}
 		}
+
+		checkForCardsWithoutRarity();
 	}
 
 	async function startDraft() {
@@ -109,6 +167,11 @@
 		isProcessing = true;
 
 		try {
+			// For Rochester draft, ensure pool size is calculated from drafted deck size
+			if (draftMethod === 'rochester') {
+				poolSize = draftedDeckSize * numberOfPlayers;
+			}
+
 			// Ensure all necessary data is included in the draft creation
 			const draftId = await createDraft(
 				draftMethod,
@@ -125,7 +188,15 @@
 				})),
 				draftMethod === 'winston' ? numberOfPiles : 3,
 				draftMethod === 'rochester' ? packSize : 5,
-				extraDeckAtEnd // Pass the extra deck option to createDraft
+				extraDeckAtEnd, // Pass the extra deck option to createDraft
+				draftMethod === 'rochester' && useRarityDistribution
+					? {
+							commonPerPack,
+							rarePerPack,
+							superRarePerPack,
+							ultraRarePerPack
+						}
+					: null
 			);
 
 			// Store draft settings in sessionStorage for additional backup
@@ -134,11 +205,21 @@
 				JSON.stringify({
 					draftMethod,
 					poolSize,
+					draftedDeckSize: draftMethod === 'rochester' ? draftedDeckSize : undefined,
 					numberOfPlayers,
 					numberOfPiles: draftMethod === 'winston' ? numberOfPiles : undefined,
 					packsPerRound: draftMethod === 'rochester' ? packsPerRound : undefined,
 					packSize: draftMethod === 'rochester' ? packSize : undefined,
-					extraDeckAtEnd // Include in saved settings
+					extraDeckAtEnd, // Include in saved settings
+					useRarityDistribution, // Include rarity distribution settings
+					raritySettings: useRarityDistribution
+						? {
+								commonPerPack,
+								rarePerPack,
+								superRarePerPack,
+								ultraRarePerPack
+							}
+						: undefined
 				})
 			);
 
@@ -274,13 +355,13 @@
 							class="prose prose-sm ring-opacity-5 absolute top-0 left-6 z-10 w-64 rounded-md bg-white p-3 shadow-lg ring-1 ring-black"
 						>
 							<h4 class="text-sm font-medium text-gray-900">Draft Methods</h4>
-							<p class="mb-2 text-xs text-gray-600">
-								<strong>Winston Draft:</strong>
-								{draftMethodDescriptions.winston}
-							</p>
 							<p class="text-xs text-gray-600">
 								<strong>Rochester Draft:</strong>
 								{draftMethodDescriptions.rochester}
+							</p>
+							<p class="mb-2 text-xs text-gray-600">
+								<strong>Winston Draft:</strong>
+								{draftMethodDescriptions.winston}
 							</p>
 						</div>
 					{/if}
@@ -292,26 +373,46 @@
 				onchange={validateOptions}
 				class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
 			>
-				<option value="winston">Winston Draft</option>
 				<option value="rochester">Rochester Draft</option>
+				<option value="winston">Winston Draft</option>
 			</select>
 		</div>
 
 		<!-- Pool Size -->
-		<div>
-			<label for="pool-size" class="mb-1 block text-sm font-medium text-gray-700">
-				Pool Size <span class="text-xs text-gray-500">(max: {MAX_POOL_SIZE})</span>
-			</label>
-			<input
-				type="number"
-				id="pool-size"
-				bind:value={poolSize}
-				min="1"
-				max={MAX_POOL_SIZE}
-				oninput={validateOptions}
-				class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-			/>
-		</div>
+		{#if draftMethod === 'rochester'}
+			<div>
+				<label for="drafted-deck-size" class="mb-1 block text-sm font-medium text-gray-700">
+					Drafted deck size <span class="text-xs text-gray-500">(max: {maxDraftedDeckSize})</span>
+				</label>
+				<input
+					type="number"
+					id="drafted-deck-size"
+					bind:value={draftedDeckSize}
+					min="1"
+					max={maxDraftedDeckSize}
+					oninput={validateOptions}
+					class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+				/>
+				<p class="mt-1 text-sm text-gray-500">
+					Total pool size: {draftedDeckSize * numberOfPlayers} cards
+				</p>
+			</div>
+		{:else}
+			<div>
+				<label for="pool-size" class="mb-1 block text-sm font-medium text-gray-700">
+					Pool Size <span class="text-xs text-gray-500">(max: {MAX_POOL_SIZE})</span>
+				</label>
+				<input
+					type="number"
+					id="pool-size"
+					bind:value={poolSize}
+					min="1"
+					max={MAX_POOL_SIZE}
+					oninput={validateOptions}
+					class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+				/>
+			</div>
+		{/if}
 
 		<!-- Number of Players -->
 		<div>
@@ -344,6 +445,97 @@
 					class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
 				/>
 			</div>
+
+			<!-- Rarity Distribution Option -->
+			<div class="flex items-center">
+				<input
+					type="checkbox"
+					id="use-rarity-distribution"
+					bind:checked={useRarityDistribution}
+					onchange={() => {
+						if (useRarityDistribution) {
+							extraDeckAtEnd = false;
+						}
+						validateOptions();
+					}}
+					disabled={extraDeckAtEnd}
+					class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+				/>
+				<label
+					for="use-rarity-distribution"
+					class="ml-2 block text-sm text-gray-700"
+					class:text-gray-400={extraDeckAtEnd}
+					class:cursor-not-allowed={extraDeckAtEnd}
+				>
+					Use pack rarity distribution
+				</label>
+			</div>
+
+			<!-- Rarity Distribution Settings -->
+			{#if useRarityDistribution}
+				<div class="ml-6 space-y-3 rounded-md border border-gray-200 bg-gray-50 p-4">
+					<div>
+						<label for="common-per-pack" class="mb-1 block text-sm font-medium text-gray-700">
+							Commons per pack
+						</label>
+						<input
+							type="number"
+							id="common-per-pack"
+							bind:value={commonPerPack}
+							min="0"
+							oninput={validateOptions}
+							class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+						/>
+					</div>
+					<div>
+						<label for="rare-per-pack" class="mb-1 block text-sm font-medium text-gray-700">
+							Rares per pack
+						</label>
+						<input
+							type="number"
+							id="rare-per-pack"
+							bind:value={rarePerPack}
+							min="0"
+							oninput={validateOptions}
+							class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+						/>
+					</div>
+					<div>
+						<label for="super-rare-per-pack" class="mb-1 block text-sm font-medium text-gray-700">
+							Super Rares per pack
+						</label>
+						<input
+							type="number"
+							id="super-rare-per-pack"
+							bind:value={superRarePerPack}
+							min="0"
+							oninput={validateOptions}
+							class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+						/>
+					</div>
+					<div>
+						<label for="ultra-rare-per-pack" class="mb-1 block text-sm font-medium text-gray-700">
+							Ultra Rares per pack
+						</label>
+						<input
+							type="number"
+							id="ultra-rare-per-pack"
+							bind:value={ultraRarePerPack}
+							min="0"
+							oninput={validateOptions}
+							class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+						/>
+					</div>
+
+					<div class="rounded border border-blue-200 bg-blue-50 p-2 text-blue-800">
+						<p class="text-sm">
+							Total: {commonPerPack + rarePerPack + superRarePerPack + ultraRarePerPack}
+							(must equal pack size of {packSize})
+						</p>
+					</div>
+				</div>
+			{/if}
+
 			<!-- Winston Draft Options -->
 		{:else if draftMethod === 'winston'}
 			<div>
@@ -367,9 +559,21 @@
 				type="checkbox"
 				id="extra-deck-at-end"
 				bind:checked={extraDeckAtEnd}
-				class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+				onchange={() => {
+					if (extraDeckAtEnd) {
+						useRarityDistribution = false;
+					}
+					validateOptions();
+				}}
+				disabled={useRarityDistribution}
+				class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
 			/>
-			<label for="extra-deck-at-end" class="ml-2 block text-sm text-gray-700">
+			<label
+				for="extra-deck-at-end"
+				class="ml-2 block text-sm text-gray-700"
+				class:text-gray-400={useRarityDistribution}
+				class:cursor-not-allowed={useRarityDistribution}
+			>
 				Move extra deck cards to end of the pool
 			</label>
 		</div>
@@ -377,6 +581,38 @@
 		<!-- Option Validation Error -->
 		{#if optionErrorMessage}
 			<p class="mt-2 text-sm text-red-600">{optionErrorMessage}</p>
+		{/if}
+
+		<!-- Uneven Pool Warning -->
+		{#if showUnevenPoolWarning && useRarityDistribution && draftMethod === 'rochester'}
+			<div class="mt-4 rounded-md bg-orange-50 p-3">
+				<div class="flex">
+					<div class="flex-shrink-0">
+						<svg
+							class="h-5 w-5 text-orange-400"
+							viewBox="0 0 20 20"
+							fill="currentColor"
+							aria-hidden="true"
+						>
+							<path
+								fill-rule="evenodd"
+								d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z"
+								clip-rule="evenodd"
+							/>
+						</svg>
+					</div>
+					<div class="ml-3">
+						<h3 class="text-sm font-medium text-orange-800">Uneven pool warning</h3>
+						<div class="mt-2 text-sm text-orange-700">
+							<p>
+								The total pool size ({poolSize}) is not evenly divisible by the number of cards in
+								each round ({packSize * numberOfPlayers}). The last round's packs will be smaller
+								and won't match your specified rarity distribution.
+							</p>
+						</div>
+					</div>
+				</div>
+			</div>
 		{/if}
 
 		<!-- Submit Button -->
@@ -467,3 +703,63 @@
 		</div>
 	{/if}
 </div>
+
+<!-- Warning Modal for Cards Without Rarity -->
+{#if showRarityWarning && cardsWithoutRarity.length > 0}
+	<div
+		class="bg-opacity-50 fixed inset-0 z-50 flex items-center justify-center overflow-auto bg-black p-4"
+	>
+		<div class="relative mx-auto max-w-2xl rounded-lg bg-white shadow-xl">
+			<div class="p-6">
+				<div class="mb-4 text-center">
+					<h3 class="text-lg font-medium text-gray-900">
+						Warning: Cards Without Rarity Information
+					</h3>
+					<p class="mt-2 text-sm text-gray-500">
+						The following cards don't have rarity information and won't be included in the draft if
+						you use rarity distribution:
+					</p>
+				</div>
+
+				<div class="max-h-96 overflow-auto">
+					<div class="space-y-2 p-2">
+						{#each cardsWithoutRarity as card}
+							<div class="flex items-center rounded border border-gray-200 p-2">
+								<img
+									src={card.smallImageUrl || card.imageUrl}
+									alt={card.name}
+									class="mr-2 h-12 w-12 rounded object-cover"
+								/>
+								<span class="text-sm">{card.name}</span>
+							</div>
+						{/each}
+					</div>
+				</div>
+
+				<div class="mt-6 flex justify-center space-x-4">
+					<button
+						type="button"
+						class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:outline-none"
+						onclick={() => {
+							showRarityWarning = false;
+						}}
+					>
+						I Understand
+					</button>
+
+					<button
+						type="button"
+						class="rounded-md bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 focus:outline-none"
+						onclick={() => {
+							useRarityDistribution = false;
+							showRarityWarning = false;
+							validateOptions();
+						}}
+					>
+						Disable Rarity Distribution
+					</button>
+				</div>
+			</div>
+		</div>
+	</div>
+{/if}

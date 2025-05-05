@@ -9,7 +9,7 @@ import { supabase } from "$lib/supabaseClient";
 export async function startDraftInDB(draftId: string, participants: string[]) {
     try {
         // Call the start_draft database function which enforces permission checks
-        const { error } = await supabase.rpc('start_draft', { 
+        const { error } = await supabase.rpc('start_draft', {
             draft_id: draftId,
             participant_list: participants
         });
@@ -40,6 +40,16 @@ function shuffleArray<T>(array: T[]): T[] {
 }
 
 /**
+ * Interface for rarity distribution settings
+ */
+interface RarityDistribution {
+    commonPerPack: number;
+    rarePerPack: number;
+    superRarePerPack: number;
+    ultraRarePerPack: number;
+}
+
+/**
  * Creates a new draft in the database and assigns shuffled indexes to the cube cards.
  * @param draftMethod - The drafting method (e.g., "winston" or "rochester").
  * @param poolSize - The size of the card pool.
@@ -48,6 +58,7 @@ function shuffleArray<T>(array: T[]): T[] {
  * @param numberOfPiles - The number of piles for winston draft.
  * @param packSize - The pack size for rochester draft.
  * @param extraDeckAtEnd - Whether to move extra deck cards to the end of the pool.
+ * @param rarityDistribution - Optional settings for rarity distribution in packs.
  * @returns A promise that resolves with the draft ID.
  */
 export async function createDraft(
@@ -57,7 +68,8 @@ export async function createDraft(
     cube: { id: number; name: string; quantity: number; type: string; imageUrl: string; smallImageUrl: string; apiData: any }[],
     numberOfPiles: number = 3,
     packSize: number = 5,
-    extraDeckAtEnd: boolean = false
+    extraDeckAtEnd: boolean = false,
+    rarityDistribution: RarityDistribution | null = null
 ): Promise<string> {
     try {
         // Get the current authenticated user
@@ -92,24 +104,36 @@ export async function createDraft(
             for (let i = 0; i < card.quantity; i++) {
                 expandedCube.push({
                     card_id: card.id, // Ensure card_id is properly set from the card.id
-                    draft_id: draft.id
+                    draft_id: draft.id,
+                    apiData: card.apiData // Include API data for rarity information
                 });
             }
         }
 
-        const shuffledCube = shuffleArray(expandedCube);
+        // Handle the card ordering based on settings
+        let processedCube = expandedCube;
+
+        // If using rarity distribution for Rochester draft
+        if (draftMethod === 'rochester' && rarityDistribution) {
+            processedCube = organizeCardsByRarity(expandedCube, rarityDistribution, packSize, numberOfPlayers, poolSize);
+            console.log("Organized cards by rarity for Rochester draft.");
+            console.log("Cards organized by rarity:", processedCube.map(card => getRarityFromCard(card.apiData)));
+        } else {
+            // Otherwise just shuffle the cube
+            processedCube = shuffleArray(expandedCube);
+        }
 
         // Limit to the specified pool size
-        let limitedCube = shuffledCube.slice(0, poolSize);
+        let limitedCube = processedCube.slice(0, poolSize);
 
+        // Handle extra deck cards
         if (extraDeckAtEnd) {
             // Separate main deck and extra deck cards
             const mainDeckCards = [];
             const extraDeckCards = [];
 
             for (const entry of limitedCube) {
-                const card = cube.find(c => c.id === entry.card_id);
-                if (card && isExtraDeckCard(card)) {
+                if (isExtraDeckCard(entry.apiData)) {
                     extraDeckCards.push(entry);
                 } else {
                     mainDeckCards.push(entry);
@@ -117,12 +141,13 @@ export async function createDraft(
             }
 
             // Combine them with extra deck at the start (because we are using pop to remove)
-            limitedCube = [...extraDeckCards, ...mainDeckCards ];
+            limitedCube = [...extraDeckCards, ...mainDeckCards];
         }
 
         // Assign shuffled indexes to the cards
         const cubeWithIndexes = limitedCube.map((entry, index) => ({
-            ...entry,
+            card_id: entry.card_id,
+            draft_id: entry.draft_id,
             index, // Assign a unique index after shuffling
         }));
 
@@ -139,11 +164,145 @@ export async function createDraft(
 }
 
 /**
+ * Organizes cards by rarity to ensure the correct distribution in packs
+ * @param cards - The expanded card array
+ * @param rarityDistribution - The settings for rarity distribution
+ * @param packSize - Number of cards per pack
+ * @param numberOfPlayers - Number of players
+ * @param poolSize - Total card pool size
+ * @returns An array of cards ordered by rarity to suit pack creation
+ */
+function organizeCardsByRarity(
+    cards: any[],
+    rarityDistribution: RarityDistribution,
+    packSize: number,
+    numberOfPlayers: number,
+    poolSize: number
+): any[] {
+    // Calculate the number of packs that will be created
+    const numberOfPacks = Math.floor(poolSize / packSize);
+
+    // Calculate the number of cards of each rarity needed
+    const commonCount = numberOfPacks * rarityDistribution.commonPerPack;
+    const rareCount = numberOfPacks * rarityDistribution.rarePerPack;
+    const superRareCount = numberOfPacks * rarityDistribution.superRarePerPack;
+    const ultraRareCount = numberOfPacks * rarityDistribution.ultraRarePerPack;
+
+    // Filter cards by their rarity
+    const commons = cards.filter(card => {
+        const rarity = getRarityFromCard(card.apiData);
+        return rarity?.toLowerCase() === 'common';
+    });
+
+    const rares = cards.filter(card => {
+        const rarity = getRarityFromCard(card.apiData);
+        return rarity?.toLowerCase() === 'rare';
+    });
+
+    const superRares = cards.filter(card => {
+        const rarity = getRarityFromCard(card.apiData);
+        return rarity?.toLowerCase() === 'super rare';
+    });
+
+    const ultraRares = cards.filter(card => {
+        const rarity = getRarityFromCard(card.apiData);
+        return rarity?.toLowerCase() === 'ultra rare';
+    });
+
+    // Shuffle each rarity pile
+    shuffleArray(commons);
+    shuffleArray(rares);
+    shuffleArray(superRares);
+    shuffleArray(ultraRares);
+
+    // Ensure we have enough cards of each rarity
+    if (commons.length < commonCount) {
+        console.warn(`Not enough commons (${commons.length}/${commonCount})`);
+    }
+
+    if (rares.length < rareCount) {
+        console.warn(`Not enough rares (${rares.length}/${rareCount})`);
+    }
+
+    if (superRares.length < superRareCount) {
+        console.warn(`Not enough super rares (${superRares.length}/${superRareCount})`);
+    }
+
+    if (ultraRares.length < ultraRareCount) {
+        console.warn(`Not enough ultra rares (${ultraRares.length}/${ultraRareCount})`);
+    }
+
+    // Take the required number of cards from each rarity pile
+    const selectedCommons = commons.slice(0, commonCount);
+    const selectedRares = rares.slice(0, rareCount);
+    const selectedSuperRares = superRares.slice(0, superRareCount);
+    const selectedUltraRares = ultraRares.slice(0, ultraRareCount);
+
+    // Organize cards for packs (interleave rarities)
+    const organizedDeck = [];
+    for (let packIndex = 0; packIndex < numberOfPacks; packIndex++) {
+        // For each pack, add cards in the specified distribution
+        for (let i = 0; i < rarityDistribution.commonPerPack; i++) {
+            const cardIndex = packIndex * rarityDistribution.commonPerPack + i;
+            if (cardIndex < selectedCommons.length) {
+                organizedDeck.push(selectedCommons[cardIndex]);
+            }
+        }
+
+        for (let i = 0; i < rarityDistribution.rarePerPack; i++) {
+            const cardIndex = packIndex * rarityDistribution.rarePerPack + i;
+            if (cardIndex < selectedRares.length) {
+                organizedDeck.push(selectedRares[cardIndex]);
+            }
+        }
+
+        for (let i = 0; i < rarityDistribution.superRarePerPack; i++) {
+            const cardIndex = packIndex * rarityDistribution.superRarePerPack + i;
+            if (cardIndex < selectedSuperRares.length) {
+                organizedDeck.push(selectedSuperRares[cardIndex]);
+            }
+        }
+
+        for (let i = 0; i < rarityDistribution.ultraRarePerPack; i++) {
+            const cardIndex = packIndex * rarityDistribution.ultraRarePerPack + i;
+            if (cardIndex < selectedUltraRares.length) {
+                organizedDeck.push(selectedUltraRares[cardIndex]);
+            }
+        }
+    }
+
+    // Add remaining cards if we need to reach the pool size
+    const remainingCards = cards.filter(card => {
+        return !organizedDeck.some(c => c.card_id === card.card_id);
+    });
+
+    shuffleArray(remainingCards);
+    while (organizedDeck.length < poolSize && remainingCards.length > 0) {
+        organizedDeck.push(remainingCards.pop());
+    }
+
+    return organizedDeck;
+}
+
+/**
+ * Gets the rarity of a card from its API data
+ * @param apiData - The API data for the card
+ * @returns The rarity string or null if not found
+ */
+function getRarityFromCard(apiData: any): string | null {
+    return apiData?.rarity || null;
+}
+
+/**
  * Determines if a card belongs in the Extra Deck
  */
-function isExtraDeckCard(card: any): boolean {
+function isExtraDeckCard(apiData: any): boolean {
+    if (!apiData || !apiData.type) {
+        return false;
+    }
+
     // Get the card type from the apiData
-    const cardType = card.apiData.type.toLowerCase();
+    const cardType = apiData.type.toLowerCase();
 
     // These types go in the Extra Deck
     return (

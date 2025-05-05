@@ -199,7 +199,7 @@ Deno.serve(async (req) => {
       await recordApiRequest(supabase);
 
       // Fetch batch from YGOProdeck API
-      const apiUrl = `https://db.ygoprodeck.com/api/v7/cardinfo.php?id=${batch.join(',')}`;
+      const apiUrl = `https://db.ygoprodeck.com/api/v7/cardinfo.php?id=${batch.join(',')}&misc=yes`;
       const response = await fetch(apiUrl);
 
       if (!response.ok) {

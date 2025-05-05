@@ -13,6 +13,7 @@
 				race: string;
 				attribute?: string;
 				archetype?: string;
+				rarity?: string;
 			};
 		};
 		compact?: boolean;
@@ -31,6 +32,26 @@
 		}
 		return card.apiData.race;
 	}
+
+	// Helper function to get the color class for the rarity
+	function getRarityColorClass(rarity: string | null) {
+		if (!rarity) return 'text-gray-600';
+
+		const lowerRarity = rarity.toLowerCase();
+		if (lowerRarity.includes('common')) return 'text-gray-500';
+		if (
+			lowerRarity.includes('rare') &&
+			!lowerRarity.includes('super') &&
+			!lowerRarity.includes('ultra')
+		)
+			return 'text-blue-500';
+		if (lowerRarity.includes('super')) return 'text-orange-500';
+		if (lowerRarity.includes('ultra')) return 'text-purple-600';
+
+		return 'text-gray-600'; // Default
+	}
+
+	const rarityColorClass = getRarityColorClass(card.apiData.rarity);
 </script>
 
 <div class={compact ? '' : 'w-64 rounded border border-gray-200 bg-white p-3 shadow-lg'}>
@@ -47,6 +68,13 @@
 		<p class="text-sm text-gray-600">
 			<span class="font-medium">Archetype:</span>
 			{card.apiData.archetype}
+		</p>
+	{/if}
+
+	{#if card.apiData.rarity}
+		<p class="text-sm">
+			<span class="font-medium text-gray-600">Master Duel Rarity:</span>
+			<span class={`font-medium ${rarityColorClass}`}>{card.apiData.rarity}</span>
 		</p>
 	{/if}
 

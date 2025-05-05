@@ -8,10 +8,11 @@ A web application for creating and participating in custom Yu-Gi-Oh! card drafts
 
 - **Custom Cubes**: Upload your Yu-Gi-Oh! cube in CSV format
 - **Multiple Draft Formats**: Support for Winston Draft and Rochester Draft
+- **Pack Rarity Customisation**: Choose how many cards of each rarity are in a pack
 - **Real-time Drafting**: Draft cards with friends with real-time updates
-- **Card Visualization**: View your drafted deck with card images and statistics
+- **Card Visualisation**: View your drafted deck with card images and statistics
 - **YDK Export**: Download your drafted deck in YDK format for use in simulators
-- **Draft Statistics**: Analyze your draft with built-in charts and analytics
+- **Draft Statistics**: Analyse your draft with built-in charts and analytics
 
 ## Getting Started
 
