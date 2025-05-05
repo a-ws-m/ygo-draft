@@ -2,6 +2,7 @@ import { supabase } from '$lib/supabaseClient';
 import { goto, invalidate } from '$app/navigation';
 import { browser } from '$app/environment';
 import { base } from '$app/paths';
+import { page } from '$app/state';
 
 // Create a store object instead of individual exported states
 export const store = $state({
@@ -49,6 +50,9 @@ export async function signInWithGitHub() {
         store.loading = true;
         const { data, error } = await supabase.auth.signInWithOAuth({
             provider: 'github',
+            options: {
+                redirectTo: page.url.href || undefined
+            }
         });
         if (error) throw error;
 
@@ -67,6 +71,9 @@ export async function signInWithDiscord() {
         store.loading = true;
         const { data, error } = await supabase.auth.signInWithOAuth({
             provider: 'discord',
+            options: {
+                redirectTo: page.url.href || undefined
+            }
         });
         if (error) throw error;
 
