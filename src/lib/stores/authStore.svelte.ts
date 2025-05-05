@@ -1,6 +1,7 @@
 import { supabase } from '$lib/supabaseClient';
 import { goto, invalidate } from '$app/navigation';
 import { browser } from '$app/environment';
+import { base } from '$app/paths';
 
 // Create a store object instead of individual exported states
 export const store = $state({
@@ -81,17 +82,18 @@ export async function signIn(email: string, password: string) {
     }
 }
 
-// Sign in anonymously
-export async function anonymousSignIn() {
+// Reset password
+export async function resetPassword(email: string) {
     try {
         store.loading = true;
-        const { data, error } = await supabase.auth.signInAnonymously();
+        const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+            redirectTo: `${window.location.origin}/${base}/auth/reset-password`,
+        });
         if (error) throw error;
 
-        store.session = data.session;
         return { success: true, data };
     } catch (error) {
-        console.error('Error signing in anonymously:', error);
+        console.error('Error resetting password:', error);
         return { success: false, error };
     } finally {
         store.loading = false;

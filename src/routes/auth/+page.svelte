@@ -3,7 +3,7 @@
 		store as authStore,
 		signIn,
 		signUp,
-		anonymousSignIn,
+		resetPassword,
 		getPreviousPath
 	} from '$lib/stores/authStore.svelte';
 	import { goto } from '$app/navigation';
@@ -14,6 +14,7 @@
 	let password = $state('');
 	let confirmPassword = $state('');
 	let isLogin = $state(true);
+	let isForgotPassword = $state(false);
 	let errorMessage = $state('');
 	let successMessage = $state('');
 	let redirectPath = $state('/');
@@ -33,6 +34,21 @@
 		event.preventDefault();
 		errorMessage = '';
 		successMessage = '';
+
+		if (isForgotPassword) {
+			if (!email) {
+				errorMessage = 'Email is required';
+				return;
+			}
+
+			const { success, error } = await resetPassword(email);
+			if (success) {
+				successMessage = 'Password reset email sent! Check your inbox.';
+			} else {
+				errorMessage = error.message || 'Failed to send reset email';
+			}
+			return;
+		}
 
 		if (!email || !password) {
 			errorMessage = 'Email and password are required';
@@ -64,20 +80,15 @@
 		}
 	}
 
-	async function handleAnonymousSignIn() {
-		errorMessage = '';
-		successMessage = '';
-
-		const { success, error } = await anonymousSignIn();
-		if (success) {
-			goto(redirectPath);
-		} else {
-			errorMessage = error.message || 'Failed to sign in anonymously';
-		}
-	}
-
 	function toggleAuthMode() {
 		isLogin = !isLogin;
+		isForgotPassword = false;
+		errorMessage = '';
+		successMessage = '';
+	}
+
+	function toggleForgotPassword() {
+		isForgotPassword = !isForgotPassword;
 		errorMessage = '';
 		successMessage = '';
 	}
@@ -86,7 +97,11 @@
 <div class="flex min-h-screen items-center justify-center bg-gray-100 p-4">
 	<div class="w-full max-w-md rounded-lg bg-white p-8 shadow-md">
 		<h2 class="mb-6 text-center text-2xl font-bold text-gray-800">
-			{isLogin ? 'Sign In' : 'Create Account'}
+			{#if isForgotPassword}
+				Reset Password
+			{:else}
+				{isLogin ? 'Sign In' : 'Create Account'}
+			{/if}
 		</h2>
 
 		{#if successMessage}
@@ -109,18 +124,20 @@
 				/>
 			</div>
 
-			<div>
-				<label for="password" class="block text-sm font-medium text-gray-700">Password</label>
-				<input
-					id="password"
-					type="password"
-					bind:value={password}
-					class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none"
-					required
-				/>
-			</div>
+			{#if !isForgotPassword}
+				<div>
+					<label for="password" class="block text-sm font-medium text-gray-700">Password</label>
+					<input
+						id="password"
+						type="password"
+						bind:value={password}
+						class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none"
+						required
+					/>
+				</div>
+			{/if}
 
-			{#if !isLogin}
+			{#if !isLogin && !isForgotPassword}
 				<div>
 					<label for="confirm-password" class="block text-sm font-medium text-gray-700"
 						>Confirm Password</label
@@ -165,6 +182,8 @@
 							</svg>
 							Processing...
 						</span>
+					{:else if isForgotPassword}
+						Send Reset Link
 					{:else}
 						{isLogin ? 'Sign In' : 'Sign Up'}
 					{/if}
@@ -172,52 +191,31 @@
 			</div>
 		</form>
 
-		<div class="mt-4 text-center">
-			<button
-				onclick={toggleAuthMode}
-				class="text-sm text-indigo-600 hover:text-indigo-500 focus:outline-none"
-			>
-				{isLogin ? "Don't have an account? Sign Up" : 'Already have an account? Sign In'}
-			</button>
-		</div>
+		<div class="mt-4 space-y-2 text-center">
+			{#if isLogin && !isForgotPassword}
+				<button
+					onclick={toggleForgotPassword}
+					class="block text-sm text-indigo-600 hover:text-indigo-500 focus:outline-none"
+				>
+					Forgot your password?
+				</button>
+			{/if}
 
-		<div class="mt-6 border-t border-gray-200 pt-4">
-			<button
-				onclick={handleAnonymousSignIn}
-				class="w-full rounded-md bg-gray-600 px-4 py-2 text-white shadow-sm hover:bg-gray-700 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 focus:outline-none"
-				disabled={authStore.loading}
-			>
-				{#if authStore.loading}
-					<span class="flex items-center justify-center">
-						<svg
-							class="mr-2 h-4 w-4 animate-spin"
-							xmlns="http://www.w3.org/2000/svg"
-							fill="none"
-							viewBox="0 0 24 24"
-						>
-							<circle
-								class="opacity-25"
-								cx="12"
-								cy="12"
-								r="10"
-								stroke="currentColor"
-								stroke-width="4"
-							/>
-							<path
-								class="opacity-75"
-								fill="currentColor"
-								d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-							/>
-						</svg>
-						Processing...
-					</span>
-				{:else}
-					Continue as Guest
-				{/if}
-			</button>
-			<p class="mt-2 text-center text-xs text-gray-500">
-				No email or password required. Your progress will be saved to this device.
-			</p>
+			{#if isForgotPassword}
+				<button
+					onclick={toggleForgotPassword}
+					class="block text-sm text-indigo-600 hover:text-indigo-500 focus:outline-none"
+				>
+					Back to Sign In
+				</button>
+			{:else}
+				<button
+					onclick={toggleAuthMode}
+					class="block text-sm text-indigo-600 hover:text-indigo-500 focus:outline-none"
+				>
+					{isLogin ? "Don't have an account? Sign Up" : 'Already have an account? Sign In'}
+				</button>
+			{/if}
 		</div>
 	</div>
 </div>
