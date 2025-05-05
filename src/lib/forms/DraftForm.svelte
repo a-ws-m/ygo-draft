@@ -12,7 +12,7 @@
 	const dispatch = createEventDispatcher();
 
 	// Use $state for reactive variables in Svelte 5
-	let draftMethod = $state('winston');
+	let draftMethod = $state('rochester');
 	let poolSize = $state(120);
 	let numberOfPlayers = $state(2);
 	let numberOfPiles = $state(3);
@@ -332,13 +332,13 @@
 							class="prose prose-sm ring-opacity-5 absolute top-0 left-6 z-10 w-64 rounded-md bg-white p-3 shadow-lg ring-1 ring-black"
 						>
 							<h4 class="text-sm font-medium text-gray-900">Draft Methods</h4>
-							<p class="mb-2 text-xs text-gray-600">
-								<strong>Winston Draft:</strong>
-								{draftMethodDescriptions.winston}
-							</p>
 							<p class="text-xs text-gray-600">
 								<strong>Rochester Draft:</strong>
 								{draftMethodDescriptions.rochester}
+							</p>
+							<p class="mb-2 text-xs text-gray-600">
+								<strong>Winston Draft:</strong>
+								{draftMethodDescriptions.winston}
 							</p>
 						</div>
 					{/if}
@@ -350,8 +350,8 @@
 				onchange={validateOptions}
 				class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
 			>
-				<option value="winston">Winston Draft</option>
 				<option value="rochester">Rochester Draft</option>
+				<option value="winston">Winston Draft</option>
 			</select>
 		</div>
 
