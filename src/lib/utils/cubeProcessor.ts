@@ -1,5 +1,5 @@
 import Papa from "papaparse";
-import { fetchCardData, formatCardFromDatabase } from "$lib/services/cardService";
+import { fetchCardData, formatCardsFromDatabase } from "$lib/services/cardService";
 
 export async function processCubeFile(file: File): Promise<any[]> {
     const text = await file.text();
@@ -46,8 +46,8 @@ export async function processCubeFile(file: File): Promise<any[]> {
     // Create a map for quick lookups of card data
     const cardMap = new Map(cards.map(card => [card.id, card]));
 
-    // Create the final cube with card data and quantities
-    const cubePromises = [];
+    // Create an array of card data objects with quantities for batch processing
+    const cardsToFormat = [];
 
     for (const entry of cardEntries) {
         const cardData = cardMap.get(entry.id);
@@ -62,17 +62,14 @@ export async function processCubeFile(file: File): Promise<any[]> {
             );
         }
 
-        // Format card data and get image URLs from storage
-        const formattedCard = formatCardFromDatabase({
+        cardsToFormat.push({
             ...cardData,
             quantity: entry.quantity
         });
-
-        cubePromises.push(formattedCard);
     }
 
-    // Resolve all promises to get the final cube array
-    const cube = await Promise.all(cubePromises);
+    // Format all cards in a single batch operation
+    const cube = await formatCardsFromDatabase(cardsToFormat);
 
     console.log("Cube processed successfully:", cube);
 
