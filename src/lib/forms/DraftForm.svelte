@@ -21,6 +21,7 @@
 	let totalCards = $state(0);
 	let cube = $state([]);
 	let showMethodTooltip = $state(false);
+	let showCubeTooltip = $state(false); // New state for cube tooltip
 
 	// Constants for limits
 	const MAX_POOL_SIZE = 1000;
@@ -32,10 +33,6 @@
 		winston: `In Winston Draft, players take turns choosing from a number of piles. If you accept a pile, you take all cards in it. If you decline, add another card to the pile from the deck and move to the next one. If you decline the final pile, you take the top card of the deck.`,
 		rochester: `In Rochester Draft, players pass a pack of cards in a circle, taking one card at a time, until no cards remain in the packs. Then, another pack is opened for each player, and the process continues until there are no cards left in the pool.`
 	};
-
-	function toggleMethodTooltip() {
-		showMethodTooltip = !showMethodTooltip;
-	}
 
 	function handleFileUpload(event: Event) {
 		const target = event.target as HTMLInputElement;
@@ -152,9 +149,38 @@
 <div class="space-y-6">
 	<!-- Cube File Upload -->
 	<div>
-		<label for="cube-file" class="mb-1 block text-sm font-medium text-gray-700">
-			Upload Cube File (.csv)
-		</label>
+		<div class="mb-1 flex items-center">
+			<label for="cube-file" class="block text-sm font-medium text-gray-700">
+				Upload Cube File (.csv)
+			</label>
+			<div class="relative ml-2">
+				<button
+					type="button"
+					class="flex h-5 w-5 items-center justify-center rounded-full bg-gray-200 text-gray-600 hover:bg-gray-300"
+					aria-label="Cube file information"
+					onmouseenter={() => (showCubeTooltip = true)}
+					onmouseleave={() => (showCubeTooltip = false)}
+				>
+					?
+				</button>
+
+				{#if showCubeTooltip}
+					<div
+						class="prose prose-sm ring-opacity-5 absolute top-0 left-6 z-10 w-64 rounded-md bg-white p-3 shadow-lg ring-1 ring-black"
+					>
+						<h4 class="text-sm font-medium text-gray-900">Cube File Format</h4>
+						<p class="text-xs text-gray-600">
+							Visit <a
+								href="https://ygoprodeck.com/cube/"
+								target="_blank"
+								rel="noopener noreferrer"
+								class="text-blue-600 hover:underline">YGOProdeck Cube Builder</a
+							> to find or build a cube, then click the button to download it as a CSV file.
+						</p>
+					</div>
+				{/if}
+			</div>
+		</div>
 		<div class="relative">
 			<input
 				type="file"
@@ -197,21 +223,29 @@
 				Draft Method
 			</label>
 			<div class="relative ml-2">
-				<button 
+				<button
 					type="button"
 					class="flex h-5 w-5 items-center justify-center rounded-full bg-gray-200 text-gray-600 hover:bg-gray-300"
 					aria-label="Draft method information"
-					onmouseenter={() => showMethodTooltip = true}
-					onmouseleave={() => showMethodTooltip = false}
+					onmouseenter={() => (showMethodTooltip = true)}
+					onmouseleave={() => (showMethodTooltip = false)}
 				>
 					?
 				</button>
-				
+
 				{#if showMethodTooltip}
-					<div class="prose prose-sm absolute left-6 top-0 z-10 w-64 rounded-md bg-white p-3 shadow-lg ring-1 ring-black ring-opacity-5">
+					<div
+						class="prose prose-sm ring-opacity-5 absolute top-0 left-6 z-10 w-64 rounded-md bg-white p-3 shadow-lg ring-1 ring-black"
+					>
 						<h4 class="text-sm font-medium text-gray-900">Draft Methods</h4>
-						<p class="mb-2 text-xs text-gray-600"><strong>Winston Draft:</strong> {draftMethodDescriptions.winston}</p>
-						<p class="text-xs text-gray-600"><strong>Rochester Draft:</strong> {draftMethodDescriptions.rochester}</p>
+						<p class="mb-2 text-xs text-gray-600">
+							<strong>Winston Draft:</strong>
+							{draftMethodDescriptions.winston}
+						</p>
+						<p class="text-xs text-gray-600">
+							<strong>Rochester Draft:</strong>
+							{draftMethodDescriptions.rochester}
+						</p>
 					</div>
 				{/if}
 			</div>
@@ -229,7 +263,7 @@
 
 	<!-- Pool Size -->
 	<div>
-		<label for="pool-size" class="mb-1 block text-sm font-medium text-gray-700"> 
+		<label for="pool-size" class="mb-1 block text-sm font-medium text-gray-700">
 			Pool Size <span class="text-xs text-gray-500">(max: {MAX_POOL_SIZE})</span>
 		</label>
 		<input
