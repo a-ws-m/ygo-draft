@@ -1,6 +1,18 @@
 import { supabase } from "$lib/supabaseClient";
 
 /**
+ * Constructs the storage path for a card image
+ * @param cardId The ID of the card
+ * @param isSmall Whether to use the small image bucket
+ * @returns The storage path for the image
+ */
+export function getCardImagePath(cardId: number, isSmall: boolean = false): string {
+    const bucketName = isSmall ? 'card_images_small' : 'card_images';
+    const fileName = `${cardId}${isSmall ? '_small' : ''}.jpg`;
+    return fileName;
+}
+
+/**
  * Fetches card data from the database or the edge function if not already cached
  * @param cardIds Array of card IDs to fetch
  * @returns Array of card data objects
@@ -61,23 +73,54 @@ export async function fetchCardData(cardIds: number[]) {
 }
 
 /**
+ * Gets a signed URL for a card image stored in the private storage bucket
+ * @param cardId The ID of the card
+ * @param isSmall Whether to get the small image
+ * @returns Promise with the signed URL string
+ */
+export async function getSignedImageUrl(cardId: number, isSmall: boolean = false): Promise<string> {
+    const bucketName = isSmall ? 'card_images_small' : 'card_images';
+    const fileName = getCardImagePath(cardId, isSmall);
+
+    try {
+        const { data, error } = await supabase
+            .storage
+            .from(bucketName)
+            .createSignedUrl(fileName, 60 * 60); // 1-hour signed URL
+
+        if (error) {
+            console.error("Error creating signed URL:", error);
+            // Return a fallback URL or placeholder
+            return `https://via.placeholder.com/400x586?text=Image+Not+Found`;
+        }
+
+        return data.signedUrl;
+    } catch (error) {
+        console.error("Error getting signed image URL:", error);
+        return `https://via.placeholder.com/400x586?text=Image+Not+Found`;
+    }
+}
+
+/**
  * Maps data from the cards table format to the format required by the components
  * @param card The card data from the database
  * @returns The formatted card object for components
  */
-export function formatCardFromDatabase(card: {
+export async function formatCardFromDatabase(card: {
     id: number;
     name: string;
     type: string;
     api_data: any;
-    image_url: string;
-    small_image_url: string;
     quantity?: number;
 }) {
+    // Get signed URLs for the images from our storage buckets
+    const imageUrl = await getSignedImageUrl(card.id, false);
+    const smallImageUrl = await getSignedImageUrl(card.id, true);
+
     return {
         id: card.id,
-        imageUrl: card.image_url,
-        smallImageUrl: card.small_image_url,
+        imageUrl,
+        smallImageUrl,
         name: card.name,
         type: card.type,
         apiData: {
@@ -130,20 +173,24 @@ export async function fetchCubeWithCardData(draftId: string) {
         const cardMap = new Map(cards.map(card => [card.id, card]));
 
         // Combine cube entries with their card data
-        const cube = cubeEntries.map(entry => {
+        const formattedCardsPromises = cubeEntries.map(async entry => {
             const card = cardMap.get(entry.card_id);
             if (!card) {
                 console.warn(`Card data not found for ID: ${entry.card_id}`);
                 return null;
             }
 
+            const formattedCard = await formatCardFromDatabase(card);
             return {
-                ...formatCardFromDatabase(card),
+                ...formattedCard,
                 index: entry.index,
                 owner: entry.owner,
                 pile: entry.pile
             };
-        }).filter(Boolean); // Remove any null entries
+        });
+
+        // Wait for all async card formatting operations to complete
+        const cube = (await Promise.all(formattedCardsPromises)).filter(Boolean); // Remove any null entries
 
         return { cube, error: null };
     } catch (error) {

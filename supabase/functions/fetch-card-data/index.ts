@@ -57,6 +57,45 @@ async function waitForApiAvailability(supabase): Promise<void> {
   }
 }
 
+// Function to download and store image in Supabase Storage
+async function storeCardImage(supabase, imageUrl, cardId, isSmall = false): Promise<boolean> {
+  try {
+    if (!imageUrl) return false;
+
+    const bucketName = isSmall ? 'card_images_small' : 'card_images';
+    const fileName = `${cardId}${isSmall ? '_small' : ''}.jpg`;
+
+    // Download the image
+    const imageResponse = await fetch(imageUrl);
+    if (!imageResponse.ok) {
+      console.error(`Failed to download image from ${imageUrl}: ${imageResponse.statusText}`);
+      return false;
+    }
+
+    const imageBlob = await imageResponse.blob();
+
+    // Upload to Supabase Storage
+    const { data, error } = await supabase
+      .storage
+      .from(bucketName)
+      .upload(fileName, imageBlob, {
+        contentType: 'image/jpeg',
+        upsert: true
+      });
+
+    if (error) {
+      console.error(`Error uploading image to ${bucketName}:`, error);
+      return false;
+    }
+
+    // Successfully stored the image
+    return true;
+  } catch (error) {
+    console.error(`Error storing image for card ${cardId}:`, error);
+    return false;
+  }
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -173,17 +212,28 @@ Deno.serve(async (req) => {
         throw new Error("Invalid response from YGOProdeck API");
       }
 
-      // Format cards for this batch
-      const batchCards = apiData.data.map(card => ({
-        id: card.id,
-        name: card.name,
-        type: card.type,
-        api_data: card,
-        image_url: card.card_images[0]?.image_url || null,
-        small_image_url: card.card_images[0]?.image_url_small || null
-      }));
+      // Process cards in this batch with parallel image uploads
+      const cardProcessingPromises = apiData.data.map(async (card) => {
+        const imageUrl = card.card_images[0]?.image_url || null;
+        const smallImageUrl = card.card_images[0]?.image_url_small || null;
 
-      cardsToInsert.push(...batchCards);
+        // Upload both images in parallel
+        await Promise.all([
+          storeCardImage(supabase, imageUrl, card.id, false),
+          storeCardImage(supabase, smallImageUrl, card.id, true)
+        ]);
+
+        return {
+          id: card.id,
+          name: card.name,
+          type: card.type,
+          api_data: card
+        };
+      });
+
+      // Wait for all cards in batch to be processed
+      const processedCards = await Promise.all(cardProcessingPromises);
+      cardsToInsert.push(...processedCards);
 
       // Small delay between batches
       if (batch !== missingCardIdBatches[missingCardIdBatches.length - 1]) {
