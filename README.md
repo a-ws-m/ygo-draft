@@ -1,38 +1,110 @@
-# sv
+# YGO Draft
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+A web application for creating and participating in custom Yu-Gi-Oh! card drafts with your friends. Upload your cube, configure your draft settings, and draft cards in real-time.
 
-## Creating a project
+![YGO Draft](https://github.com/a-ws-m/ygo-draft/assets/banner.png)
 
-If you're seeing this, you've probably already done this step. Congrats!
+## Features
 
+- **Custom Cubes**: Upload your Yu-Gi-Oh! cube in CSV format
+- **Multiple Draft Formats**: Support for Winston Draft and Rochester Draft
+- **Real-time Drafting**: Draft cards with friends with real-time updates
+- **Card Visualization**: View your drafted deck with card images and statistics
+- **YDK Export**: Download your drafted deck in YDK format for use in simulators
+- **Draft Statistics**: Analyze your draft with built-in charts and analytics
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js (v18.x or later)
+- pnpm package manager
+
+### Installation
+
+1. Clone the repository
 ```bash
-# create a new project in the current directory
-npx sv create
-
-# create a new project in my-app
-npx sv create my-app
+git clone https://github.com/a-ws-m/ygo-draft.git
+cd ygo-draft
 ```
 
-## Developing
-
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
-
+2. Install dependencies
 ```bash
-npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
+pnpm install
 ```
 
-## Building
-
-To create a production version of your app:
-
+3. Set up your environment variables
 ```bash
-npm run build
+cp .env.example .env
 ```
 
-You can preview the production build with `npm run preview`.
+4. Update the .env file with your Supabase credentials
 
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+5. Start the development server
+```bash
+pnpm dev
+```
+
+## Usage
+
+### Creating a Draft
+
+1. Visit the home page
+2. Upload your cube CSV file (you can create one at [YGOProdeck Cube Builder](https://ygoprodeck.com/cube/))
+3. Configure your draft settings:
+   - Select a draft method (Winston or Rochester)
+   - Set the number of players
+   - Configure additional settings based on the draft method
+4. Start the draft and share the URL with other players
+
+### Participating in a Draft
+
+1. Open the shared draft URL
+2. Wait for all players to join
+3. The draft creator will start the draft when everyone is ready
+4. Follow the on-screen instructions to draft cards based on the selected method
+
+## Draft Methods
+
+### Winston Draft
+
+In Winston Draft, cards are arranged into piles. On your turn:
+1. Look at the first pile
+2. Choose to either take that pile or pass to the next pile
+3. If you pass on all piles, you must take a card from the top of the deck
+4. After your selection, add a card from the deck to each pile you passed
+
+### Rochester Draft
+
+In Rochester Draft:
+1. Cards are laid out face up in "packs"
+2. Players take turns selecting one card at a time from the available pack
+3. The direction of picking reverses each round
+4. When a pack is empty, a new one is opened
+
+## Technologies
+
+- [Svelte](https://svelte.dev/) and [SvelteKit](https://kit.svelte.dev/) - Frontend framework
+- [Tailwind CSS](https://tailwindcss.com/) - Styling
+- [Supabase](https://supabase.com/) - Backend, database, and real-time functionality
+- [D3.js](https://d3js.org/) - Data visualization
+- [PapaParse](https://www.papaparse.com/) - CSV parsing
+
+## Contributing
+
+We welcome contributions to YGO Draft! Please check out our contributing guidelines for details on how to get started.
+
+For bug reports and feature requests, please [open an issue](https://github.com/a-ws-m/ygo-draft/issues) on GitHub.
+
+## License
+
+This project is licensed under the AGPLv3 License - see the LICENSE file for details.
+
+## Acknowledgments
+
+- [YGOProdeck](https://ygoprodeck.com/) for their card database and cube builder
+- All contributors and players who have helped test and improve this application
+
+---
+
+Created by [a-ws-m](https://github.com/a-ws-m)
