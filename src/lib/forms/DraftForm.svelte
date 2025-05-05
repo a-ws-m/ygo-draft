@@ -14,6 +14,7 @@
 	// Use $state for reactive variables in Svelte 5
 	let draftMethod = $state('rochester');
 	let poolSize = $state(120);
+	let draftedDeckSize = $state(60); // New variable for drafted deck size
 	let numberOfPlayers = $state(2);
 	let numberOfPiles = $state(3);
 	let packsPerRound = $state(1);
@@ -36,11 +37,15 @@
 	let isAuthenticated = $derived(!!authStore.session);
 	let showRarityWarning = $state(false);
 	let cardsWithoutRarity = $state([]);
+	let showUnevenPoolWarning = $state(false); // New state for uneven pool warning
 
 	// Constants for limits
 	const MAX_POOL_SIZE = 1000;
 	const MAX_PLAYERS = 10;
 	const DAILY_DRAFT_LIMIT = 100; // Not used directly in UI but useful for reference
+
+	// Derived value for max drafted deck size
+	let maxDraftedDeckSize = $derived(Math.floor(MAX_POOL_SIZE / numberOfPlayers));
 
 	// Draft method descriptions
 	const draftMethodDescriptions = {
@@ -96,8 +101,14 @@
 
 	function validateOptions() {
 		optionErrorMessage = '';
+		showUnevenPoolWarning = false; // Reset the warning flag
 
 		// First check database limits
+		if (draftMethod === 'rochester') {
+			// For Rochester, calculate pool size from drafted deck size
+			poolSize = draftedDeckSize * numberOfPlayers;
+		}
+
 		if (poolSize > MAX_POOL_SIZE) {
 			optionErrorMessage = `Pool size cannot exceed ${MAX_POOL_SIZE} cards.`;
 			return;
@@ -134,6 +145,12 @@
 					optionErrorMessage = `Rarity distribution total (${rarityTotal}) must equal pack size (${packSize}).`;
 					return;
 				}
+
+				// Check if pool is evenly divisible for rarity distribution
+				const totalPackCards = packSize * numberOfPlayers;
+				if (poolSize % totalPackCards !== 0) {
+					showUnevenPoolWarning = true;
+				}
 			}
 		} else if (draftMethod === 'winston') {
 			if (poolSize < numberOfPiles) {
@@ -150,6 +167,11 @@
 		isProcessing = true;
 
 		try {
+			// For Rochester draft, ensure pool size is calculated from drafted deck size
+			if (draftMethod === 'rochester') {
+				poolSize = draftedDeckSize * numberOfPlayers;
+			}
+
 			// Ensure all necessary data is included in the draft creation
 			const draftId = await createDraft(
 				draftMethod,
@@ -183,6 +205,7 @@
 				JSON.stringify({
 					draftMethod,
 					poolSize,
+					draftedDeckSize: draftMethod === 'rochester' ? draftedDeckSize : undefined,
 					numberOfPlayers,
 					numberOfPiles: draftMethod === 'winston' ? numberOfPiles : undefined,
 					packsPerRound: draftMethod === 'rochester' ? packsPerRound : undefined,
@@ -356,20 +379,40 @@
 		</div>
 
 		<!-- Pool Size -->
-		<div>
-			<label for="pool-size" class="mb-1 block text-sm font-medium text-gray-700">
-				Pool Size <span class="text-xs text-gray-500">(max: {MAX_POOL_SIZE})</span>
-			</label>
-			<input
-				type="number"
-				id="pool-size"
-				bind:value={poolSize}
-				min="1"
-				max={MAX_POOL_SIZE}
-				oninput={validateOptions}
-				class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-			/>
-		</div>
+		{#if draftMethod === 'rochester'}
+			<div>
+				<label for="drafted-deck-size" class="mb-1 block text-sm font-medium text-gray-700">
+					Drafted deck size <span class="text-xs text-gray-500">(max: {maxDraftedDeckSize})</span>
+				</label>
+				<input
+					type="number"
+					id="drafted-deck-size"
+					bind:value={draftedDeckSize}
+					min="1"
+					max={maxDraftedDeckSize}
+					oninput={validateOptions}
+					class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+				/>
+				<p class="mt-1 text-sm text-gray-500">
+					Total pool size: {draftedDeckSize * numberOfPlayers} cards
+				</p>
+			</div>
+		{:else}
+			<div>
+				<label for="pool-size" class="mb-1 block text-sm font-medium text-gray-700">
+					Pool Size <span class="text-xs text-gray-500">(max: {MAX_POOL_SIZE})</span>
+				</label>
+				<input
+					type="number"
+					id="pool-size"
+					bind:value={poolSize}
+					min="1"
+					max={MAX_POOL_SIZE}
+					oninput={validateOptions}
+					class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+				/>
+			</div>
+		{/if}
 
 		<!-- Number of Players -->
 		<div>
@@ -538,6 +581,38 @@
 		<!-- Option Validation Error -->
 		{#if optionErrorMessage}
 			<p class="mt-2 text-sm text-red-600">{optionErrorMessage}</p>
+		{/if}
+
+		<!-- Uneven Pool Warning -->
+		{#if showUnevenPoolWarning && useRarityDistribution && draftMethod === 'rochester'}
+			<div class="mt-4 rounded-md bg-orange-50 p-3">
+				<div class="flex">
+					<div class="flex-shrink-0">
+						<svg
+							class="h-5 w-5 text-orange-400"
+							viewBox="0 0 20 20"
+							fill="currentColor"
+							aria-hidden="true"
+						>
+							<path
+								fill-rule="evenodd"
+								d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z"
+								clip-rule="evenodd"
+							/>
+						</svg>
+					</div>
+					<div class="ml-3">
+						<h3 class="text-sm font-medium text-orange-800">Uneven pool warning</h3>
+						<div class="mt-2 text-sm text-orange-700">
+							<p>
+								The total pool size ({poolSize}) is not evenly divisible by the number of cards in
+								each round ({packSize * numberOfPlayers}). The last round's packs will be smaller
+								and won't match your specified rarity distribution.
+							</p>
+						</div>
+					</div>
+				</div>
+			</div>
 		{/if}
 
 		<!-- Submit Button -->
