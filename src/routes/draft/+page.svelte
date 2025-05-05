@@ -7,6 +7,7 @@
 	import CardList from '$lib/components/CardList.svelte';
 	import RochesterDraftView from '$lib/components/RochesterDraftView.svelte';
 	import RulesModal from '$lib/components/RulesModal.svelte';
+	import LoginPrompt from '$lib/components/LoginPrompt.svelte';
 	import * as draftStore from '$lib/stores/draftStore.svelte';
 	import { canPlayerDeclineCurrentOption } from '$lib/utils/draftManager.svelte';
 	import { store as authStore } from '$lib/stores/authStore.svelte';
@@ -256,7 +257,8 @@
 		});
 	}
 
-	onMount(async () => {
+	// Function to set up the draft after login
+	async function setupDraft() {
 		// Get draft ID from the URL query parameter
 		const newDraftId = new URLSearchParams(window.location.search).get('id') || '';
 
@@ -276,20 +278,30 @@
 		// Set shareable URL
 		shareableUrl = `${window.location.origin}${window.location.pathname}?id=${draftId}`;
 
-		// Now load the draft data
-		await loadDraftData();
-
-		// Get the authenticated user's ID
+		 // Get the authenticated user's ID
 		draftStore.store.userId = authStore.session?.user?.id || '';
 		console.log('User ID:', draftStore.store.userId);
 
 		if (!draftStore.store.userId) {
 			loadError = 'You must be logged in to participate in a draft.';
+			isLoading = false;
 			return;
 		}
 
+		// Now load the draft data
+		await loadDraftData();
+
 		// Create and subscribe to the draft channel
 		await createDraftChannel();
+	}
+
+	onMount(async () => {
+		// Check if user is already logged in
+		if (authStore.session) {
+			await setupDraft();
+		} else {
+			isLoading = false;
+		}
 	});
 
 	onDestroy(() => {
@@ -358,12 +370,43 @@
 			loadError = `Failed to start draft: ${error.message}`;
 		}
 	}
+
+	function handleLogin() {
+		// This function is called after successful login
+		isLoading = true;
+		setupDraft();
+	}
 </script>
 
 <RulesModal bind:isOpen={showRulesModal} draftMethod={draftStore.store.draftMethod} />
 
 <div class="flex min-h-screen flex-col bg-gray-100">
-	{#if !draftStore.store.draftStarted}
+	{#if isLoading}
+		<div class="flex items-center justify-center">
+			<div class="h-12 w-12 animate-spin rounded-full border-b-2 border-indigo-600"></div>
+			<p class="ml-3">Loading draft data...</p>
+		</div>
+	{:else if loadError && loadError !== 'You must be logged in to participate in a draft.'}
+		<div
+			class="relative rounded border border-red-400 bg-red-100 px-4 py-3 text-red-700"
+			role="alert"
+		>
+			<strong class="font-bold">Error:</strong>
+			<span class="block sm:inline">{loadError}</span>
+			<button class="mt-2 rounded bg-red-600 px-4 py-2 text-white" onclick={loadDraftData}>
+				Retry
+			</button>
+		</div>
+	{:else if !authStore.session}
+		<!-- Show login prompt if user is not logged in -->
+		<div class="mb-6 bg-white p-8 shadow-md">
+			<div class="mx-auto max-w-4xl">
+				<h1 class="mb-2 text-3xl font-bold text-gray-800">Draft Room: {draftId}</h1>
+				<p class="mb-4 text-xl text-gray-600">Please login to join this draft</p>
+				<LoginPrompt on:login={handleLogin} />
+			</div>
+		</div>
+	{:else if !draftStore.store.draftStarted}
 		<!-- Jumbotron for draft details before start -->
 		<div class="mb-6 bg-white p-8 shadow-md">
 			<div class="mx-auto max-w-4xl">
@@ -454,143 +497,132 @@
 		</div>
 	{/if}
 
-	{#if isLoading}
-		<div class="flex items-center justify-center">
-			<div class="h-12 w-12 animate-spin rounded-full border-b-2 border-indigo-600"></div>
-			<p class="ml-3">Loading draft data...</p>
-		</div>
-	{:else if loadError}
-		<div
-			class="relative rounded border border-red-400 bg-red-100 px-4 py-3 text-red-700"
-			role="alert"
-		>
-			<strong class="font-bold">Error:</strong>
-			<span class="block sm:inline">{loadError}</span>
-			<button class="mt-2 rounded bg-red-600 px-4 py-2 text-white" onclick={loadDraftData}>
-				Retry
-			</button>
-		</div>
-	{:else if !draftStore.store.draftStarted}
-		<div class="flex flex-1 items-center justify-center">
-			<div class="max-w-md rounded-lg bg-white p-8 text-center shadow-md">
-				<h2 class="mb-4 text-2xl font-bold text-gray-700">Waiting for Draft to Start</h2>
-				<p class="mb-4 text-gray-600">
-					Once all players have joined, the host can start the draft.
-				</p>
-				{#if !draftStore.store.draftReady}
-					<p class="font-medium text-amber-600">Waiting for more players to join...</p>
-				{:else if isCreator}
-					<p class="font-medium text-green-600">All players have joined! Ready to start.</p>
-				{:else}
-					<p class="font-medium text-green-600">
-						All players have joined! Waiting for host to start draft.
+	{#if authStore.session && !isLoading && !loadError}
+		{#if !draftStore.store.draftStarted}
+			<div class="flex flex-1 items-center justify-center">
+				<div class="max-w-md rounded-lg bg-white p-8 text-center shadow-md">
+					<h2 class="mb-4 text-2xl font-bold text-gray-700">Waiting for Draft to Start</h2>
+					<p class="mb-4 text-gray-600">
+						Once all players have joined, the host can start the draft.
 					</p>
-				{/if}
+					{#if !draftStore.store.draftReady}
+						<p class="font-medium text-amber-600">Waiting for more players to join...</p>
+					{:else if isCreator}
+						<p class="font-medium text-green-600">All players have joined! Ready to start.</p>
+					{:else}
+						<p class="font-medium text-green-600">
+							All players have joined! Waiting for host to start draft.
+						</p>
+					{/if}
+				</div>
 			</div>
-		</div>
-	{:else if draftStore.store.allFinished || (draftStore.store.draftMethod === 'rochester' && draftStore.store.playerFinished)}
-		<div class="flex w-full flex-col items-center">
-			<h2 class="mb-4 text-2xl font-bold text-green-600">Draft Finished!</h2>
-			<div class="w-1/3 rounded bg-gray-100 p-4 shadow">
-				<h2 class="mb-4 text-xl font-bold">Your Drafted Deck</h2>
-				<CardList cube={draftStore.store.draftedDeck} showYdkDownload={true} showChart={true} />
+		{:else if draftStore.store.allFinished || (draftStore.store.draftMethod === 'rochester' && draftStore.store.playerFinished)}
+			<div class="flex w-full flex-col items-center">
+				<h2 class="mb-4 text-2xl font-bold text-green-600">Draft Finished!</h2>
+				<div class="w-1/3 rounded bg-gray-100 p-4 shadow">
+					<h2 class="mb-4 text-xl font-bold">Your Drafted Deck</h2>
+					<CardList cube={draftStore.store.draftedDeck} showYdkDownload={true} showChart={true} />
+				</div>
 			</div>
-		</div>
-	{:else if draftStore.store.draftMethod === 'winston'}
-		<!-- Main Section: Split View for Winston Draft -->
-		<div class="flex flex-1 gap-4 p-6">
-			<!-- Left: Current Pile -->
-			<div class="flex-1 overflow-y-auto border-r border-gray-300 pr-4">
-				{#if isActivePlayer}
-					<div class="mb-4">
-						<div class="flex items-center space-x-3 p-0.5">
-							{#each draftStore.store.piles as pile, index}
-								<div class="relative">
-									<div
-										class={`flex h-10 w-10 items-center justify-center rounded-md text-sm font-medium ${
-											index === draftStore.store.currentPileIndex
-												? 'bg-indigo-600 text-white ring-1 ring-indigo-500 ring-offset-1'
-												: 'bg-gray-200 text-gray-700'
-										} overflow-visible`}
-										title={`Pile ${index + 1}: ${pile.length} cards${draftStore.store.lastAcceptedPile === index ? ' (Last Accepted)' : ''}`}
-									>
-										{pile.length}
+		{:else if draftStore.store.draftMethod === 'winston'}
+			<!-- Main Section: Split View for Winston Draft -->
+			<div class="flex flex-1 gap-4 p-6">
+				<!-- Left: Current Pile -->
+				<div class="flex-1 overflow-y-auto border-r border-gray-300 pr-4">
+					{#if isActivePlayer}
+						<div class="mb-4">
+							<div class="flex items-center space-x-3 p-0.5">
+								{#each draftStore.store.piles as pile, index}
+									<div class="relative">
+										<div
+											class={`flex h-10 w-10 items-center justify-center rounded-md text-sm font-medium ${
+												index === draftStore.store.currentPileIndex
+													? 'bg-indigo-600 text-white ring-1 ring-indigo-500 ring-offset-1'
+													: 'bg-gray-200 text-gray-700'
+											} overflow-visible`}
+											title={`Pile ${index + 1}: ${pile.length} cards${draftStore.store.lastAcceptedPile === index ? ' (Last Accepted)' : ''}`}
+										>
+											{pile.length}
+										</div>
 									</div>
-								</div>
-							{/each}
-							<div
-								class="flex h-10 items-center justify-center rounded-md border border-gray-300 bg-gray-100 px-3 text-sm font-medium text-gray-700"
-							>
-								<span class="mr-1">Deck:</span>
-								{draftStore.store.deck?.length || 0}
-							</div>
-							{#if draftStore.store.lastAcceptedPile !== null}
+								{/each}
 								<div
 									class="flex h-10 items-center justify-center rounded-md border border-gray-300 bg-gray-100 px-3 text-sm font-medium text-gray-700"
 								>
-									<span class="mr-1">Last Accepted:</span>
-									{draftStore.store.lastAcceptedPile == draftStore.store.numberOfPiles
-										? 'Deck'
-										: draftStore.store.lastAcceptedPile + 1}
+									<span class="mr-1">Deck:</span>
+									{draftStore.store.deck?.length || 0}
 								</div>
-							{/if}
+								{#if draftStore.store.lastAcceptedPile !== null}
+									<div
+										class="flex h-10 items-center justify-center rounded-md border border-gray-300 bg-gray-100 px-3 text-sm font-medium text-gray-700"
+									>
+										<span class="mr-1">Last Accepted:</span>
+										{draftStore.store.lastAcceptedPile == draftStore.store.numberOfPiles
+											? 'Deck'
+											: draftStore.store.lastAcceptedPile + 1}
+									</div>
+								{/if}
+							</div>
 						</div>
-					</div>
 
-					{#if draftStore.store.piles.length > draftStore.store.currentPileIndex}
-						<CardList
-							cube={draftStore.store.piles[draftStore.store.currentPileIndex]}
-							border={false}
-							startListView={false}
-							showDescription={true}
-						/>
-						<div class="mt-2 flex justify-between">
-							<button class="rounded bg-green-500 px-4 py-2 text-white" onclick={handleAcceptPile}>
-								Accept
-							</button>
-							{#if canDecline}
+						{#if draftStore.store.piles.length > draftStore.store.currentPileIndex}
+							<CardList
+								cube={draftStore.store.piles[draftStore.store.currentPileIndex]}
+								border={false}
+								startListView={false}
+								showDescription={true}
+							/>
+							<div class="mt-2 flex justify-between">
 								<button
-									class="rounded bg-red-500 px-4 py-2 text-white"
-									onclick={handleDeclineCurrentPile}
+									class="rounded bg-green-500 px-4 py-2 text-white"
+									onclick={handleAcceptPile}
 								>
-									Decline
+									Accept
 								</button>
-							{/if}
-						</div>
+								{#if canDecline}
+									<button
+										class="rounded bg-red-500 px-4 py-2 text-white"
+										onclick={handleDeclineCurrentPile}
+									>
+										Decline
+									</button>
+								{/if}
+							</div>
+						{:else}
+							<p class="text-gray-500">Loading pile data...</p>
+						{/if}
 					{:else}
-						<p class="text-gray-500">Loading pile data...</p>
+						<p class="text-gray-500">Waiting for the current player...</p>
 					{/if}
-				{:else}
-					<p class="text-gray-500">Waiting for the current player...</p>
-				{/if}
-			</div>
+				</div>
 
-			<!-- Right: Drafted Deck -->
-			<div class="w-1/4 overflow-y-auto pl-4">
-				<h2 class="mb-4 text-xl font-bold text-gray-700">Your Drafted Deck</h2>
-				<CardList
-					cube={draftStore.store.draftedDeck}
-					border={true}
-					showYdkDownload={true}
-					showChart={true}
-				/>
+				<!-- Right: Drafted Deck -->
+				<div class="w-1/4 overflow-y-auto pl-4">
+					<h2 class="mb-4 text-xl font-bold text-gray-700">Your Drafted Deck</h2>
+					<CardList
+						cube={draftStore.store.draftedDeck}
+						border={true}
+						showYdkDownload={true}
+						showChart={true}
+					/>
+				</div>
 			</div>
-		</div>
-	{:else if draftStore.store.draftMethod === 'rochester'}
-		<!-- Rochester Draft View -->
-		<div class="flex-1 p-6">
-			<RochesterDraftView />
-		</div>
-	{:else}
-		<div class="flex w-full flex-row">
-			<!-- Card Selection UI -->
-			<div class="flex-1 rounded bg-white p-4 shadow">
-				<h2 class="mb-4 text-xl font-bold">Unsupported Draft Type</h2>
-				<p>The draft type "{draftStore.store.draftMethod}" is not currently supported.</p>
+		{:else if draftStore.store.draftMethod === 'rochester'}
+			<!-- Rochester Draft View -->
+			<div class="flex-1 p-6">
+				<RochesterDraftView />
 			</div>
+		{:else}
+			<div class="flex w-full flex-row">
+				<!-- Card Selection UI -->
+				<div class="flex-1 rounded bg-white p-4 shadow">
+					<h2 class="mb-4 text-xl font-bold">Unsupported Draft Type</h2>
+					<p>The draft type "{draftStore.store.draftMethod}" is not currently supported.</p>
+				</div>
 
-			<!-- Drafted Card List -->
-			<CardList cube={draftStore.store.draftedDeck} />
-		</div>
+				<!-- Drafted Card List -->
+				<CardList cube={draftStore.store.draftedDeck} />
+			</div>
+		{/if}
 	{/if}
 </div>
