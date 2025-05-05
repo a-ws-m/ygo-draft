@@ -93,36 +93,56 @@ export class RochesterDraftStrategy implements DraftStrategy {
             // Initialize the deck with the fetched cards
             store.deck = availableCards;
 
-            // Calculate the number of cards per player
-            const cardsPerPlayer = Math.floor(store.deck.length / store.numberOfPlayers);
+            // Calculate the number of rounds and packs
+            const totalCards = store.deck.length;
+            const cardsPerRound = store.numberOfPlayers * store.packSize;
+            const fullRounds = Math.floor(totalCards / cardsPerRound);
+            const remainingCards = totalCards % cardsPerRound;
 
-            // Calculate how many packs we can make
-            const packsPerPlayer = Math.floor(cardsPerPlayer / store.packSize);
-            const totalPacks = packsPerPlayer * store.numberOfPlayers;
-
-            // Create packs
-            const packs = [];
-            for (let i = 0; i < totalPacks; i++) {
-                const pack = [];
-                for (let j = 0; j < store.packSize; j++) {
-                    if (store.deck.length > 0) {
-                        pack.push(store.deck.pop());
-                    }
-                }
-                packs.push(pack);
-            }
-
-            // Store packs in our custom format
+            // Create rounds and packs
             store.rounds = [];
-            for (let i = 0; i < packsPerPlayer; i++) {
+            let cardIndex = 0;
+
+            // Create full rounds with full-sized packs
+            for (let round = 0; round < fullRounds; round++) {
                 const roundPacks = [];
-                for (let j = 0; j < store.numberOfPlayers; j++) {
-                    const packIndex = i * store.numberOfPlayers + j;
-                    if (packIndex < packs.length) {
-                        roundPacks.push(packs[packIndex]);
+                for (let player = 0; player < store.numberOfPlayers; player++) {
+                    const pack = [];
+                    for (let i = 0; i < store.packSize; i++) {
+                        if (cardIndex < store.deck.length) {
+                            pack.push(store.deck[cardIndex]);
+                            cardIndex++;
+                        }
                     }
+                    roundPacks.push(pack);
                 }
                 store.rounds.push(roundPacks);
+            }
+
+            // Create the final round if there are remaining cards
+            if (remainingCards > 0) {
+                // Calculate cards per pack in the final round
+                const cardsPerPack = Math.floor(remainingCards / store.numberOfPlayers);
+
+                // Only create final round if each pack will have at least 1 card
+                if (cardsPerPack > 0) {
+                    const finalRound = [];
+                    for (let player = 0; player < store.numberOfPlayers; player++) {
+                        const pack = [];
+                        for (let i = 0; i < cardsPerPack; i++) {
+                            if (cardIndex < store.deck.length) {
+                                pack.push(store.deck[cardIndex]);
+                                cardIndex++;
+                            }
+                        }
+                        finalRound.push(pack);
+                    }
+
+                    // Only add the final round if all packs have cards
+                    if (finalRound.every(pack => pack.length === cardsPerPack)) {
+                        store.rounds.push(finalRound);
+                    }
+                }
             }
 
             // Initialize current round and pack assignments

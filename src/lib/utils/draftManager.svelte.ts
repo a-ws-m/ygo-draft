@@ -69,15 +69,28 @@ export async function handleDraftBroadcast(event: string, payload: any) {
 
                 // Find the pack
                 const pack = store.rounds[store.currentRound][packIndex];
+                
+                if (pack) {
+                    // Find and remove the card
+                    const cardToPickIndex = pack.findIndex(card => card.index === cardIndex);
+                    if (cardToPickIndex !== -1) {
+                        pack.splice(cardToPickIndex, 1);
+                    }
 
-                // Find and remove the card
-                const cardToPickIndex = pack.findIndex(card => card.index === cardIndex);
-                if (cardToPickIndex !== -1) {
-                    pack.splice(cardToPickIndex, 1);
+                    // Add player to the selected set
+                    store.selectedPlayers.add(playerIndex);
+                    
+                    // Check if the current player has completed drafting in the last round
+                    const currentPlayerIndex = store.participants.indexOf(store.userId);
+                    if (currentPlayerIndex === playerIndex && 
+                        store.currentRound === store.rounds.length - 1) {
+                        // Check if player's pack is empty
+                        const currentPlayerPack = store.rounds[store.currentRound][store.currentPackIndex[currentPlayerIndex]];
+                        if (!currentPlayerPack || currentPlayerPack.length === 0) {
+                            store.playerFinished = true;
+                        }
+                    }
                 }
-
-                // Add player to the selected set
-                store.selectedPlayers.add(playerIndex);
             }
             break;
 
@@ -90,6 +103,16 @@ export async function handleDraftBroadcast(event: string, payload: any) {
                 store.currentPackIndex = packAssignments;
                 store.selectedPlayers.clear();
                 store.hasSelected = false;
+                
+                // Check if the player now has an empty pack in the final round
+                const playerIndex = store.participants.indexOf(store.userId);
+                if (playerIndex !== -1 && store.currentRound === store.rounds.length - 1) {
+                    const currentPack = store.rounds[store.currentRound][store.currentPackIndex[playerIndex]];
+                    if (!currentPack || currentPack.length === 0) {
+                        // Player has an empty pack in the final round - they are finished
+                        store.playerFinished = true;
+                    }
+                }
             }
             break;
 
