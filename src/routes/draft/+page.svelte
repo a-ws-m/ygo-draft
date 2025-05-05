@@ -11,7 +11,7 @@
 	import { canPlayerDeclineCurrentOption } from '$lib/utils/draftManager.svelte';
 	import { store as authStore } from '$lib/stores/authStore.svelte';
 
-	$inspect('draftMethod', draftStore.store.draftMethod);
+	$inspect('participants', draftStore.store.participants);
 
 	// Get the draft ID from URL query parameter
 	let draftId = $state('');
@@ -124,7 +124,7 @@
 			const state = channel.presenceState();
 			console.log('Presence state updated:', state);
 			draftStore.store.connectedUsers = Object.keys(state).length;
-			draftStore.store.participants = Object.keys(state);
+			draftStore.store.participants = Object.keys(state).sort();
 			draftStore.store.draftReady = draftStore.store.connectedUsers === draftStore.store.numberOfPlayers;
 		});
 
