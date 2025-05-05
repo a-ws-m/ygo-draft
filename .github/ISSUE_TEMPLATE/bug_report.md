@@ -11,17 +11,21 @@ assignees: ''
 A clear and concise description of what the bug is.
 
 **To Reproduce**
-Steps to reproduce the behavior:
+Steps to reproduce the behaviour:
 1. Go to '...'
 2. Click on '....'
 3. Scroll down to '....'
 4. See error
 
-**Expected behavior**
+**Expected behaviour**
 A clear and concise description of what you expected to happen.
 
 **Screenshots**
 If applicable, add screenshots to help explain your problem.
+
+**Console Logs**
+Please include any relevant console logs. You can follow the instructions here to save console logs: 
+https://requestly.com/blog/how-to-download-console-logs-from-a-website/
 
 **Desktop (please complete the following information):**
  - OS: [e.g. iOS]
