@@ -19,6 +19,11 @@
 	let packsPerRound = $state(1);
 	let packSize = $state(15);
 	let extraDeckAtEnd = $state(true); // New state for extra deck option
+	let useRarityDistribution = $state(false); // New state for rarity distribution option
+	let commonPerPack = $state(7);
+	let rarePerPack = $state(5);
+	let superRarePerPack = $state(2);
+	let ultraRarePerPack = $state(1);
 	let cubeFile = $state(null);
 	let isCubeValid = $state(false);
 	let isProcessing = $state(false);
@@ -29,6 +34,8 @@
 	let showMethodTooltip = $state(false);
 	let showCubeTooltip = $state(false); // New state for cube tooltip
 	let isAuthenticated = $derived(!!authStore.session);
+	let showRarityWarning = $state(false);
+	let cardsWithoutRarity = $state([]);
 
 	// Constants for limits
 	const MAX_POOL_SIZE = 1000;
@@ -56,6 +63,7 @@
 						totalCards = cube.reduce((sum, card) => sum + card.quantity, 0);
 						dispatch('cubeUploaded', { cube });
 						validateOptions();
+						checkForCardsWithoutRarity();
 					})
 					.catch((error) => {
 						console.error('Error processing cube file:', error);
@@ -69,6 +77,22 @@
 		} else {
 			isCubeValid = false;
 			errorMessage = 'No file uploaded. Please select a valid cube file.';
+		}
+	}
+
+	function checkForCardsWithoutRarity() {
+		if (useRarityDistribution && draftMethod === 'rochester') {
+			cardsWithoutRarity = cube.filter(
+				(card) => !card.apiData?.misc_info[0]?.rarity && !card.apiData?.misc_info[0]?.md_rarity
+			);
+
+			if (cardsWithoutRarity.length > 0) {
+				showRarityWarning = true;
+			} else {
+				showRarityWarning = false;
+			}
+		} else {
+			showRarityWarning = false;
 		}
 	}
 
@@ -95,12 +119,24 @@
 			} else if (poolSize < packSize * packsPerRound) {
 				optionErrorMessage =
 					'Pool size must be at least equal to pack size times the number of packs.';
+				return;
+			}
+
+			// Validation for rarity distribution
+			if (useRarityDistribution) {
+				const rarityTotal = commonPerPack + rarePerPack + superRarePerPack + ultraRarePerPack;
+				if (rarityTotal !== packSize) {
+					optionErrorMessage = `Rarity distribution total (${rarityTotal}) must equal pack size (${packSize}).`;
+					return;
+				}
 			}
 		} else if (draftMethod === 'winston') {
 			if (poolSize < numberOfPiles) {
 				optionErrorMessage = 'Pool size must be at least equal to the number of piles.';
 			}
 		}
+
+		checkForCardsWithoutRarity();
 	}
 
 	async function startDraft() {
@@ -125,7 +161,15 @@
 				})),
 				draftMethod === 'winston' ? numberOfPiles : 3,
 				draftMethod === 'rochester' ? packSize : 5,
-				extraDeckAtEnd // Pass the extra deck option to createDraft
+				extraDeckAtEnd, // Pass the extra deck option to createDraft
+				draftMethod === 'rochester' && useRarityDistribution
+					? {
+							commonPerPack,
+							rarePerPack,
+							superRarePerPack,
+							ultraRarePerPack
+						}
+					: null
 			);
 
 			// Store draft settings in sessionStorage for additional backup
@@ -138,7 +182,16 @@
 					numberOfPiles: draftMethod === 'winston' ? numberOfPiles : undefined,
 					packsPerRound: draftMethod === 'rochester' ? packsPerRound : undefined,
 					packSize: draftMethod === 'rochester' ? packSize : undefined,
-					extraDeckAtEnd // Include in saved settings
+					extraDeckAtEnd, // Include in saved settings
+					useRarityDistribution, // Include rarity distribution settings
+					raritySettings: useRarityDistribution
+						? {
+								commonPerPack,
+								rarePerPack,
+								superRarePerPack,
+								ultraRarePerPack
+							}
+						: undefined
 				})
 			);
 
@@ -344,6 +397,86 @@
 					class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
 				/>
 			</div>
+
+			<!-- Rarity Distribution Option -->
+			<div class="flex items-center">
+				<input
+					type="checkbox"
+					id="use-rarity-distribution"
+					bind:checked={useRarityDistribution}
+					onchange={validateOptions}
+					class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+				/>
+				<label for="use-rarity-distribution" class="ml-2 block text-sm text-gray-700">
+					Use pack rarity distribution
+				</label>
+			</div>
+
+			<!-- Rarity Distribution Settings -->
+			{#if useRarityDistribution}
+				<div class="ml-6 space-y-3 rounded-md border border-gray-200 bg-gray-50 p-4">
+					<div>
+						<label for="common-per-pack" class="mb-1 block text-sm font-medium text-gray-700">
+							Commons per pack
+						</label>
+						<input
+							type="number"
+							id="common-per-pack"
+							bind:value={commonPerPack}
+							min="0"
+							oninput={validateOptions}
+							class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+						/>
+					</div>
+					<div>
+						<label for="rare-per-pack" class="mb-1 block text-sm font-medium text-gray-700">
+							Rares per pack
+						</label>
+						<input
+							type="number"
+							id="rare-per-pack"
+							bind:value={rarePerPack}
+							min="0"
+							oninput={validateOptions}
+							class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+						/>
+					</div>
+					<div>
+						<label for="super-rare-per-pack" class="mb-1 block text-sm font-medium text-gray-700">
+							Super Rares per pack
+						</label>
+						<input
+							type="number"
+							id="super-rare-per-pack"
+							bind:value={superRarePerPack}
+							min="0"
+							oninput={validateOptions}
+							class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+						/>
+					</div>
+					<div>
+						<label for="ultra-rare-per-pack" class="mb-1 block text-sm font-medium text-gray-700">
+							Ultra Rares per pack
+						</label>
+						<input
+							type="number"
+							id="ultra-rare-per-pack"
+							bind:value={ultraRarePerPack}
+							min="0"
+							oninput={validateOptions}
+							class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+						/>
+					</div>
+
+					<div class="rounded border border-blue-200 bg-blue-50 p-2 text-blue-800">
+						<p class="text-sm">
+							Total: {commonPerPack + rarePerPack + superRarePerPack + ultraRarePerPack}
+							(must equal pack size of {packSize})
+						</p>
+					</div>
+				</div>
+			{/if}
+
 			<!-- Winston Draft Options -->
 		{:else if draftMethod === 'winston'}
 			<div>
@@ -467,3 +600,63 @@
 		</div>
 	{/if}
 </div>
+
+<!-- Warning Modal for Cards Without Rarity -->
+{#if showRarityWarning && cardsWithoutRarity.length > 0}
+	<div
+		class="bg-opacity-50 fixed inset-0 z-50 flex items-center justify-center overflow-auto bg-black p-4"
+	>
+		<div class="relative mx-auto max-w-2xl rounded-lg bg-white shadow-xl">
+			<div class="p-6">
+				<div class="mb-4 text-center">
+					<h3 class="text-lg font-medium text-gray-900">
+						Warning: Cards Without Rarity Information
+					</h3>
+					<p class="mt-2 text-sm text-gray-500">
+						The following cards don't have rarity information and won't be included in the draft if
+						you use rarity distribution:
+					</p>
+				</div>
+
+				<div class="max-h-96 overflow-auto">
+					<div class="space-y-2 p-2">
+						{#each cardsWithoutRarity as card}
+							<div class="flex items-center rounded border border-gray-200 p-2">
+								<img
+									src={card.smallImageUrl || card.imageUrl}
+									alt={card.name}
+									class="mr-2 h-12 w-12 rounded object-cover"
+								/>
+								<span class="text-sm">{card.name}</span>
+							</div>
+						{/each}
+					</div>
+				</div>
+
+				<div class="mt-6 flex justify-center space-x-4">
+					<button
+						type="button"
+						class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:outline-none"
+						onclick={() => {
+							showRarityWarning = false;
+						}}
+					>
+						I Understand
+					</button>
+
+					<button
+						type="button"
+						class="rounded-md bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 focus:outline-none"
+						onclick={() => {
+							useRarityDistribution = false;
+							showRarityWarning = false;
+							validateOptions();
+						}}
+					>
+						Disable Rarity Distribution
+					</button>
+				</div>
+			</div>
+		</div>
+	</div>
+{/if}

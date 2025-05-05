@@ -255,6 +255,7 @@ export async function formatCardsFromDatabase(cards: Array<{
             race: card.api_data.race,
             attribute: card.api_data.attribute,
             archetype: card.api_data.archetype,
+            rarity: card.api_data.misc_info[0]?.md_rarity,
         },
         quantity: card.quantity || 1
     }));
@@ -271,7 +272,8 @@ export async function fetchCubeWithCardData(draftId: string) {
         const { data: cubeEntries, error: cubeError } = await supabase
             .from("cubes")
             .select("card_id, index, owner, pile")
-            .eq("draft_id", draftId);
+            .eq("draft_id", draftId)
+            .order("index", { ascending: true });
 
         if (cubeError) {
             console.error("Error fetching cube entries:", cubeError);
