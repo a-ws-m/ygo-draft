@@ -83,7 +83,7 @@
 	function checkForCardsWithoutRarity() {
 		if (useRarityDistribution && draftMethod === 'rochester') {
 			cardsWithoutRarity = cube.filter(
-				(card) => !card.apiData?.misc_info[0]?.rarity && !card.apiData?.misc_info[0]?.md_rarity
+				(card) => !card?.apiData?.rarity
 			);
 
 			if (cardsWithoutRarity.length > 0) {

@@ -1,5 +1,4 @@
 import * as draftStore from '$lib/stores/draftStore.svelte';
-import { supabase } from '$lib/supabaseClient';
 import { handleAcceptPile, handleDeclineCurrentPile } from './winstonDraftLogic';
 import { fetchCubeWithCardData } from '$lib/services/cardService';
 

@@ -116,6 +116,8 @@ export async function createDraft(
         // If using rarity distribution for Rochester draft
         if (draftMethod === 'rochester' && rarityDistribution) {
             processedCube = organizeCardsByRarity(expandedCube, rarityDistribution, packSize, numberOfPlayers, poolSize);
+            console.log("Organized cards by rarity for Rochester draft.");
+            console.log("Cards organized by rarity:", processedCube.map(card => getRarityFromCard(card.apiData)));
         } else {
             // Otherwise just shuffle the cube
             processedCube = shuffleArray(expandedCube);
@@ -288,12 +290,7 @@ function organizeCardsByRarity(
  * @returns The rarity string or null if not found
  */
 function getRarityFromCard(apiData: any): string | null {
-    if (!apiData || !apiData.misc_info || !apiData.misc_info[0]) {
-        return null;
-    }
-
-    // Try to get rarity from md_rarity first, then fall back to rarity
-    return apiData.misc_info[0].md_rarity || apiData.misc_info[0].rarity || null;
+    return apiData?.rarity || null;
 }
 
 /**
