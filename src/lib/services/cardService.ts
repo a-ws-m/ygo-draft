@@ -271,7 +271,8 @@ export async function fetchCubeWithCardData(draftId: string) {
         const { data: cubeEntries, error: cubeError } = await supabase
             .from("cubes")
             .select("card_id, index, owner, pile")
-            .eq("draft_id", draftId);
+            .eq("draft_id", draftId)
+            .order("index", { ascending: true });
 
         if (cubeError) {
             console.error("Error fetching cube entries:", cubeError);
