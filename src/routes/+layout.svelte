@@ -9,11 +9,15 @@
 	} from '$lib/stores/authStore.svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
+	import { base } from '$app/paths';
 
 	let { children } = $props();
 
 	// Check if the current route is public (doesn't require authentication)
-	const publicRoutes = ['/auth'];
+	let publicRoutes = ['/auth', '/']; // Added root path to public routes
+	if (base) {
+		publicRoutes = publicRoutes.map((route) => `${base}${route}`);
+	}
 	const isPublicRoute = $derived(publicRoutes.some((route) => page.url.pathname.startsWith(route)));
 
 	// Combined check for access - allow if the route is public or the user is authenticated
@@ -23,7 +27,7 @@
 	$effect(() => {
 		if (!authStore.loading && !isPublicRoute && !authStore.session) {
 			const currentPath = page.url.pathname + page.url.search;
-			goto(`/auth?redirect=${encodeURIComponent(currentPath)}`);
+			goto(`${base}/auth?redirect=${encodeURIComponent(currentPath)}`);
 		}
 	});
 

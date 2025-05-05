@@ -1,7 +1,13 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { base } from '$app/paths';
 	import { createDraft } from '$lib/utils/supabaseDraftManager';
+	import {
+		store as authStore,
+		signInWithGitHub,
+		signInWithDiscord
+	} from '$lib/stores/authStore.svelte';
 
 	const dispatch = createEventDispatcher();
 
@@ -22,6 +28,7 @@
 	let cube = $state([]);
 	let showMethodTooltip = $state(false);
 	let showCubeTooltip = $state(false); // New state for cube tooltip
+	let isAuthenticated = $derived(!!authStore.session);
 
 	// Constants for limits
 	const MAX_POOL_SIZE = 1000;
@@ -135,8 +142,8 @@
 				})
 			);
 
-			// Navigate to the draft page
-			goto(`/draft?id=${draftId}`);
+			// Navigate to the draft page with the base path prepended
+			goto(`${base}/draft?id=${draftId}`);
 		} catch (error) {
 			console.error('Error starting draft:', error);
 			errorMessage = 'Failed to start draft. Please try again.';
@@ -144,57 +151,304 @@
 			isProcessing = false;
 		}
 	}
+
+	async function handleGitHubLogin() {
+		isProcessing = true;
+		try {
+			await signInWithGitHub();
+		} catch (error) {
+			console.error('Error signing in with GitHub:', error);
+		} finally {
+			isProcessing = false;
+		}
+	}
+
+	async function handleDiscordLogin() {
+		isProcessing = true;
+		try {
+			await signInWithDiscord();
+		} catch (error) {
+			console.error('Error signing in with Discord:', error);
+		} finally {
+			isProcessing = false;
+		}
+	}
 </script>
 
 <div class="space-y-6">
-	<!-- Cube File Upload -->
-	<div>
-		<div class="mb-1 flex items-center">
-			<label for="cube-file" class="block text-sm font-medium text-gray-700">
-				Upload Cube File (.csv)
-			</label>
-			<div class="relative ml-2">
-				<button
-					type="button"
-					class="flex h-5 w-5 items-center justify-center rounded-full bg-gray-200 text-gray-600 hover:bg-gray-300"
-					aria-label="Cube file information"
-					onmouseenter={() => (showCubeTooltip = true)}
-					onmouseleave={() => (showCubeTooltip = false)}
-				>
-					?
-				</button>
-
-				{#if showCubeTooltip}
-					<div
-						class="prose prose-sm ring-opacity-5 absolute top-0 left-6 z-10 w-64 rounded-md bg-white p-3 shadow-lg ring-1 ring-black"
+	{#if isAuthenticated}
+		<!-- Cube File Upload -->
+		<div>
+			<div class="mb-1 flex items-center">
+				<label for="cube-file" class="block text-sm font-medium text-gray-700">
+					Upload Cube File (.csv)
+				</label>
+				<div class="relative ml-2">
+					<button
+						type="button"
+						class="flex h-5 w-5 items-center justify-center rounded-full bg-gray-200 text-gray-600 hover:bg-gray-300"
+						aria-label="Cube file information"
+						onmouseenter={() => (showCubeTooltip = true)}
+						onmouseleave={() => (showCubeTooltip = false)}
 					>
-						<h4 class="text-sm font-medium text-gray-900">Cube File Format</h4>
-						<p class="text-xs text-gray-600">
-							Visit <a
-								href="https://ygoprodeck.com/cube/"
-								target="_blank"
-								rel="noopener noreferrer"
-								class="text-blue-600 hover:underline">YGOProdeck Cube Builder</a
-							> to find or build a cube, then click the button to download it as a CSV file.
-						</p>
+						?
+					</button>
+
+					{#if showCubeTooltip}
+						<div
+							class="prose prose-sm ring-opacity-5 absolute top-0 left-6 z-10 w-64 rounded-md bg-white p-3 shadow-lg ring-1 ring-black"
+						>
+							<h4 class="text-sm font-medium text-gray-900">Cube File Format</h4>
+							<p class="text-xs text-gray-600">
+								Visit <a
+									href="https://ygoprodeck.com/cube/"
+									target="_blank"
+									rel="noopener noreferrer"
+									class="text-blue-600 hover:underline">YGOProdeck Cube Builder</a
+								> to find or build a cube, then click the button to download it as a CSV file.
+							</p>
+						</div>
+					{/if}
+				</div>
+			</div>
+			<div class="relative">
+				<input
+					type="file"
+					id="cube-file"
+					accept=".csv"
+					onchange={handleFileUpload}
+					class="block w-full text-sm text-gray-500 file:mr-4 file:rounded-md file:border file:border-gray-300 file:bg-gray-50 file:px-4 file:py-2 file:text-sm file:font-medium file:text-gray-700 hover:file:bg-gray-100"
+					disabled={isProcessing}
+				/>
+				{#if isProcessing}
+					<!-- Spinner -->
+					<div class="bg-opacity-75 absolute inset-0 flex items-center justify-center bg-white">
+						<svg
+							class="h-6 w-6 animate-spin text-indigo-600"
+							xmlns="http://www.w3.org/2000/svg"
+							fill="none"
+							viewBox="0 0 24 24"
+						>
+							<circle
+								class="opacity-25"
+								cx="12"
+								cy="12"
+								r="10"
+								stroke="currentColor"
+								stroke-width="4"
+							></circle>
+							<path
+								class="opacity-75"
+								fill="currentColor"
+								d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+							></path>
+						</svg>
 					</div>
 				{/if}
 			</div>
+			{#if errorMessage}
+				<!-- Error Message -->
+				<p class="mt-2 text-sm text-red-600">{errorMessage}</p>
+			{/if}
 		</div>
-		<div class="relative">
+
+		<!-- Draft Method Selection -->
+		<div>
+			<div class="mb-1 flex items-center">
+				<label for="draft-method" class="block text-sm font-medium text-gray-700">
+					Draft Method
+				</label>
+				<div class="relative ml-2">
+					<button
+						type="button"
+						class="flex h-5 w-5 items-center justify-center rounded-full bg-gray-200 text-gray-600 hover:bg-gray-300"
+						aria-label="Draft method information"
+						onmouseenter={() => (showMethodTooltip = true)}
+						onmouseleave={() => (showMethodTooltip = false)}
+					>
+						?
+					</button>
+
+					{#if showMethodTooltip}
+						<div
+							class="prose prose-sm ring-opacity-5 absolute top-0 left-6 z-10 w-64 rounded-md bg-white p-3 shadow-lg ring-1 ring-black"
+						>
+							<h4 class="text-sm font-medium text-gray-900">Draft Methods</h4>
+							<p class="mb-2 text-xs text-gray-600">
+								<strong>Winston Draft:</strong>
+								{draftMethodDescriptions.winston}
+							</p>
+							<p class="text-xs text-gray-600">
+								<strong>Rochester Draft:</strong>
+								{draftMethodDescriptions.rochester}
+							</p>
+						</div>
+					{/if}
+				</div>
+			</div>
+			<select
+				id="draft-method"
+				bind:value={draftMethod}
+				onchange={validateOptions}
+				class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+			>
+				<option value="winston">Winston Draft</option>
+				<option value="rochester">Rochester Draft</option>
+			</select>
+		</div>
+
+		<!-- Pool Size -->
+		<div>
+			<label for="pool-size" class="mb-1 block text-sm font-medium text-gray-700">
+				Pool Size <span class="text-xs text-gray-500">(max: {MAX_POOL_SIZE})</span>
+			</label>
 			<input
-				type="file"
-				id="cube-file"
-				accept=".csv"
-				onchange={handleFileUpload}
-				class="block w-full text-sm text-gray-500 file:mr-4 file:rounded-md file:border file:border-gray-300 file:bg-gray-50 file:px-4 file:py-2 file:text-sm file:font-medium file:text-gray-700 hover:file:bg-gray-100"
-				disabled={isProcessing}
+				type="number"
+				id="pool-size"
+				bind:value={poolSize}
+				min="1"
+				max={MAX_POOL_SIZE}
+				oninput={validateOptions}
+				class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
 			/>
-			{#if isProcessing}
-				<!-- Spinner -->
-				<div class="bg-opacity-75 absolute inset-0 flex items-center justify-center bg-white">
+		</div>
+
+		<!-- Number of Players -->
+		<div>
+			<label for="number-of-players" class="mb-1 block text-sm font-medium text-gray-700">
+				Number of Players <span class="text-xs text-gray-500">(max: {MAX_PLAYERS})</span>
+			</label>
+			<input
+				type="number"
+				id="number-of-players"
+				bind:value={numberOfPlayers}
+				min="2"
+				max={MAX_PLAYERS}
+				oninput={validateOptions}
+				class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+			/>
+		</div>
+
+		<!-- Rochester Draft Options -->
+		{#if draftMethod === 'rochester'}
+			<div>
+				<label for="pack-size" class="mb-1 block text-sm font-medium text-gray-700">
+					Pack Size
+				</label>
+				<input
+					type="number"
+					id="pack-size"
+					bind:value={packSize}
+					min="1"
+					oninput={validateOptions}
+					class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+				/>
+			</div>
+			<!-- Winston Draft Options -->
+		{:else if draftMethod === 'winston'}
+			<div>
+				<label for="number-of-piles" class="mb-1 block text-sm font-medium text-gray-700">
+					Number of Piles
+				</label>
+				<input
+					type="number"
+					id="number-of-piles"
+					bind:value={numberOfPiles}
+					min="1"
+					oninput={validateOptions}
+					class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+				/>
+			</div>
+		{/if}
+
+		<!-- Extra Deck at End Option -->
+		<div class="flex items-center">
+			<input
+				type="checkbox"
+				id="extra-deck-at-end"
+				bind:checked={extraDeckAtEnd}
+				class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+			/>
+			<label for="extra-deck-at-end" class="ml-2 block text-sm text-gray-700">
+				Move extra deck cards to end of the pool
+			</label>
+		</div>
+
+		<!-- Option Validation Error -->
+		{#if optionErrorMessage}
+			<p class="mt-2 text-sm text-red-600">{optionErrorMessage}</p>
+		{/if}
+
+		<!-- Submit Button -->
+		<div>
+			<button
+				type="button"
+				class="w-full rounded-md bg-indigo-600 px-4 py-2 text-white shadow-sm hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-400"
+				onclick={startDraft}
+				disabled={!isCubeValid || isProcessing || optionErrorMessage}
+			>
+				Start Draft
+			</button>
+		</div>
+	{:else}
+		<!-- Login prompt for non-authenticated users -->
+		<div class="flex flex-col items-center space-y-6 py-8 text-center">
+			<div class="mb-4 space-y-3">
+				<h2 class="text-xl font-bold text-gray-800">Login to Start Drafting</h2>
+				<p class="text-gray-600">
+					You need to login to create and participate in drafts. Sign in with one of the methods
+					below to get started.
+				</p>
+			</div>
+
+			<div class="w-full max-w-sm space-y-4">
+				<button
+					type="button"
+					onclick={handleGitHubLogin}
+					disabled={isProcessing}
+					class="flex w-full items-center justify-center rounded-md bg-gray-800 px-4 py-2 text-white shadow-sm hover:bg-gray-700 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 focus:outline-none disabled:bg-gray-400"
+				>
 					<svg
-						class="h-6 w-6 animate-spin text-indigo-600"
+						xmlns="http://www.w3.org/2000/svg"
+						width="20"
+						height="20"
+						viewBox="0 0 24 24"
+						fill="currentColor"
+						class="mr-2"
+					>
+						<path
+							d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"
+						/>
+					</svg>
+					Sign in with GitHub
+				</button>
+
+				<button
+					type="button"
+					onclick={handleDiscordLogin}
+					disabled={isProcessing}
+					class="flex w-full items-center justify-center rounded-md bg-indigo-600 px-4 py-2 text-white shadow-sm hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:outline-none disabled:bg-gray-400"
+				>
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						width="20"
+						height="20"
+						viewBox="0 0 127.14 96.36"
+						fill="currentColor"
+						class="mr-2"
+					>
+						<path
+							d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21h0A105.73,105.73,0,0,0,32.71,96.36,77.7,77.7,0,0,0,39.6,85.25a68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1A105.25,105.25,0,0,0,126.6,80.22h0C129.24,52.84,122.09,29.11,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S54,46,53.89,53,48.84,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.25,60,73.25,53s5-12.74,11.44-12.74S96.23,46,96.12,53,91.08,65.69,84.69,65.69Z"
+						/>
+					</svg>
+					Sign in with Discord
+				</button>
+			</div>
+
+			{#if isProcessing}
+				<div class="mt-4 flex items-center justify-center">
+					<svg
+						class="mr-2 h-5 w-5 animate-spin text-indigo-600"
 						xmlns="http://www.w3.org/2000/svg"
 						fill="none"
 						viewBox="0 0 24 24"
@@ -207,151 +461,9 @@
 							d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
 						></path>
 					</svg>
+					<span>Processing...</span>
 				</div>
 			{/if}
 		</div>
-		{#if errorMessage}
-			<!-- Error Message -->
-			<p class="mt-2 text-sm text-red-600">{errorMessage}</p>
-		{/if}
-	</div>
-
-	<!-- Draft Method Selection -->
-	<div>
-		<div class="mb-1 flex items-center">
-			<label for="draft-method" class="block text-sm font-medium text-gray-700">
-				Draft Method
-			</label>
-			<div class="relative ml-2">
-				<button
-					type="button"
-					class="flex h-5 w-5 items-center justify-center rounded-full bg-gray-200 text-gray-600 hover:bg-gray-300"
-					aria-label="Draft method information"
-					onmouseenter={() => (showMethodTooltip = true)}
-					onmouseleave={() => (showMethodTooltip = false)}
-				>
-					?
-				</button>
-
-				{#if showMethodTooltip}
-					<div
-						class="prose prose-sm ring-opacity-5 absolute top-0 left-6 z-10 w-64 rounded-md bg-white p-3 shadow-lg ring-1 ring-black"
-					>
-						<h4 class="text-sm font-medium text-gray-900">Draft Methods</h4>
-						<p class="mb-2 text-xs text-gray-600">
-							<strong>Winston Draft:</strong>
-							{draftMethodDescriptions.winston}
-						</p>
-						<p class="text-xs text-gray-600">
-							<strong>Rochester Draft:</strong>
-							{draftMethodDescriptions.rochester}
-						</p>
-					</div>
-				{/if}
-			</div>
-		</div>
-		<select
-			id="draft-method"
-			bind:value={draftMethod}
-			onchange={validateOptions}
-			class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-		>
-			<option value="winston">Winston Draft</option>
-			<option value="rochester">Rochester Draft</option>
-		</select>
-	</div>
-
-	<!-- Pool Size -->
-	<div>
-		<label for="pool-size" class="mb-1 block text-sm font-medium text-gray-700">
-			Pool Size <span class="text-xs text-gray-500">(max: {MAX_POOL_SIZE})</span>
-		</label>
-		<input
-			type="number"
-			id="pool-size"
-			bind:value={poolSize}
-			min="1"
-			max={MAX_POOL_SIZE}
-			oninput={validateOptions}
-			class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-		/>
-	</div>
-
-	<!-- Number of Players -->
-	<div>
-		<label for="number-of-players" class="mb-1 block text-sm font-medium text-gray-700">
-			Number of Players <span class="text-xs text-gray-500">(max: {MAX_PLAYERS})</span>
-		</label>
-		<input
-			type="number"
-			id="number-of-players"
-			bind:value={numberOfPlayers}
-			min="2"
-			max={MAX_PLAYERS}
-			oninput={validateOptions}
-			class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-		/>
-	</div>
-
-	<!-- Rochester Draft Options -->
-	{#if draftMethod === 'rochester'}
-		<div>
-			<label for="pack-size" class="mb-1 block text-sm font-medium text-gray-700">
-				Pack Size
-			</label>
-			<input
-				type="number"
-				id="pack-size"
-				bind:value={packSize}
-				min="1"
-				oninput={validateOptions}
-				class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-			/>
-		</div>
-		<!-- Winston Draft Options -->
-	{:else if draftMethod === 'winston'}
-		<div>
-			<label for="number-of-piles" class="mb-1 block text-sm font-medium text-gray-700">
-				Number of Piles
-			</label>
-			<input
-				type="number"
-				id="number-of-piles"
-				bind:value={numberOfPiles}
-				min="1"
-				oninput={validateOptions}
-				class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-			/>
-		</div>
 	{/if}
-
-	<!-- Extra Deck at End Option -->
-	<div class="flex items-center">
-		<input
-			type="checkbox"
-			id="extra-deck-at-end"
-			bind:checked={extraDeckAtEnd}
-			class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-		/>
-		<label for="extra-deck-at-end" class="ml-2 block text-sm text-gray-700">
-			Move extra deck cards to end of the pool
-		</label>
-	</div>
-
-	<!-- Option Validation Error -->
-	{#if optionErrorMessage}
-		<p class="mt-2 text-sm text-red-600">{optionErrorMessage}</p>
-	{/if}
-
-	<!-- Submit Button -->
-	<div>
-		<button
-			type="button"
-			class="w-full rounded-md bg-indigo-600 px-4 py-2 text-white shadow-sm hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-400"
-			onclick={startDraft}
-			disabled={!isCubeValid || isProcessing || optionErrorMessage}
-		>
-			Start Draft
-		</button>
-	</div>
 </div>

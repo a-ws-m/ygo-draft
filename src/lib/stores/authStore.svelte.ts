@@ -36,11 +36,11 @@ export function savePreviousPath(path) {
 // Get the saved path and clear it
 export function getPreviousPath() {
     if (browser) {
-        const path = localStorage.getItem('previousPath') || '/';
+        const path = localStorage.getItem('previousPath') || base;
         localStorage.removeItem('previousPath');
         return path;
     }
-    return '/';
+    return base;
 }
 
 // Sign in with GitHub
@@ -49,9 +49,6 @@ export async function signInWithGitHub() {
         store.loading = true;
         const { data, error } = await supabase.auth.signInWithOAuth({
             provider: 'github',
-            options: {
-                redirectTo: `${window.location.origin}${base}/auth/callback`
-            }
         });
         if (error) throw error;
 
@@ -70,9 +67,6 @@ export async function signInWithDiscord() {
         store.loading = true;
         const { data, error } = await supabase.auth.signInWithOAuth({
             provider: 'discord',
-            options: {
-                redirectTo: `${window.location.origin}${base}/auth/callback`
-            }
         });
         if (error) throw error;
 
@@ -92,12 +86,12 @@ export async function signOut() {
         const { error } = await supabase.auth.signOut();
         if (error) throw error;
 
-        store.session = null;
         const path = getPreviousPath();
         goto(path);
     } catch (error) {
         console.error('Error signing out:', error);
     } finally {
+        store.session = null;
         store.loading = false;
     }
 }

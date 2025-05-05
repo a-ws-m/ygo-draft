@@ -21,6 +21,8 @@
 	let loadError = $state(null);
 	let isCreator = $state(false);
 	let showRulesModal = $state(false);
+	let linkCopied = $state(false);
+	let shareableUrl = $state('');
 
 	let isActivePlayer = $derived.by(() => {
 		if (
@@ -45,6 +47,21 @@
 	// Function to toggle the rules modal
 	function toggleRulesModal() {
 		showRulesModal = !showRulesModal;
+	}
+
+	// Function to copy the draft link to clipboard
+	function copyShareableLink() {
+		navigator.clipboard
+			.writeText(shareableUrl)
+			.then(() => {
+				linkCopied = true;
+				setTimeout(() => {
+					linkCopied = false;
+				}, 3000);
+			})
+			.catch((err) => {
+				console.error('Could not copy text: ', err);
+			});
 	}
 
 	// Load draft data
@@ -79,7 +96,7 @@
 				connectedUsers: draft.connected_users,
 				numberOfPiles: draft.number_of_piles || 3,
 				packSize: draft.pack_size || 15,
-				draftStarted: draft.status === 'active',
+				draftStarted: draft.status === 'active'
 			};
 
 			// Initialize the draft store
@@ -100,7 +117,7 @@
 		// https://github.com/supabase/realtime/issues/1111
 		await supabase.realtime.setAuth();
 
-		 // Clean up existing channel if it exists
+		// Clean up existing channel if it exists
 		if (draftStore.store.channel) {
 			draftStore.store.channel.unsubscribe();
 		}
@@ -125,7 +142,8 @@
 			console.log('Presence state updated:', state);
 			draftStore.store.connectedUsers = Object.keys(state).length;
 			draftStore.store.participants = Object.keys(state).sort();
-			draftStore.store.draftReady = draftStore.store.connectedUsers === draftStore.store.numberOfPlayers;
+			draftStore.store.draftReady =
+				draftStore.store.connectedUsers === draftStore.store.numberOfPlayers;
 		});
 
 		// Subscribe to presence join events
@@ -200,7 +218,7 @@
 			}
 		});
 
-		 // Set up broadcast event listeners
+		// Set up broadcast event listeners
 		setupBroadcastListeners(channel);
 
 		return channel;
@@ -254,6 +272,9 @@
 			draftStore.resetDraftStore();
 			draftId = newDraftId;
 		}
+
+		// Set shareable URL
+		shareableUrl = `${window.location.origin}${window.location.pathname}?id=${draftId}`;
 
 		// Now load the draft data
 		await loadDraftData();
@@ -348,6 +369,40 @@
 			<div class="mx-auto max-w-4xl">
 				<h1 class="mb-2 text-3xl font-bold text-gray-800">Draft Room: {draftId}</h1>
 				<p class="mb-4 text-xl text-gray-600">Waiting for players to join...</p>
+
+				<!-- Shareable link section -->
+				<div class="mb-4 rounded-lg border border-blue-100 bg-blue-50 p-4">
+					<p class="mb-2 text-blue-800">Share this link to invite other players:</p>
+					<div class="flex items-center">
+						<input
+							type="text"
+							readonly
+							value={shareableUrl}
+							class="mr-2 w-full rounded-md border border-blue-300 bg-white p-2 text-gray-800 focus:outline-none"
+						/>
+						<button
+							class="flex items-center rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+							onclick={copyShareableLink}
+						>
+							<span>{linkCopied ? 'Copied!' : 'Copy'}</span>
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								width="24"
+								height="24"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								class="feather feather-clipboard ml-1"
+								><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"
+								></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg
+							>
+						</button>
+					</div>
+				</div>
+
 				<div class="flex items-center gap-2 rounded-lg border border-indigo-100 bg-indigo-50 p-3">
 					<span class="text-lg font-medium text-indigo-700">
 						{draftStore.store.connectedUsers}/{draftStore.store.numberOfPlayers} Players Connected
@@ -379,8 +434,17 @@
 					onclick={toggleRulesModal}
 				>
 					<span>Rules</span>
-					<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-						<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						class="h-4 w-4"
+						viewBox="0 0 20 20"
+						fill="currentColor"
+					>
+						<path
+							fill-rule="evenodd"
+							d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z"
+							clip-rule="evenodd"
+						/>
 					</svg>
 				</button>
 				<p class="text-lg font-medium text-gray-700">
