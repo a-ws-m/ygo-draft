@@ -36,11 +36,11 @@ export function savePreviousPath(path) {
 // Get the saved path and clear it
 export function getPreviousPath() {
     if (browser) {
-        const path = localStorage.getItem('previousPath') || '/';
+        const path = localStorage.getItem('previousPath') || base;
         localStorage.removeItem('previousPath');
         return path;
     }
-    return '/';
+    return base;
 }
 
 // Sign in with GitHub

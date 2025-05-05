@@ -9,6 +9,7 @@
 	} from '$lib/stores/authStore.svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
+	import { base } from '$app/paths';
 
 	let { children } = $props();
 
@@ -23,7 +24,7 @@
 	$effect(() => {
 		if (!authStore.loading && !isPublicRoute && !authStore.session) {
 			const currentPath = page.url.pathname + page.url.search;
-			goto(`/auth?redirect=${encodeURIComponent(currentPath)}`);
+			goto(`${base}/auth?redirect=${encodeURIComponent(currentPath)}`);
 		}
 	});
 

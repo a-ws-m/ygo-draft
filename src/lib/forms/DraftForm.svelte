@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { base } from '$app/paths';
 	import { createDraft } from '$lib/utils/supabaseDraftManager';
 
 	const dispatch = createEventDispatcher();
@@ -135,8 +136,8 @@
 				})
 			);
 
-			// Navigate to the draft page
-			goto(`/draft?id=${draftId}`);
+			// Navigate to the draft page with the base path prepended
+			goto(`${base}/draft?id=${draftId}`);
 		} catch (error) {
 			console.error('Error starting draft:', error);
 			errorMessage = 'Failed to start draft. Please try again.';
