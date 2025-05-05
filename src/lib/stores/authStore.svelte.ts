@@ -43,57 +43,42 @@ export function getPreviousPath() {
     return '/';
 }
 
-// Sign up a new user
-export async function signUp(email: string, password: string) {
+// Sign in with GitHub
+export async function signInWithGitHub() {
     try {
         store.loading = true;
-        const { data, error } = await supabase.auth.signUp({
-            email,
-            password,
+        const { data, error } = await supabase.auth.signInWithOAuth({
+            provider: 'github',
+            options: {
+                redirectTo: `${window.location.origin}${base}/auth/callback`
+            }
         });
         if (error) throw error;
 
         return { success: true, data };
     } catch (error) {
-        console.error('Error signing up:', error);
+        console.error('Error signing in with GitHub:', error);
         return { success: false, error };
     } finally {
         store.loading = false;
     }
 }
 
-// Sign in a user
-export async function signIn(email: string, password: string) {
+// Sign in with Discord
+export async function signInWithDiscord() {
     try {
         store.loading = true;
-        const { data, error } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-        });
-        if (error) throw error;
-
-        store.session = data.session;
-        return { success: true, data };
-    } catch (error) {
-        console.error('Error signing in:', error);
-        return { success: false, error };
-    } finally {
-        store.loading = false;
-    }
-}
-
-// Reset password
-export async function resetPassword(email: string) {
-    try {
-        store.loading = true;
-        const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: `${window.location.origin}/${base}/auth/reset-password`,
+        const { data, error } = await supabase.auth.signInWithOAuth({
+            provider: 'discord',
+            options: {
+                redirectTo: `${window.location.origin}${base}/auth/callback`
+            }
         });
         if (error) throw error;
 
         return { success: true, data };
     } catch (error) {
-        console.error('Error resetting password:', error);
+        console.error('Error signing in with Discord:', error);
         return { success: false, error };
     } finally {
         store.loading = false;
