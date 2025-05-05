@@ -6,6 +6,7 @@
 	import { startDraftInDB } from '$lib/utils/supabaseDraftManager';
 	import CardList from '$lib/components/CardList.svelte';
 	import RochesterDraftView from '$lib/components/RochesterDraftView.svelte';
+	import RulesModal from '$lib/components/RulesModal.svelte';
 	import * as draftStore from '$lib/stores/draftStore.svelte';
 	import { canPlayerDeclineCurrentOption } from '$lib/utils/draftManager.svelte';
 	import { store as authStore } from '$lib/stores/authStore.svelte';
@@ -19,6 +20,7 @@
 	let isLoading = $state(true);
 	let loadError = $state(null);
 	let isCreator = $state(false);
+	let showRulesModal = $state(false);
 
 	let isActivePlayer = $derived.by(() => {
 		if (
@@ -39,6 +41,11 @@
 		}
 		return false;
 	});
+
+	// Function to toggle the rules modal
+	function toggleRulesModal() {
+		showRulesModal = !showRulesModal;
+	}
 
 	// Load draft data
 	async function loadDraftData() {
@@ -332,6 +339,8 @@
 	}
 </script>
 
+<RulesModal bind:isOpen={showRulesModal} draftMethod={draftStore.store.draftMethod} />
+
 <div class="flex min-h-screen flex-col bg-gray-100">
 	{#if !draftStore.store.draftStarted}
 		<!-- Jumbotron for draft details before start -->
@@ -364,9 +373,20 @@
 			class="flex w-full items-center justify-between border-b border-gray-300 bg-white px-6 py-4"
 		>
 			<p class="text-lg text-gray-600">Draft ID: {draftId}</p>
-			<p class="text-lg font-medium text-gray-700">
-				Connected Users: {draftStore.store.connectedUsers}/{draftStore.store.numberOfPlayers}
-			</p>
+			<div class="flex items-center space-x-4">
+				<button
+					class="flex items-center space-x-1 rounded-md bg-gray-100 px-3 py-1 text-sm text-gray-700 hover:bg-gray-200"
+					onclick={toggleRulesModal}
+				>
+					<span>Rules</span>
+					<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+						<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+					</svg>
+				</button>
+				<p class="text-lg font-medium text-gray-700">
+					Connected Users: {draftStore.store.connectedUsers}/{draftStore.store.numberOfPlayers}
+				</p>
+			</div>
 		</div>
 	{/if}
 

@@ -2,7 +2,11 @@
 	import { onMount } from 'svelte';
 	import * as draftStore from '$lib/stores/draftStore.svelte';
 	import CardList from './CardList.svelte';
+	import RulesModal from './RulesModal.svelte';
 	import { handleCardSelection } from '$lib/utils/draftManager.svelte';
+
+	// Rules modal state
+	let showRulesModal = $state(false);
 
 	// Get the player's index in the participants array
 	const playerIndex = $derived(draftStore.store.participants.indexOf(draftStore.store.userId));
@@ -26,7 +30,13 @@
 		if (draftStore.store.hasSelected) return;
 		await handleCardSelection(cardIndex);
 	}
+	
+	function toggleRulesModal() {
+		showRulesModal = !showRulesModal;
+	}
 </script>
+
+<RulesModal bind:isOpen={showRulesModal} draftMethod="rochester" />
 
 {#if draftStore.store.playerFinished || draftStore.store.allFinished}
 	<div class="flex flex-col space-y-4">
@@ -53,9 +63,18 @@
 	<div class="flex flex-col space-y-4">
 		<div class="rounded-md bg-white p-4 shadow-md">
 			<div class="mb-4 flex items-center justify-between">
-				<h2 class="text-xl font-bold text-gray-700">
-					Rochester Draft - Round {roundDisplay}/{totalRounds}
-				</h2>
+				<div class="flex items-center">
+					<h2 class="text-xl font-bold text-gray-700">
+						Rochester Draft - Round {roundDisplay}/{totalRounds}
+					</h2>
+					<button 
+						class="ml-2 flex h-6 w-6 items-center justify-center rounded-full bg-gray-200 text-gray-600 hover:bg-gray-300"
+						onclick={toggleRulesModal}
+						title="View Draft Rules"
+					>
+						?
+					</button>
+				</div>
 				<div class="flex items-center space-x-4">
 					<span class="text-sm font-medium text-gray-600">
 						Pack rotation: {direction}

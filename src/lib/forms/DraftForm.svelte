@@ -20,11 +20,22 @@
 	let optionErrorMessage = $state('');
 	let totalCards = $state(0);
 	let cube = $state([]);
+	let showMethodTooltip = $state(false);
 
 	// Constants for limits
 	const MAX_POOL_SIZE = 1000;
 	const MAX_PLAYERS = 10;
 	const DAILY_DRAFT_LIMIT = 100; // Not used directly in UI but useful for reference
+
+	// Draft method descriptions
+	const draftMethodDescriptions = {
+		winston: `In Winston Draft, players take turns choosing from a number of piles. If you accept a pile, you take all cards in it. If you decline, add another card to the pile from the deck and move to the next one. If you decline the final pile, you take the top card of the deck.`,
+		rochester: `In Rochester Draft, players pass a pack of cards in a circle, taking one card at a time, until no cards remain in the packs. Then, another pack is opened for each player, and the process continues until there are no cards left in the pool.`
+	};
+
+	function toggleMethodTooltip() {
+		showMethodTooltip = !showMethodTooltip;
+	}
 
 	function handleFileUpload(event: Event) {
 		const target = event.target as HTMLInputElement;
@@ -181,9 +192,30 @@
 
 	<!-- Draft Method Selection -->
 	<div>
-		<label for="draft-method" class="mb-1 block text-sm font-medium text-gray-700">
-			Draft Method
-		</label>
+		<div class="mb-1 flex items-center">
+			<label for="draft-method" class="block text-sm font-medium text-gray-700">
+				Draft Method
+			</label>
+			<div class="relative ml-2">
+				<button 
+					type="button"
+					class="flex h-5 w-5 items-center justify-center rounded-full bg-gray-200 text-gray-600 hover:bg-gray-300"
+					aria-label="Draft method information"
+					onmouseenter={() => showMethodTooltip = true}
+					onmouseleave={() => showMethodTooltip = false}
+				>
+					?
+				</button>
+				
+				{#if showMethodTooltip}
+					<div class="prose prose-sm absolute left-6 top-0 z-10 w-64 rounded-md bg-white p-3 shadow-lg ring-1 ring-black ring-opacity-5">
+						<h4 class="text-sm font-medium text-gray-900">Draft Methods</h4>
+						<p class="mb-2 text-xs text-gray-600"><strong>Winston Draft:</strong> {draftMethodDescriptions.winston}</p>
+						<p class="text-xs text-gray-600"><strong>Rochester Draft:</strong> {draftMethodDescriptions.rochester}</p>
+					</div>
+				{/if}
+			</div>
+		</div>
 		<select
 			id="draft-method"
 			bind:value={draftMethod}
