@@ -52,7 +52,7 @@
 				<header class="bg-white shadow">
 					<nav class="container mx-auto flex items-center justify-between px-6 py-4">
 						<div class="flex items-center">
-							<a href="/" class="mr-6 text-xl font-bold text-indigo-600">YGO Draft</a>
+							<a href={`${base}/`} class="mr-6 text-xl font-bold text-indigo-600">YGO Draft</a>
 							<span class="text-sm text-gray-600">{authStore.session.user.email}</span>
 							<button
 								onclick={signOut}
