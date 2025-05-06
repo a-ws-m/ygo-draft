@@ -1,8 +1,11 @@
+<div class="title-block" style="text-align: center;" align="center">
+
 # YGO Draft
+<p><img title="ygo draft logo" src="static/favicon.svg" height="200" ></p>
+
+</div>
 
 A web application for creating and participating in custom Yu-Gi-Oh! card drafts with your friends. Upload your cube, configure your draft settings, and draft cards in real-time.
-
-![YGO Draft](https://github.com/a-ws-m/ygo-draft/assets/banner.png)
 
 ## Features
 
