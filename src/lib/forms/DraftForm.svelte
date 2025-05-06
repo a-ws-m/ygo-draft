@@ -526,9 +526,11 @@
 				/>
 				<label
 					for="use-rarity-distribution"
-					class="ml-2 block text-sm text-gray-700"
-					class:text-gray-400={extraDeckAtEnd}
-					class:cursor-not-allowed={extraDeckAtEnd}
+					class={[
+						'ml-2 block text-sm',
+						{ 'text-gray-700': !extraDeckAtEnd },
+						{ 'linethrough text-gray-400': extraDeckAtEnd }
+					]}
 				>
 					Use pack rarity distribution
 				</label>
@@ -633,9 +635,11 @@
 			/>
 			<label
 				for="extra-deck-at-end"
-				class="ml-2 block text-sm text-gray-700"
-				class:text-gray-400={useRarityDistribution}
-				class:cursor-not-allowed={useRarityDistribution}
+				class={[
+					'ml-2 block text-sm',
+					{ 'text-gray-700': !useRarityDistribution },
+					{ 'linethrough text-gray-400': useRarityDistribution }
+				]}
 			>
 				Move extra deck cards to end of the pool
 			</label>
