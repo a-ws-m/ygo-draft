@@ -161,7 +161,12 @@
 
 	function checkForCardsWithoutRarity() {
 		if (useRarityDistribution && draftMethod === 'rochester') {
-			cardsWithoutRarity = cube.filter((card) => !card?.apiData?.rarity);
+			// Check for cards without rarities based on whether we have custom rarities or not
+			if (hasCustomRarities) {
+				cardsWithoutRarity = cube.filter((card) => !card?.custom_rarity);
+			} else {
+				cardsWithoutRarity = cube.filter((card) => !card?.apiData?.rarity);
+			}
 
 			if (cardsWithoutRarity.length > 0) {
 				showRarityWarning = true;
@@ -692,33 +697,35 @@
 			</div>
 		{/if}
 
-		<!-- Custom Rarities Success Message -->
-		{#if isCubeValid && hasCustomRarities}
-			<div class="mt-4 rounded-md bg-green-50 p-3">
-				<div class="flex">
-					<div class="flex-shrink-0">
-						<svg
-							class="h-5 w-5 text-green-400"
-							viewBox="0 0 20 20"
-							fill="currentColor"
-							aria-hidden="true"
-						>
-							<path
-								fill-rule="evenodd"
-								d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z"
-								clip-rule="evenodd"
-							/>
-						</svg>
-					</div>
-					<div class="ml-3">
-						<h3 class="text-sm font-medium text-green-800">Custom rarities detected</h3>
-						<div class="mt-2 text-sm text-green-700">
-							<p>
-								Custom rarities will be used for card distribution in Rochester draft.
-								{#if cardsWithoutCustomRarity.length > 0}
+		<!-- Custom Rarities Message -->
+		{#if isCubeValid && hasCustomRarities && useRarityDistribution}
+			{#if cardsWithoutCustomRarity.length > 0}
+				<!-- Warning for cards without custom rarity -->
+				<div class="mt-4 rounded-md bg-orange-50 p-3">
+					<div class="flex">
+						<div class="flex-shrink-0">
+							<svg
+								class="h-5 w-5 text-orange-400"
+								viewBox="0 0 20 20"
+								fill="currentColor"
+								aria-hidden="true"
+							>
+								<path
+									fill-rule="evenodd"
+									d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z"
+									clip-rule="evenodd"
+								/>
+							</svg>
+						</div>
+						<div class="ml-3">
+							<h3 class="text-sm font-medium text-orange-800">Cards without custom rarity</h3>
+							<div class="mt-2 text-sm text-orange-700">
+								<p>
+									Some cards don't have custom rarity information and may not be properly
+									distributed.
 									<button
 										type="button"
-										class="ml-1 text-green-800 underline"
+										class="ml-1 text-orange-800 underline"
 										onclick={() => {
 											showRarityWarning = true;
 											cardsWithoutRarity = cardsWithoutCustomRarity;
@@ -726,12 +733,38 @@
 									>
 										View cards without custom rarity.
 									</button>
-								{/if}
-							</p>
+								</p>
+							</div>
 						</div>
 					</div>
 				</div>
-			</div>
+			{:else}
+				<!-- Success message when all cards have custom rarity -->
+				<div class="mt-4 rounded-md bg-green-50 p-3">
+					<div class="flex">
+						<div class="flex-shrink-0">
+							<svg
+								class="h-5 w-5 text-green-400"
+								viewBox="0 0 20 20"
+								fill="currentColor"
+								aria-hidden="true"
+							>
+								<path
+									fill-rule="evenodd"
+									d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z"
+									clip-rule="evenodd"
+								/>
+							</svg>
+						</div>
+						<div class="ml-3">
+							<h3 class="text-sm font-medium text-green-800">Custom rarities detected</h3>
+							<div class="mt-2 text-sm text-green-700">
+								<p>Custom rarities will be used for card distribution in Rochester draft.</p>
+							</div>
+						</div>
+					</div>
+				</div>
+			{/if}
 		{/if}
 
 		<!-- Submit Button -->
