@@ -39,6 +39,9 @@
 	let showRarityWarning = $state(false);
 	let cardsWithoutRarity = $state([]);
 	let showUnevenPoolWarning = $state(false); // New state for uneven pool warning
+	let hasCustomRarities = $state(false); // Track if the cube has custom rarities
+	let cardsWithoutCustomRarity = $state([]);
+	let cardsMissingBothRarities = $state([]); // Track cards missing both custom and Master Duel rarities
 
 	// Fade-out states and timers for tooltips
 	let methodTooltipTimer = $state(null);
@@ -132,6 +135,13 @@
 						cube = uploadedCube;
 						totalCards = cube.reduce((sum, card) => sum + card.quantity, 0);
 						dispatch('cubeUploaded', { cube });
+
+						// Check if the cube has custom rarities
+						if (uploadedCube.hasCustomRarities) {
+							hasCustomRarities = true;
+							cardsWithoutCustomRarity = uploadedCube.cardsWithoutCustomRarity || [];
+						}
+
 						validateOptions();
 						checkForCardsWithoutRarity();
 					})
@@ -152,7 +162,22 @@
 
 	function checkForCardsWithoutRarity() {
 		if (useRarityDistribution && draftMethod === 'rochester') {
-			cardsWithoutRarity = cube.filter((card) => !card?.apiData?.rarity);
+			// Check for cards without rarities based on whether we have custom rarities or not
+			if (hasCustomRarities) {
+				// When using custom rarities, check for cards without custom rarity
+				cardsWithoutCustomRarity = cube.filter((card) => !card?.custom_rarity);
+
+				// Find cards that are missing both custom rarity and Master Duel rarity
+				cardsMissingBothRarities = cube.filter(
+					(card) => !card?.custom_rarity && !card?.apiData?.rarity
+				);
+
+				// Cards that will appear in the warning modal
+				cardsWithoutRarity = cardsWithoutCustomRarity;
+			} else {
+				// When using Master Duel rarities, check for cards without MD rarity
+				cardsWithoutRarity = cube.filter((card) => !card?.apiData?.rarity);
+			}
 
 			if (cardsWithoutRarity.length > 0) {
 				showRarityWarning = true;
@@ -249,7 +274,8 @@
 					type: card.type,
 					apiData: card.apiData,
 					imageUrl: card.imageUrl,
-					smallImageUrl: card.smallImageUrl
+					smallImageUrl: card.smallImageUrl,
+					custom_rarity: card?.custom_rarity // Include custom rarity if available
 				})),
 				draftMethod === 'winston' ? numberOfPiles : 3,
 				draftMethod === 'rochester' ? packSize : 5,
@@ -340,6 +366,12 @@
 									rel="noopener noreferrer"
 									class="text-blue-600 hover:underline">YGOProdeck Cube Builder</a
 								> to find or build a cube, then click the button to download it as a CSV file.
+							</p>
+							<p class="mt-1 text-xs text-gray-600">
+								<strong>Custom Rarities:</strong> To add custom rarities, include a fifth column in your
+								CSV with one of the following values: "Common", "Rare", "Super Rare", "Ultra Rare". To
+								do this, add a comma to each row, followed by the custom rarity. You can also just use
+								the acronyms ("c", "r", "sr", "ur"). Master Duel rarities are used if not specified.
 							</p>
 						</div>
 					{/if}
@@ -682,6 +714,87 @@
 			</div>
 		{/if}
 
+		<!-- Custom Rarities Message -->
+		{#if isCubeValid && hasCustomRarities && useRarityDistribution}
+			{#if cardsWithoutCustomRarity.length > 0}
+				<!-- Warning for cards without custom rarity -->
+				<div class="mt-4 rounded-md bg-orange-50 p-3">
+					<div class="flex">
+						<div class="flex-shrink-0">
+							<svg
+								class="h-5 w-5 text-orange-400"
+								viewBox="0 0 20 20"
+								fill="currentColor"
+								aria-hidden="true"
+							>
+								<path
+									fill-rule="evenodd"
+									d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z"
+									clip-rule="evenodd"
+								/>
+							</svg>
+						</div>
+						<div class="ml-3">
+							<h3 class="text-sm font-medium text-orange-800">Cards without custom rarity</h3>
+							<div class="mt-2 text-sm text-orange-700">
+								<p>
+									{cardsWithoutCustomRarity.length} cards don't have custom rarity information.
+									{#if cardsMissingBothRarities.length === 0}
+										Master Duel rarities will be used for all these cards.
+									{:else}
+										Master Duel rarities will be used for {cardsWithoutCustomRarity.length -
+											cardsMissingBothRarities.length} cards.
+										<span class="font-semibold text-red-600">
+											However, {cardsMissingBothRarities.length}
+											{cardsMissingBothRarities.length === 1 ? 'card' : 'cards'}
+											{cardsMissingBothRarities.length === 1 ? 'is' : 'are'} missing both custom and
+											Master Duel rarities and won't be included in the draft.
+										</span>
+									{/if}
+									<button
+										type="button"
+										class="ml-1 text-orange-800 underline"
+										onclick={() => {
+											showRarityWarning = true;
+											cardsWithoutRarity = cardsWithoutCustomRarity;
+										}}
+									>
+										View affected cards.
+									</button>
+								</p>
+							</div>
+						</div>
+					</div>
+				</div>
+			{:else}
+				<!-- Success message when all cards have custom rarity -->
+				<div class="mt-4 rounded-md bg-green-50 p-3">
+					<div class="flex">
+						<div class="flex-shrink-0">
+							<svg
+								class="h-5 w-5 text-green-400"
+								viewBox="0 0 20 20"
+								fill="currentColor"
+								aria-hidden="true"
+							>
+								<path
+									fill-rule="evenodd"
+									d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z"
+									clip-rule="evenodd"
+								/>
+							</svg>
+						</div>
+						<div class="ml-3">
+							<h3 class="text-sm font-medium text-green-800">Custom rarities detected</h3>
+							<div class="mt-2 text-sm text-green-700">
+								<p>Custom rarities will be used for card distribution in Rochester draft.</p>
+							</div>
+						</div>
+					</div>
+				</div>
+			{/if}
+		{/if}
+
 		<!-- Submit Button -->
 		<div>
 			<button
@@ -715,22 +828,56 @@
 					<h3 class="text-lg font-medium text-gray-900">
 						Warning: Cards Without Rarity Information
 					</h3>
-					<p class="mt-2 text-sm text-gray-500">
-						The following cards don't have rarity information and won't be included in the draft if
-						you use rarity distribution:
-					</p>
+
+					{#if hasCustomRarities}
+						<!-- Custom rarities are being used -->
+						<p class="mt-2 text-sm text-gray-500">
+							The following cards don't have custom rarity information. Master Duel rarities will be
+							used for these cards.
+							{#if cardsMissingBothRarities.length > 0}
+								<span class="font-semibold text-red-600">
+									However, some cards (highlighted in red) are missing both custom and Master Duel
+									rarities and won't be included in the draft.
+								</span>
+							{/if}
+						</p>
+					{:else}
+						<!-- Using Master Duel rarities -->
+						<p class="mt-2 text-sm text-gray-500">
+							The following cards don't have Master Duel rarity information and won't be included in
+							the draft if you use rarity distribution:
+						</p>
+					{/if}
 				</div>
 
 				<div class="max-h-96 overflow-auto">
 					<div class="space-y-2 p-2">
 						{#each cardsWithoutRarity as card}
-							<div class="flex items-center rounded border border-gray-200 p-2">
+							<div
+								class="flex items-center rounded border border-gray-200 p-2"
+								class:border-red-300={hasCustomRarities &&
+									!card?.custom_rarity &&
+									!card?.apiData?.rarity}
+								class:bg-red-50={hasCustomRarities &&
+									!card?.custom_rarity &&
+									!card?.apiData?.rarity}
+							>
 								<img
 									src={card.smallImageUrl || card.imageUrl}
 									alt={card.name}
 									class="mr-2 h-12 w-12 rounded object-cover"
 								/>
-								<span class="text-sm">{card.name}</span>
+								<span
+									class="text-sm"
+									class:text-red-700={hasCustomRarities &&
+										!card?.custom_rarity &&
+										!card?.apiData?.rarity}
+								>
+									{card.name}
+									{#if hasCustomRarities && !card?.custom_rarity && !card?.apiData?.rarity}
+										<span class="ml-2 text-xs font-medium">(No Master Duel rarity)</span>
+									{/if}
+								</span>
 							</div>
 						{/each}
 					</div>

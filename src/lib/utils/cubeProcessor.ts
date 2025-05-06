@@ -13,23 +13,45 @@ export async function processCubeFile(file: File): Promise<any[]> {
         throw new Error(`CSV parsing errors: ${errors.map((e) => e.message).join(", ")}`);
     }
 
+    // Check if the file contains custom rarities (5 columns)
+    const hasCustomRarities = data.some(columns => columns.length === 5);
+    console.log("Has custom rarities:", hasCustomRarities);
+    console.debug("First columns of data:", data.slice(0, 5));
+
     // Validate and extract card IDs from each row
     const cardEntries = data.map((columns) => {
-        if (columns.length !== 4) {
-            throw new Error(`Invalid row format: "${columns.join(",")}". Expected 4 columns.`);
+        // Support both 4-column and 5-column formats
+        if (columns.length !== 4 && columns.length !== 5) {
+            throw new Error(`Invalid row format: "${columns.join(",")}". Expected 4 or 5 columns.`);
         }
 
-        const [id, name, type, quantity] = columns.map((col) => col.trim());
+        const [id, name, type, quantity, customRarity] = columns.map((col) => col?.trim());
 
         if (!id || !name || !type || isNaN(Number(quantity))) {
             throw new Error(`Invalid data in row: "${columns.join(",")}". Ensure all fields are valid.`);
+        }
+
+        // Parse custom rarity if available
+        let parsedCustomRarity = null;
+        if (customRarity) {
+            const lowerRarity = customRarity.toLowerCase();
+            if (['common', 'c'].includes(lowerRarity)) {
+                parsedCustomRarity = 'Common';
+            } else if (['rare', 'r'].includes(lowerRarity)) {
+                parsedCustomRarity = 'Rare';
+            } else if (['super rare', 'sr'].includes(lowerRarity)) {
+                parsedCustomRarity = 'Super Rare';
+            } else if (['ultra rare', 'ur'].includes(lowerRarity)) {
+                parsedCustomRarity = 'Ultra Rare';
+            }
         }
 
         return {
             id: Number(id),
             name,
             type,
-            quantity: Number(quantity)
+            quantity: Number(quantity),
+            custom_rarity: parsedCustomRarity
         };
     });
 
@@ -64,12 +86,19 @@ export async function processCubeFile(file: File): Promise<any[]> {
 
         cardsToFormat.push({
             ...cardData,
-            quantity: entry.quantity
+            quantity: entry.quantity,
+            custom_rarity: entry.custom_rarity
         });
     }
 
     // Format all cards in a single batch operation
     const cube = await formatCardsFromDatabase(cardsToFormat);
+
+    // Add custom_rarity flag for the form to detect
+    if (hasCustomRarities) {
+        cube.hasCustomRarities = true;
+        cube.cardsWithoutCustomRarity = cube.filter(card => !card.custom_rarity);
+    }
 
     console.log("Cube processed successfully:", cube);
 
