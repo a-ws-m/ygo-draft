@@ -143,7 +143,6 @@
 						}
 
 						validateOptions();
-						checkForCardsWithoutRarity();
 					})
 					.catch((error) => {
 						console.error('Error processing cube file:', error);
@@ -247,8 +246,6 @@
 				optionErrorMessage = 'Pool size must be at least equal to the number of piles.';
 			}
 		}
-
-		checkForCardsWithoutRarity();
 	}
 
 	async function startDraft() {
@@ -550,6 +547,11 @@
 					onchange={() => {
 						if (useRarityDistribution) {
 							extraDeckAtEnd = false;
+							// Only show the warning when the checkbox is checked
+							checkForCardsWithoutRarity();
+						} else {
+							// Hide the warning when unchecked
+							showRarityWarning = false;
 						}
 						validateOptions();
 					}}
