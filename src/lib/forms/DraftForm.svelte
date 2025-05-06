@@ -41,6 +41,7 @@
 	let showUnevenPoolWarning = $state(false); // New state for uneven pool warning
 	let hasCustomRarities = $state(false); // Track if the cube has custom rarities
 	let cardsWithoutCustomRarity = $state([]);
+	let cardsMissingBothRarities = $state([]); // Track cards missing both custom and Master Duel rarities
 
 	// Fade-out states and timers for tooltips
 	let methodTooltipTimer = $state(null);
@@ -163,8 +164,18 @@
 		if (useRarityDistribution && draftMethod === 'rochester') {
 			// Check for cards without rarities based on whether we have custom rarities or not
 			if (hasCustomRarities) {
-				cardsWithoutRarity = cube.filter((card) => !card?.custom_rarity);
+				// When using custom rarities, check for cards without custom rarity
+				cardsWithoutCustomRarity = cube.filter((card) => !card?.custom_rarity);
+
+				// Find cards that are missing both custom rarity and Master Duel rarity
+				cardsMissingBothRarities = cube.filter(
+					(card) => !card?.custom_rarity && !card?.apiData?.rarity
+				);
+
+				// Cards that will appear in the warning modal
+				cardsWithoutRarity = cardsWithoutCustomRarity;
 			} else {
+				// When using Master Duel rarities, check for cards without MD rarity
 				cardsWithoutRarity = cube.filter((card) => !card?.apiData?.rarity);
 			}
 
@@ -727,8 +738,19 @@
 							<h3 class="text-sm font-medium text-orange-800">Cards without custom rarity</h3>
 							<div class="mt-2 text-sm text-orange-700">
 								<p>
-									Some cards don't have custom rarity information and may not be properly
-									distributed.
+									{cardsWithoutCustomRarity.length} cards don't have custom rarity information.
+									{#if cardsMissingBothRarities.length === 0}
+										Master Duel rarities will be used for all these cards.
+									{:else}
+										Master Duel rarities will be used for {cardsWithoutCustomRarity.length -
+											cardsMissingBothRarities.length} cards.
+										<span class="font-semibold text-red-600">
+											However, {cardsMissingBothRarities.length}
+											{cardsMissingBothRarities.length === 1 ? 'card' : 'cards'}
+											{cardsMissingBothRarities.length === 1 ? 'is' : 'are'} missing both custom and
+											Master Duel rarities and won't be included in the draft.
+										</span>
+									{/if}
 									<button
 										type="button"
 										class="ml-1 text-orange-800 underline"
@@ -737,7 +759,7 @@
 											cardsWithoutRarity = cardsWithoutCustomRarity;
 										}}
 									>
-										View cards without custom rarity.
+										View affected cards.
 									</button>
 								</p>
 							</div>
@@ -806,22 +828,56 @@
 					<h3 class="text-lg font-medium text-gray-900">
 						Warning: Cards Without Rarity Information
 					</h3>
-					<p class="mt-2 text-sm text-gray-500">
-						The following cards don't have rarity information and won't be included in the draft if
-						you use rarity distribution:
-					</p>
+
+					{#if hasCustomRarities}
+						<!-- Custom rarities are being used -->
+						<p class="mt-2 text-sm text-gray-500">
+							The following cards don't have custom rarity information. Master Duel rarities will be
+							used for these cards.
+							{#if cardsMissingBothRarities.length > 0}
+								<span class="font-semibold text-red-600">
+									However, some cards (highlighted in red) are missing both custom and Master Duel
+									rarities and won't be included in the draft.
+								</span>
+							{/if}
+						</p>
+					{:else}
+						<!-- Using Master Duel rarities -->
+						<p class="mt-2 text-sm text-gray-500">
+							The following cards don't have Master Duel rarity information and won't be included in
+							the draft if you use rarity distribution:
+						</p>
+					{/if}
 				</div>
 
 				<div class="max-h-96 overflow-auto">
 					<div class="space-y-2 p-2">
 						{#each cardsWithoutRarity as card}
-							<div class="flex items-center rounded border border-gray-200 p-2">
+							<div
+								class="flex items-center rounded border border-gray-200 p-2"
+								class:border-red-300={hasCustomRarities &&
+									!card?.custom_rarity &&
+									!card?.apiData?.rarity}
+								class:bg-red-50={hasCustomRarities &&
+									!card?.custom_rarity &&
+									!card?.apiData?.rarity}
+							>
 								<img
 									src={card.smallImageUrl || card.imageUrl}
 									alt={card.name}
 									class="mr-2 h-12 w-12 rounded object-cover"
 								/>
-								<span class="text-sm">{card.name}</span>
+								<span
+									class="text-sm"
+									class:text-red-700={hasCustomRarities &&
+										!card?.custom_rarity &&
+										!card?.apiData?.rarity}
+								>
+									{card.name}
+									{#if hasCustomRarities && !card?.custom_rarity && !card?.apiData?.rarity}
+										<span class="ml-2 text-xs font-medium">(No Master Duel rarity)</span>
+									{/if}
+								</span>
 							</div>
 						{/each}
 					</div>
