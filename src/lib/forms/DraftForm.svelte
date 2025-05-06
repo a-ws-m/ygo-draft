@@ -40,13 +40,77 @@
 	let cardsWithoutRarity = $state([]);
 	let showUnevenPoolWarning = $state(false); // New state for uneven pool warning
 
+	// Fade-out states and timers for tooltips
+	let methodTooltipTimer = $state(null);
+	let cubeTooltipTimer = $state(null);
+
 	// Constants for limits
 	const MAX_POOL_SIZE = 1000;
 	const MAX_PLAYERS = 10;
 	const DAILY_DRAFT_LIMIT = 100; // Not used directly in UI but useful for reference
+	const TOOLTIP_FADE_DELAY = 100; // 500ms delay for tooltip fade-out
 
 	// Derived value for max drafted deck size
 	let maxDraftedDeckSize = $derived(Math.floor(MAX_POOL_SIZE / numberOfPlayers));
+
+	// Functions to handle tooltip visibility with fade effect
+	function startTooltipFadeOut(tooltipType) {
+		if (tooltipType === 'method') {
+			if (methodTooltipTimer) clearTimeout(methodTooltipTimer);
+
+			// Select the tooltip element and add the hiding class
+			const tooltip = document.querySelector('[role="tooltip"]');
+			if (tooltip) tooltip.classList.add('hiding');
+
+			methodTooltipTimer = setTimeout(() => {
+				showMethodTooltip = false;
+				methodTooltipTimer = null;
+			}, TOOLTIP_FADE_DELAY);
+		} else if (tooltipType === 'cube') {
+			if (cubeTooltipTimer) clearTimeout(cubeTooltipTimer);
+
+			// Find the cube tooltip element and add the hiding class
+			const tooltips = document.querySelectorAll('[role="tooltip"]');
+			tooltips.forEach((tooltip) => {
+				if (tooltip.textContent.includes('Cube File Format')) {
+					tooltip.classList.add('hiding');
+				}
+			});
+
+			cubeTooltipTimer = setTimeout(() => {
+				showCubeTooltip = false;
+				cubeTooltipTimer = null;
+			}, TOOLTIP_FADE_DELAY);
+		}
+	}
+
+	function cancelTooltipFadeOut(tooltipType) {
+		if (tooltipType === 'method') {
+			if (methodTooltipTimer) {
+				clearTimeout(methodTooltipTimer);
+				methodTooltipTimer = null;
+
+				// Remove the hiding class to restore opacity
+				const tooltip = document.querySelector('[role="tooltip"]');
+				if (tooltip && tooltip.textContent.includes('Draft Methods')) {
+					tooltip.classList.remove('hiding');
+				}
+			}
+		} else if (tooltipType === 'cube') {
+			if (cubeTooltipTimer) {
+				clearTimeout(cubeTooltipTimer);
+				cubeTooltipTimer = null;
+
+				// Remove the hiding class to restore opacity
+				const tooltips = document.querySelectorAll('[role="tooltip"]');
+				tooltips.forEach((tooltip) => {
+					if (tooltip.textContent.includes('Cube File Format')) {
+						tooltip.classList.remove('hiding');
+					}
+				});
+			}
+		}
+	}
 
 	// Draft method descriptions
 	const draftMethodDescriptions = {
@@ -248,15 +312,25 @@
 						type="button"
 						class="flex h-5 w-5 items-center justify-center rounded-full bg-gray-200 text-gray-600 hover:bg-gray-300"
 						aria-label="Cube file information"
-						onmouseenter={() => (showCubeTooltip = true)}
-						onmouseleave={() => (showCubeTooltip = false)}
+						onmouseenter={() => {
+							cancelTooltipFadeOut('cube');
+							showCubeTooltip = true;
+						}}
+						onmouseleave={() => startTooltipFadeOut('cube')}
 					>
 						?
 					</button>
 
 					{#if showCubeTooltip}
 						<div
-							class="prose prose-sm ring-opacity-5 absolute top-0 left-6 z-10 w-64 rounded-md bg-white p-3 shadow-lg ring-1 ring-black"
+							class="prose prose-sm ring-opacity-5 tooltip-fade absolute top-0 left-6 z-10 w-64 rounded-md bg-white p-3 shadow-lg ring-1 ring-black"
+							style={`--fadeOutTime: ${TOOLTIP_FADE_DELAY}ms`}
+							onmouseenter={() => {
+								cancelTooltipFadeOut('cube');
+								showCubeTooltip = true;
+							}}
+							onmouseleave={() => startTooltipFadeOut('cube')}
+							role="tooltip"
 						>
 							<h4 class="text-sm font-medium text-gray-900">Cube File Format</h4>
 							<p class="text-xs text-gray-600">
@@ -323,15 +397,25 @@
 						type="button"
 						class="flex h-5 w-5 items-center justify-center rounded-full bg-gray-200 text-gray-600 hover:bg-gray-300"
 						aria-label="Draft method information"
-						onmouseenter={() => (showMethodTooltip = true)}
-						onmouseleave={() => (showMethodTooltip = false)}
+						onmouseenter={() => {
+							cancelTooltipFadeOut('method');
+							showMethodTooltip = true;
+						}}
+						onmouseleave={() => startTooltipFadeOut('method')}
 					>
 						?
 					</button>
 
 					{#if showMethodTooltip}
 						<div
-							class="prose prose-sm ring-opacity-5 absolute top-0 left-6 z-10 w-64 rounded-md bg-white p-3 shadow-lg ring-1 ring-black"
+							class="prose prose-sm ring-opacity-5 tooltip-fade absolute top-0 left-6 z-10 w-64 rounded-md bg-white p-3 shadow-lg ring-1 ring-black"
+							style={`--fadeOutTime: ${TOOLTIP_FADE_DELAY}ms`}
+							onmouseenter={() => {
+								cancelTooltipFadeOut('method');
+								showMethodTooltip = true;
+							}}
+							onmouseleave={() => startTooltipFadeOut('method')}
+							role="tooltip"
 						>
 							<h4 class="text-sm font-medium text-gray-900">Draft Methods</h4>
 							<p class="text-xs text-gray-600">
@@ -675,3 +759,14 @@
 		</div>
 	</div>
 {/if}
+
+<style>
+	.tooltip-fade {
+		opacity: 1;
+		transition: opacity var(--fadeOutTime) linear;
+	}
+
+	:global(.tooltip-fade.hiding) {
+		opacity: 0;
+	}
+</style>
