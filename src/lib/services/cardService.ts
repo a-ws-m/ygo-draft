@@ -32,14 +32,50 @@ export async function fetchCardData(cardIds: number[]) {
             return { cards: [], error: null };
         }
 
-        // First check if cards already exist in the database
-        const { data: existingCards, error: dbError } = await supabase
-            .from('cards')
-            .select('*')
-            .in('id', cardIds);
+        let existingCards: any[] = [];
+        let dbError = null;
+
+        // Handle pagination for large card sets due to Supabase's 1000 row limit
+        if (cardIds.length > 1000) {
+            // Process in chunks of 1000
+            const chunks = [];
+            for (let i = 0; i < cardIds.length; i += 1000) {
+                chunks.push(cardIds.slice(i, i + 1000));
+            }
+
+            // Fetch each chunk and combine results
+            for (const chunk of chunks) {
+                const { data: chunkData, error: chunkError } = await supabase
+                    .from('cards')
+                    .select('*')
+                    .in('id', chunk);
+
+                if (chunkError) {
+                    dbError = chunkError;
+                    console.error("Error fetching cards from database:", chunkError);
+                    break;
+                }
+
+                if (chunkData) {
+                    existingCards = [...existingCards, ...chunkData];
+                }
+            }
+        } else {
+            // For smaller sets, use the original approach
+            const { data, error } = await supabase
+                .from('cards')
+                .select('*')
+                .in('id', cardIds);
+
+            dbError = error;
+            existingCards = data || [];
+
+            if (error) {
+                console.error("Error fetching cards from database:", error);
+            }
+        }
 
         if (dbError) {
-            console.error("Error fetching cards from database:", dbError);
             // Continue to try the edge function as fallback
         } else {
             // Check if all requested cards were found in the database
