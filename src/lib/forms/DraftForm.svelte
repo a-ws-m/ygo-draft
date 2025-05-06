@@ -356,6 +356,12 @@
 									class="text-blue-600 hover:underline">YGOProdeck Cube Builder</a
 								> to find or build a cube, then click the button to download it as a CSV file.
 							</p>
+							<p class="mt-1 text-xs text-gray-600">
+								<strong>Custom Rarities:</strong> To add custom rarities, include a fifth column in your
+								CSV with one of the following values: "Common", "Rare", "Super Rare", "Ultra Rare". You
+								can also just use the acronyms ("c", "r", "sr", "ur"). Master Duel rarities are used
+								if not specified.
+							</p>
 						</div>
 					{/if}
 				</div>
