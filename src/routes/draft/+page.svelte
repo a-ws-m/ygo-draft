@@ -378,6 +378,11 @@
 	}
 </script>
 
+<svelte:head>
+	<title>YGO Draft Room {draftId}</title>
+	<meta name="description" content="Create your custom Yu-Gi-Oh! draft experience." />
+</svelte:head>
+
 <RulesModal bind:isOpen={showRulesModal} draftMethod={draftStore.store.draftMethod} />
 
 <div class="flex min-h-screen flex-col bg-gray-100">

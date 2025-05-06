@@ -7,6 +7,11 @@
 	let isAuthenticated = $derived(!!authStore.session);
 </script>
 
+<svelte:head>
+	<title>YGO Draft Creator</title>
+	<meta name="description" content="Create your custom Yu-Gi-Oh! draft experience." />
+</svelte:head>
+
 <div class="flex min-h-screen flex-col items-center justify-center gap-6 bg-gray-100 p-6">
 	<!-- Landing Page Text -->
 	<div class="max-w-2xl text-center">
