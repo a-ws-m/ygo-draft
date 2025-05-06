@@ -65,7 +65,7 @@ export async function createDraft(
     draftMethod: string,
     poolSize: number,
     numberOfPlayers: number,
-    cube: { id: number; name: string; quantity: number; type: string; imageUrl: string; smallImageUrl: string; apiData: any }[],
+    cube: { id: number; name: string; quantity: number; type: string; imageUrl: string; smallImageUrl: string; apiData: any; custom_rarity?: string }[],
     numberOfPiles: number = 3,
     packSize: number = 5,
     extraDeckAtEnd: boolean = false,
@@ -105,7 +105,8 @@ export async function createDraft(
                 expandedCube.push({
                     card_id: card.id, // Ensure card_id is properly set from the card.id
                     draft_id: draft.id,
-                    apiData: card.apiData // Include API data for rarity information
+                    apiData: card.apiData, // Include API data for rarity information
+                    custom_rarity: card.custom_rarity // Include custom rarity if present
                 });
             }
         }
@@ -117,7 +118,7 @@ export async function createDraft(
         if (draftMethod === 'rochester' && rarityDistribution) {
             processedCube = organizeCardsByRarity(expandedCube, rarityDistribution, packSize, numberOfPlayers, poolSize);
             console.log("Organized cards by rarity for Rochester draft.");
-            console.log("Cards organized by rarity:", processedCube.map(card => getRarityFromCard(card.apiData)));
+            console.log("Cards organized by rarity:", processedCube.map(card => getRarityFromCard(card)));
         } else {
             // Otherwise just shuffle the cube
             processedCube = shuffleArray(expandedCube);
@@ -149,6 +150,7 @@ export async function createDraft(
             card_id: entry.card_id,
             draft_id: entry.draft_id,
             index, // Assign a unique index after shuffling
+            custom_rarity: entry.custom_rarity // Add custom rarity to the cube entry
         }));
 
         // Insert cube data into the `cubes` table
@@ -190,22 +192,22 @@ function organizeCardsByRarity(
 
     // Filter cards by their rarity
     const commons = cards.filter(card => {
-        const rarity = getRarityFromCard(card.apiData);
+        const rarity = getRarityFromCard(card);
         return rarity?.toLowerCase() === 'common';
     });
 
     const rares = cards.filter(card => {
-        const rarity = getRarityFromCard(card.apiData);
+        const rarity = getRarityFromCard(card);
         return rarity?.toLowerCase() === 'rare';
     });
 
     const superRares = cards.filter(card => {
-        const rarity = getRarityFromCard(card.apiData);
+        const rarity = getRarityFromCard(card);
         return rarity?.toLowerCase() === 'super rare';
     });
 
     const ultraRares = cards.filter(card => {
-        const rarity = getRarityFromCard(card.apiData);
+        const rarity = getRarityFromCard(card);
         return rarity?.toLowerCase() === 'ultra rare';
     });
 
@@ -286,11 +288,16 @@ function organizeCardsByRarity(
 
 /**
  * Gets the rarity of a card from its API data
- * @param apiData - The API data for the card
+ * @param card - The card object containing apiData and possibly custom_rarity
  * @returns The rarity string or null if not found
  */
-function getRarityFromCard(apiData: any): string | null {
-    return apiData?.rarity || null;
+function getRarityFromCard(card: any): string | null {
+    // First check for custom rarity at card level
+    if (card?.custom_rarity) {
+        return card.custom_rarity;
+    }
+    // Fall back to Master Duel rarity from API data
+    return card?.apiData?.rarity || null;
 }
 
 /**

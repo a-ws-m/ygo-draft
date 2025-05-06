@@ -4,6 +4,7 @@
 		card: {
 			name?: string;
 			type: string;
+			custom_rarity?: string;
 			apiData: {
 				type: string;
 				desc: string;
@@ -51,7 +52,10 @@
 		return 'text-gray-600'; // Default
 	}
 
-	const rarityColorClass = getRarityColorClass(card.apiData.rarity);
+	// Check for custom rarity first, then fall back to API rarity
+	const displayRarity = $derived(card.custom_rarity || card.apiData.rarity);
+	const raritySource = $derived(card.custom_rarity ? 'Custom Rarity' : 'Master Duel Rarity');
+	const rarityColorClass = $derived(getRarityColorClass(displayRarity));
 </script>
 
 <div class={compact ? '' : 'w-64 rounded border border-gray-200 bg-white p-3 shadow-lg'}>
@@ -71,10 +75,10 @@
 		</p>
 	{/if}
 
-	{#if card.apiData.rarity}
+	{#if displayRarity}
 		<p class="text-sm">
-			<span class="font-medium text-gray-600">Master Duel Rarity:</span>
-			<span class={`font-medium ${rarityColorClass}`}>{card.apiData.rarity}</span>
+			<span class="font-medium text-gray-600">{raritySource}:</span>
+			<span class={`font-medium ${rarityColorClass}`}>{displayRarity}</span>
 		</p>
 	{/if}
 

@@ -261,6 +261,7 @@ export async function formatCardsFromDatabase(cards: Array<{
     type: string;
     api_data: any;
     quantity?: number;
+    custom_rarity?: string;
 }>): Promise<any[]> {
     if (cards.length === 0) {
         return [];
@@ -293,7 +294,8 @@ export async function formatCardsFromDatabase(cards: Array<{
             archetype: card.api_data.archetype,
             rarity: card.api_data.misc_info[0]?.md_rarity,
         },
-        quantity: card.quantity || 1
+        quantity: card.quantity || 1,
+        custom_rarity: card.custom_rarity || null
     }));
 }
 
@@ -307,7 +309,7 @@ export async function fetchCubeWithCardData(draftId: string) {
         // First fetch cube entries
         const { data: cubeEntries, error: cubeError } = await supabase
             .from("cubes")
-            .select("card_id, index, owner, pile")
+            .select("card_id, index, owner, pile, custom_rarity")
             .eq("draft_id", draftId)
             .order("index", { ascending: true });
 
@@ -356,7 +358,8 @@ export async function fetchCubeWithCardData(draftId: string) {
                 ...formattedCard,
                 index: entry.index,
                 owner: entry.owner,
-                pile: entry.pile
+                pile: entry.pile,
+                custom_rarity: entry.custom_rarity || formattedCard.custom_rarity
             };
         }).filter(Boolean); // Remove any null entries
 
