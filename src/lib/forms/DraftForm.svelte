@@ -358,9 +358,9 @@
 							</p>
 							<p class="mt-1 text-xs text-gray-600">
 								<strong>Custom Rarities:</strong> To add custom rarities, include a fifth column in your
-								CSV with one of the following values: "Common", "Rare", "Super Rare", "Ultra Rare". You
-								can also just use the acronyms ("c", "r", "sr", "ur"). Master Duel rarities are used
-								if not specified.
+								CSV with one of the following values: "Common", "Rare", "Super Rare", "Ultra Rare". To
+								do this, add a comma to each row, followed by the custom rarity. You can also just use
+								the acronyms ("c", "r", "sr", "ur"). Master Duel rarities are used if not specified.
 							</p>
 						</div>
 					{/if}
