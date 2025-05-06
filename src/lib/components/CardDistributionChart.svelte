@@ -14,7 +14,8 @@
 			{ value: 'archetype', label: 'Archetype' },
 			{ value: 'attribute', label: 'Attribute' },
 			{ value: 'race', label: 'Race/Spell Type' },
-			{ value: 'level', label: 'Level/Rank' }
+			{ value: 'level', label: 'Level/Rank' },
+			{ value: 'rarity', label: 'Master Duel Rarity' },
 		] // New property for selector options
 	} = $props<{
 		cube: any[];
