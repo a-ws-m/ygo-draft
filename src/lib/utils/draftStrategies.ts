@@ -31,7 +31,7 @@ export class WinstonDraftStrategy implements DraftStrategy {
             store.deck = availableCards;
 
             // Create the specified number of piles, each starting with one card
-            const newPiles = Array.from({ length: store.numberOfPiles }, () => [store.deck.pop()]);
+            const newPiles = Array.from({ length: store.numberOfPiles }, () => [store.deck.shift()]);
             store.piles = newPiles;
 
             return true;

@@ -16,13 +16,13 @@ export async function handleNextPlayer(payload: {
         // Update the piles
         const newPiles = [...draftStore.store.piles];
         for (let i = 0; i < acceptedPileIndex; i++) {
-            const newCard = draftStore.store.deck.pop();
+            const newCard = draftStore.store.deck.shift();
             if (newCard) {
                 newPiles[i] = [...newPiles[i], newCard];
             }
         }
 
-        const newCard = draftStore.store.deck.pop();
+        const newCard = draftStore.store.deck.shift();
 
         // If we didn't decline all piles
         if (acceptedPileIndex < newPiles.length) {
@@ -128,7 +128,7 @@ export async function initializeWinstonDraft(numberOfPiles: number = draftStore.
         draftStore.store.deck = cards;
 
         // Create the specified number of piles, each starting with one card
-        const newPiles = Array.from({ length: numberOfPiles }, () => [draftStore.store.deck.pop()]);
+        const newPiles = Array.from({ length: numberOfPiles }, () => [draftStore.store.deck.shift()]);
         draftStore.store.piles = newPiles;
 
         return true;
@@ -151,7 +151,7 @@ export async function handleAcceptPile() {
 
         // Refresh the pile with one card from the deck if deck is not empty
         if (draftStore.store.deck.length > 0) {
-            const newCard = draftStore.store.deck.pop();
+            const newCard = draftStore.store.deck.shift();
             newPiles[draftStore.store.currentPileIndex] = [newCard];
         } else {
             // If deck is empty, set this pile to be empty
@@ -193,7 +193,7 @@ export async function handleDeclineCurrentPile() {
     }
 
     if (!isDeckEmpty) {
-        const newCard = draftStore.store.deck.pop();
+        const newCard = draftStore.store.deck.shift();
 
         if (newCard) {
             // Create a copy of the current piles
@@ -248,7 +248,7 @@ export async function handleDeclineCurrentPile() {
     } else {
         // If we're at the last pile, take from the deck if it's not empty
         if (!isDeckEmpty) {
-            const newCard = draftStore.store.deck.pop();
+            const newCard = draftStore.store.deck.shift();
             if (newCard) {
                 draftStore.addToDraftedDeck([newCard]);
             } else {

@@ -141,8 +141,8 @@ export async function createDraft(
                 }
             }
 
-            // Combine them with extra deck at the start (because we are using pop to remove)
-            limitedCube = [...extraDeckCards, ...mainDeckCards];
+            // Combine them with extra deck at the end
+            limitedCube = [...mainDeckCards, ...extraDeckCards];
         }
 
         // Assign shuffled indexes to the cards
@@ -280,7 +280,7 @@ function organizeCardsByRarity(
 
     shuffleArray(remainingCards);
     while (organizedDeck.length < poolSize && remainingCards.length > 0) {
-        organizedDeck.push(remainingCards.pop());
+        organizedDeck.push(remainingCards.shift());
     }
 
     return organizedDeck;
@@ -316,7 +316,8 @@ function isExtraDeckCard(apiData: any): boolean {
         cardType.includes('fusion') ||
         cardType.includes('synchro') ||
         cardType.includes('xyz') ||
-        cardType.includes('link')
+        cardType.includes('link') ||
+        cardType.includes('pendulum')
     );
 }
 
