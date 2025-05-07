@@ -199,6 +199,24 @@
 				</div>
 			{/if}
 			<div id="hcaptcha-container" class="flex justify-center"></div>
+
+			<!-- hCaptcha privacy warning -->
+			<div class="mt-2 text-xs text-gray-500">
+				This site is protected by hCaptcha and its
+				<a
+					href="https://www.hcaptcha.com/privacy"
+					class="text-blue-600 hover:underline"
+					target="_blank"
+					rel="noopener noreferrer">Privacy Policy</a
+				>
+				and
+				<a
+					href="https://www.hcaptcha.com/terms"
+					class="text-blue-600 hover:underline"
+					target="_blank"
+					rel="noopener noreferrer">Terms of Service</a
+				> apply.
+			</div>
 		</div>
 
 		<button
