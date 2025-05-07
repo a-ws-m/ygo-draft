@@ -270,17 +270,16 @@ export async function formatCardsFromDatabase(cards: Array<{
     // Get all card IDs for image URLs
     const cardIds = cards.map(card => card.id);
 
-    // Fetch all full-size and small image URLs in parallel using the batch method
-    const [fullSizeUrls, smallSizeUrls] = await Promise.all([
-        getMultipleSignedImageUrls(cardIds, false),
-        getMultipleSignedImageUrls(cardIds, true)
-    ]);
+    // Start the image URL fetching but don't await them yet
+    const fullSizeUrlsPromise = getMultipleSignedImageUrls(cardIds, false);
+    const smallSizeUrlsPromise = getMultipleSignedImageUrls(cardIds, true);
 
-    // Format each card with the now-available URLs
+    // Format each card with the image URL promises
     return cards.map(card => ({
         id: card.id,
-        imageUrl: fullSizeUrls.get(card.id) || '',
-        smallImageUrl: smallSizeUrls.get(card.id) || '',
+        // Create promises that will resolve when the URLs are available
+        imageUrl: fullSizeUrlsPromise.then(urls => urls.get(card.id) || ''),
+        smallImageUrl: smallSizeUrlsPromise.then(urls => urls.get(card.id) || ''),
         name: card.name,
         type: card.type,
         apiData: {

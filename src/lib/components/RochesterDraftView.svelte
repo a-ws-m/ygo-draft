@@ -80,7 +80,7 @@
 						Pack rotation: {direction}
 					</span>
 					<span class="text-sm font-medium text-gray-600">
-						Waiting for {draftStore.store.numberOfPlayers - draftStore.store.selectedPlayers.size} players
+						Waiting for {draftStore.store.numberOfPlayers - draftStore.store.selectedPlayers.length} players
 					</span>
 				</div>
 			</div>

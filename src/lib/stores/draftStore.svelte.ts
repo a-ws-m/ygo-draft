@@ -26,7 +26,7 @@ export const store = $state({
     rounds: [],            // Array of rounds, each containing packs
     currentRound: 0,       // Current draft round
     currentPackIndex: {},  // Map of player index to their current pack index
-    selectedPlayers: new Set(), // Set of players who have made selections for the current turn
+    selectedPlayers: [], // Set of players who have made selections for the current turn
     draftStrategy: null,   // The current draft strategy instance
     hasSelected: false, // Flag to indicate if the player has selected a card
 });
@@ -98,7 +98,7 @@ export function resetDraftStore() {
     store.rounds = [];
     store.currentRound = 0;
     store.currentPackIndex = {};
-    store.selectedPlayers = new Set();
+    store.selectedPlayers = [];
     store.draftStrategy = null;
     store.hasSelected = false;
     

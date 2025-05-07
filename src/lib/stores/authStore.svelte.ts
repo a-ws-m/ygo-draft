@@ -86,6 +86,28 @@ export async function signInWithDiscord() {
     }
 }
 
+// Sign in anonymously with hCaptcha verification
+export async function signInAnonymously(hcaptchaToken: string) {
+    try {
+        store.loading = true;
+        // Use Supabase's signInWithOtp to create an anonymous session
+        // We're using the captcha token as verification
+        const { data, error } = await supabase.auth.signInAnonymously({
+            options: {
+                captchaToken: hcaptchaToken,
+            }
+        });
+
+        if (error) throw error;
+        return { success: true, data };
+    } catch (error) {
+        console.error('Error signing in anonymously:', error);
+        return { success: false, error };
+    } finally {
+        store.loading = false;
+    }
+}
+
 // Sign out a user
 export async function signOut() {
     try {
@@ -99,6 +121,36 @@ export async function signOut() {
         console.error('Error signing out:', error);
     } finally {
         store.session = null;
+        store.loading = false;
+    }
+}
+
+// Delete user account
+export async function deleteAccount() {
+    try {
+        if (!store.session) {
+            throw new Error('You must be logged in to delete your account');
+        }
+
+        store.loading = true;
+
+        // Call the RPC function to delete the user account
+        const { error } = await supabase.rpc('delete_user_account');
+
+        if (error) throw error;
+
+        // Sign out the user after account deletion request
+        await supabase.auth.signOut();
+        store.session = null;
+
+        // Redirect to home page
+        goto(base);
+
+        return { success: true };
+    } catch (error) {
+        console.error('Error deleting account:', error);
+        return { success: false, error };
+    } finally {
         store.loading = false;
     }
 }

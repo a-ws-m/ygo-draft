@@ -5,12 +5,19 @@
 		store as authStore,
 		initializeAuth,
 		subscribeToAuthChanges,
-		signOut
+		signOut,
+		deleteAccount
 	} from '$lib/stores/authStore.svelte';
 	import { page } from '$app/state';
 	import { base } from '$app/paths';
 
 	let { children } = $props();
+
+	function confirmDeleteAccount() {
+		if (confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
+			deleteAccount();
+		}
+	}
 
 	onMount(async () => {
 		// Initialize auth and subscribe to changes
@@ -39,6 +46,12 @@
 							class="ml-4 rounded bg-indigo-600 px-4 py-2 text-sm text-white hover:bg-indigo-700"
 						>
 							Sign Out
+						</button>
+						<button
+							onclick={confirmDeleteAccount}
+							class="ml-4 rounded bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700"
+						>
+							Delete Account
 						</button>
 					</div>
 					<div class="flex items-center">

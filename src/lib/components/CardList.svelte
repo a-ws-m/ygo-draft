@@ -3,6 +3,7 @@
 	import CardDistributionChart from '$lib/components/CardDistributionChart.svelte';
 	import CardDetails from '$lib/components/CardDetails.svelte';
 	import { convertToYdk, downloadYdkFile } from '$lib/utils/ydkExporter';
+	import { onMount } from 'svelte';
 
 	// Props using $props rune
 	const {
@@ -37,6 +38,11 @@
 	// Modal state
 	let showConfirmModal = $state(false);
 	let selectedCard = $state(null);
+
+	// Get resolved image URL for a card
+	function getCardImage(card, small = false) {
+		return small ? card.smallImageUrl : card.imageUrl;
+	}
 
 	// Handle mouse events
 	function handleMouseEnter(card, event) {
@@ -180,19 +186,36 @@
 								onkeydown={(e) => e.key === 'Enter' && handleCardClick(card)}
 							>
 								<!-- Card Image -->
-								<div class="aspect-[813/1185] w-full max-w-[271px]">
-									<picture>
-										<source
-											media="(max-width: 296px)"
-											srcset={card.smallImageUrl || card.imageUrl}
-										/>
-										<source media="(min-width: 297px)" srcset={card.imageUrl} />
-										<img
-											src={card.imageUrl}
-											alt={card.name}
-											class="h-full w-full rounded object-cover shadow"
-										/>
-									</picture>
+								<div class="relative aspect-[813/1185] w-full max-w-[271px]">
+									{#await getCardImage(card)}
+										<div
+											class="absolute inset-0 flex items-center justify-center rounded bg-gray-100"
+										>
+											<div class="flex animate-pulse space-x-2">
+												<div class="h-2 w-2 rounded-full bg-gray-400"></div>
+												<div class="h-2 w-2 rounded-full bg-gray-400"></div>
+												<div class="h-2 w-2 rounded-full bg-gray-400"></div>
+											</div>
+										</div>
+									{:then imageUrl}
+										<picture>
+											{#await getCardImage(card, true) then smallImageUrl}
+												<source media="(max-width: 296px)" srcset={smallImageUrl} />
+											{/await}
+											<source media="(min-width: 297px)" srcset={imageUrl} />
+											<img
+												src={imageUrl}
+												alt={card.name}
+												class="h-full w-full rounded object-cover shadow"
+											/>
+										</picture>
+									{:catch error}
+										<div
+											class="absolute inset-0 flex items-center justify-center rounded bg-gray-100"
+										>
+											<p class="text-xs text-gray-500">Image failed to load</p>
+										</div>
+									{/await}
 								</div>
 							</button>
 							<!-- Card Name and Quantity -->
@@ -206,7 +229,14 @@
 			{:else}
 				<div class="space-y-2 p-2">
 					{#each cube as card}
-						<TextCard {card} {showDescription} {clickable} onSelect={() => handleCardClick(card)} />
+						<TextCard
+							{card}
+							{showDescription}
+							{clickable}
+							onSelect={() => handleCardClick(card)}
+							imageUrl={getCardImage(card)}
+							smallImageUrl={getCardImage(card, true)}
+						/>
 					{/each}
 				</div>
 			{/if}
@@ -237,8 +267,24 @@
 					<div class="text-center">
 						<h3 class="mb-2 text-xl font-medium text-gray-900">Confirm Selection</h3>
 						<div class="mb-4 flex justify-center">
-							<div class="w-40">
-								<img src={selectedCard.imageUrl} alt={selectedCard.name} class="rounded shadow" />
+							<div class="relative w-40">
+								{#await getCardImage(selectedCard)}
+									<div
+										class="absolute inset-0 flex items-center justify-center rounded bg-gray-100"
+									>
+										<div class="flex animate-pulse space-x-2">
+											<div class="h-2 w-2 rounded-full bg-gray-400"></div>
+											<div class="h-2 w-2 rounded-full bg-gray-400"></div>
+											<div class="h-2 w-2 rounded-full bg-gray-400"></div>
+										</div>
+									</div>
+								{:then imageUrl}
+									<img src={imageUrl} alt={selectedCard.name} class="rounded shadow" />
+								{:catch}
+									<div class="flex h-full items-center justify-center rounded bg-gray-100">
+										<p class="text-xs text-gray-500">Image failed to load</p>
+									</div>
+								{/await}
 							</div>
 						</div>
 						<p class="mb-4 text-gray-700">

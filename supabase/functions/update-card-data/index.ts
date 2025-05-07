@@ -57,19 +57,120 @@ async function waitForApiAvailability(supabase): Promise<void> {
   }
 }
 
-Deno.serve(async (req) => {
-  // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    return new Response(null, {
-      status: 204,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-      },
-    });
-  }
+// Process images for cards
+async function processCardImages(supabase, cards, BATCH_SIZE = 500) {
+  try {
+    // Split cards into batches of 100
+    const batches = [];
+    for (let i = 0; i < cards.length; i += BATCH_SIZE) {
+      batches.push(cards.slice(i, i + BATCH_SIZE));
+    }
 
+    // Call fetch-card-images function for each batch in parallel
+    const imageServiceUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/fetch-card-images`;
+    const imageServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+
+    const batchPromises = batches.map(async (batch) => {
+      const response = await fetch(imageServiceUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${imageServiceKey}`
+        },
+        body: JSON.stringify({ cards: batch })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Error from image service: ${errorText}`);
+        return false;
+      }
+
+      return true;
+    });
+
+    // Wait for all batches to complete
+    await Promise.all(batchPromises);
+    return true;
+  } catch (error) {
+    console.error("Error processing card images:", error);
+    return false;
+  }
+}
+
+// Check current YGODB version
+async function getCurrentDbVersion(): Promise<string> {
+  try {
+    await waitForApiAvailability({ from: () => ({ select: () => ({ eq: () => ({ gte: () => ({ count: 0 }) }) }) }) });
+
+    const response = await fetch('https://db.ygoprodeck.com/api/v7/checkDBVer.php');
+    if (!response.ok) {
+      throw new Error(`Failed to get DB version: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data[0].database_version.toString();
+  } catch (error) {
+    console.error("Error checking YGO DB version:", error);
+    throw error;
+  }
+}
+
+// Get stored version from our database
+async function getStoredDbVersion(supabase): Promise<string> {
+  try {
+    const { data, error } = await supabase
+      .from('ygodb_version')
+      .select('version')
+      .eq('is_current', true)
+      .single();
+
+    if (error) {
+      console.error("Error getting stored DB version:", error);
+      return "0"; // Default to 0 if we can't get the stored version
+    }
+
+    return data?.version || "0";
+  } catch (error) {
+    console.error("Error retrieving stored DB version:", error);
+    return "0";
+  }
+}
+
+// Update our stored DB version
+async function updateStoredDbVersion(supabase, version: string): Promise<void> {
+  try {
+    // First update any current versions to not be current
+    const { error: updateError } = await supabase
+      .from('ygodb_version')
+      .update({ is_current: false })
+      .eq('is_current', true);
+
+    if (updateError) {
+      console.error("Error updating previous DB version:", updateError);
+      throw updateError;
+    }
+
+    // Then insert the new current version
+    const { error } = await supabase
+      .from('ygodb_version')
+      .insert({
+        version: version,
+        last_updated: new Date().toISOString(),
+        is_current: true
+      });
+
+    if (error) {
+      console.error("Error inserting new DB version:", error);
+      throw error;
+    }
+  } catch (error) {
+    console.error("Error saving DB version:", error);
+    throw error; // Re-throw the error to be handled by the caller
+  }
+}
+
+Deno.serve(async (req) => {
   try {
     // Create a Supabase client with the project URL and service role key
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
@@ -90,116 +191,128 @@ Deno.serve(async (req) => {
       },
     });
 
-    // Add CORS headers to all responses
-    const corsHeaders = {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-      'Content-Type': 'application/json'
-    };
+    // Check if update is needed by comparing versions
+    const currentVersion = await getCurrentDbVersion();
+    const storedVersion = await getStoredDbVersion(supabase);
 
-    // Get all cards that don't have misc_info in their api_data
-    const { data: cardsToUpdate, error: fetchError } = await supabase
-      .from('cards')
-      .select('id, api_data')
-      .filter('api_data->misc_info', 'is', null);
-
-    if (fetchError) {
-      throw new Error(`Error fetching cards to update: ${fetchError.message}`);
-    }
-
-    if (!cardsToUpdate || cardsToUpdate.length === 0) {
+    if (currentVersion === storedVersion) {
       return new Response(
-        JSON.stringify({ message: "No cards need updating." }),
-        { headers: corsHeaders }
+        JSON.stringify({
+          message: "Database is up to date",
+          version: currentVersion
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
       );
     }
 
-    // Extract IDs of cards that need updating
-    const cardIdsToUpdate = cardsToUpdate.map(card => card.id);
-    console.log(`Found ${cardIdsToUpdate.length} cards to update with missing misc_info`);
+    console.log(`Database update needed. Current: ${currentVersion}, Stored: ${storedVersion}`);
 
-    // Batch processing for cards
-    const BATCH_SIZE = 200; // Maximum cards per API call
-    const cardIdBatches = [];
+    // Fetch all cards from API
+    await waitForApiAvailability(supabase);
+    await recordApiRequest(supabase);
 
-    for (let i = 0; i < cardIdsToUpdate.length; i += BATCH_SIZE) {
-      cardIdBatches.push(cardIdsToUpdate.slice(i, i + BATCH_SIZE));
+    const apiUrl = 'https://db.ygoprodeck.com/api/v7/cardinfo.php?misc=yes';
+    const response = await fetch(apiUrl);
+
+    if (!response.ok) {
+      throw new Error(`YGOProdeck API error: ${response.statusText}`);
     }
 
-    // Process each batch with rate limiting
-    const updatedCards = [];
-    let failedCards = 0;
+    const apiData = await response.json();
 
-    for (const batch of cardIdBatches) {
-      // Wait if we're approaching rate limit
-      await waitForApiAvailability(supabase);
+    if (!apiData.data || !Array.isArray(apiData.data)) {
+      throw new Error("Invalid response from YGOProdeck API");
+    }
 
-      // Record this API request
-      await recordApiRequest(supabase);
+    const cards = apiData.data;
+    console.log(`Downloaded ${cards.length} cards from API`);
 
-      // Fetch batch from YGOProdeck API
-      const apiUrl = `https://db.ygoprodeck.com/api/v7/cardinfo.php?id=${batch.join(',')}&misc=yes`;
-      const response = await fetch(apiUrl);
+    // Process cards in batches for database update
+    const BATCH_SIZE = 500;
+    const batches = [];
+    for (let i = 0; i < cards.length; i += BATCH_SIZE) {
+      batches.push(cards.slice(i, i + BATCH_SIZE));
+    }
 
-      if (!response.ok) {
-        console.error(`YGOProdeck API error for batch: ${response.statusText}`);
-        failedCards += batch.length;
-        continue;
-      }
+    let totalProcessed = 0;
+    let totalErrors = 0;
+    let updateSuccessful = true;
 
-      const apiData = await response.json();
+    // Process each batch
+    for (const batch of batches) {
+      // Prepare data for insertion/update
+      const upsertData = batch.map(card => ({
+        id: card.id,
+        name: card.name,
+        type: card.type,
+        api_data: card
+      }));
 
-      if (!apiData.data || !Array.isArray(apiData.data)) {
-        console.error("Invalid response from YGOProdeck API for batch");
-        failedCards += batch.length;
-        continue;
-      }
+      // Upsert cards to database
+      const { error } = await supabase
+        .from('cards')
+        .upsert(upsertData, { onConflict: 'id' });
 
-      // Update cards in database
-      for (const card of apiData.data) {
-        const { error: updateError } = await supabase
-          .from('cards')
-          .update({ api_data: card })
-          .eq('id', card.id);
-
-        if (updateError) {
-          console.error(`Error updating card ${card.id}: ${updateError.message}`);
-          failedCards++;
-        } else {
-          updatedCards.push(card.id);
-        }
-      }
-
-      // Small delay between batches
-      if (batch !== cardIdBatches[cardIdBatches.length - 1]) {
-        await new Promise(resolve => setTimeout(resolve, 50));
+      if (error) {
+        console.error(`Error upserting batch: ${error.message}`);
+        totalErrors += batch.length;
+        updateSuccessful = false;
+      } else {
+        totalProcessed += batch.length;
       }
     }
 
-    return new Response(
-      JSON.stringify({
-        updated: updatedCards.length,
-        failed: failedCards,
-        message: `Successfully updated ${updatedCards.length} cards. Failed to update ${failedCards} cards.`
-      }),
-      { headers: corsHeaders }
-    );
+    // Only update stored version after successful update
+    if (updateSuccessful && totalErrors === 0) {
+      try {
+        await updateStoredDbVersion(supabase, currentVersion);
+
+        // Process images in background
+        processCardImages(supabase, cards, 500)
+          .catch(error => console.error("Background image processing error:", error));
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            message: `Database updated from version ${storedVersion} to ${currentVersion}`,
+            processed: totalProcessed,
+            errors: totalErrors,
+            totalCards: cards.length
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        );
+      } catch (error) {
+        console.error("Failed to update database version:", error);
+        return new Response(
+          JSON.stringify({
+            success: false,
+            message: "Cards processed but database version update failed",
+            error: error.message,
+            processed: totalProcessed,
+            errors: totalErrors,
+            totalCards: cards.length
+          }),
+          { status: 500, headers: { "Content-Type": "application/json" } }
+        );
+      }
+    } else {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          message: "Database update completed with errors, version not updated",
+          processed: totalProcessed,
+          errors: totalErrors,
+          totalCards: cards.length
+        }),
+        { status: 500, headers: { "Content-Type": "application/json" } }
+      );
+    }
 
   } catch (error) {
     console.error("Error in update-card-data function:", error);
-
     return new Response(
       JSON.stringify({ error: error.message || "An unexpected error occurred" }),
-      {
-        status: 500,
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Client-Info',
-          'Content-Type': 'application/json'
-        }
-      }
+      { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }
 })
