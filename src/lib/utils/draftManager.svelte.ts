@@ -77,8 +77,10 @@ export async function handleDraftBroadcast(event: string, payload: any) {
                         pack.splice(cardToPickIndex, 1);
                     }
 
-                    // Add player to the selected set
-                    store.selectedPlayers.add(playerIndex);
+                    // Add player to the selected array if not already there
+                    if (!store.selectedPlayers.includes(playerIndex)) {
+                        store.selectedPlayers.push(playerIndex);
+                    }
                     
                     // Check if the current player has completed drafting in the last round
                     const currentPlayerIndex = store.participants.indexOf(store.userId);
@@ -101,7 +103,7 @@ export async function handleDraftBroadcast(event: string, payload: any) {
 
                 store.currentRound = round;
                 store.currentPackIndex = packAssignments;
-                store.selectedPlayers.clear();
+                store.selectedPlayers = [];
                 store.hasSelected = false;
                 
                 // Check if the player now has an empty pack in the final round

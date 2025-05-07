@@ -154,7 +154,7 @@ export class RochesterDraftStrategy implements DraftStrategy {
             }
 
             // Track players who have made their selection for the current turn
-            store.selectedPlayers = new Set();
+            store.selectedPlayers = [];
 
             return true;
         } catch (error) {
@@ -190,7 +190,9 @@ export class RochesterDraftStrategy implements DraftStrategy {
         draftStore.addToDraftedDeck([pickedCard]);
 
         // Mark this player as having made a selection
-        store.selectedPlayers.add(playerIndex);
+        if (!store.selectedPlayers.includes(playerIndex)) {
+            store.selectedPlayers.push(playerIndex);
+        }
         store.hasSelected = true;
 
         // Check if this player has completed their draft
@@ -208,7 +210,7 @@ export class RochesterDraftStrategy implements DraftStrategy {
         });
 
         // Check if all players have made selections
-        if (store.selectedPlayers.size === store.numberOfPlayers) {
+        if (store.selectedPlayers.length === store.numberOfPlayers) {
             await this.rotatePacksAndAdvanceRound();
         }
     }
@@ -227,7 +229,7 @@ export class RochesterDraftStrategy implements DraftStrategy {
             // If there are no more cards or the remaining cards are in other players' packs
             // and this player has already selected
             if (availableCards === 0 ||
-                (store.selectedPlayers.has(playerIndex) &&
+                (store.selectedPlayers.includes(playerIndex) &&
                     store.rounds[store.currentRound][store.currentPackIndex[playerIndex]].length === 0)) {
                 store.playerFinished = true;
             }
@@ -238,7 +240,7 @@ export class RochesterDraftStrategy implements DraftStrategy {
         const { store } = draftStore;
 
         // Clear selections for next round
-        store.selectedPlayers.clear();
+        store.selectedPlayers = [];
         store.hasSelected = false;
 
         // Check if all packs in the current round are empty
