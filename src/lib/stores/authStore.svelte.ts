@@ -125,6 +125,36 @@ export async function signOut() {
     }
 }
 
+// Delete user account
+export async function deleteAccount() {
+    try {
+        if (!store.session) {
+            throw new Error('You must be logged in to delete your account');
+        }
+
+        store.loading = true;
+
+        // Call the RPC function to delete the user account
+        const { error } = await supabase.rpc('delete_user_account');
+
+        if (error) throw error;
+
+        // Sign out the user after account deletion request
+        await supabase.auth.signOut();
+        store.session = null;
+
+        // Redirect to home page
+        goto(base);
+
+        return { success: true };
+    } catch (error) {
+        console.error('Error deleting account:', error);
+        return { success: false, error };
+    } finally {
+        store.loading = false;
+    }
+}
+
 // Subscribe to auth changes
 export function subscribeToAuthChanges() {
     return supabase.auth.onAuthStateChange((event, newSession) => {
