@@ -5,6 +5,7 @@
 // Setup type definitions for built-in Supabase Runtime APIs
 import "jsr:@supabase/functions-js/edge-runtime.d.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { corsHeaders, handleCorsPreflightRequest, createCorsResponse, createErrorResponse } from "../_shared/cors.ts";
 
 console.log("Card Data Fetcher Function Initialized")
 
@@ -57,41 +58,43 @@ async function waitForApiAvailability(supabase): Promise<void> {
   }
 }
 
-// Function to download and store image in Supabase Storage
-async function storeCardImage(supabase, imageUrl, cardId, isSmall = false): Promise<boolean> {
+// Remove the storeCardImage function and replace with a function to call the image edge function
+async function processCardImages(supabase, cards, BATCH_SIZE = 500) {
   try {
-    if (!imageUrl) return false;
-
-    const bucketName = isSmall ? 'card_images_small' : 'card_images';
-    const fileName = `${cardId}${isSmall ? '_small' : ''}.jpg`;
-
-    // Download the image
-    const imageResponse = await fetch(imageUrl);
-    if (!imageResponse.ok) {
-      console.error(`Failed to download image from ${imageUrl}: ${imageResponse.statusText}`);
-      return false;
+    // Split cards into batches of 100
+    const batches = [];
+    for (let i = 0; i < cards.length; i += BATCH_SIZE) {
+      batches.push(cards.slice(i, i + BATCH_SIZE));
     }
 
-    const imageBlob = await imageResponse.blob();
+    // Call fetch-card-images function for each batch in parallel
+    const imageServiceUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/fetch-card-images`;
+    const imageServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 
-    // Upload to Supabase Storage
-    const { data, error } = await supabase
-      .storage
-      .from(bucketName)
-      .upload(fileName, imageBlob, {
-        contentType: 'image/jpeg',
-        upsert: true
+    const batchPromises = batches.map(async (batch) => {
+      const response = await fetch(imageServiceUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${imageServiceKey}`
+        },
+        body: JSON.stringify({ cards: batch })
       });
 
-    if (error) {
-      console.error(`Error uploading image to ${bucketName}:`, error);
-      return false;
-    }
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Error from image service: ${errorText}`);
+        return false;
+      }
 
-    // Successfully stored the image
+      return true;
+    });
+
+    // Wait for all batches to complete
+    await Promise.all(batchPromises);
     return true;
   } catch (error) {
-    console.error(`Error storing image for card ${cardId}:`, error);
+    console.error("Error processing card images:", error);
     return false;
   }
 }
@@ -99,14 +102,7 @@ async function storeCardImage(supabase, imageUrl, cardId, isSmall = false): Prom
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, {
-      status: 204,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-      },
-    });
+    return handleCorsPreflightRequest();
   }
 
   try {
@@ -130,21 +126,13 @@ Deno.serve(async (req) => {
       },
     });
 
-    // Add CORS headers to all responses
-    const corsHeaders = {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-      'Content-Type': 'application/json'
-    };
-
     // Parse the request body
     const { cardIds } = await req.json();
 
     if (!cardIds || !Array.isArray(cardIds) || cardIds.length === 0) {
-      return new Response(
-        JSON.stringify({ error: "Invalid request. Please provide an array of card IDs." }),
-        { status: 400, headers: corsHeaders }
+      return createCorsResponse(
+        { error: "Invalid request. Please provide an array of card IDs." },
+        400
       );
     }
 
@@ -175,10 +163,10 @@ Deno.serve(async (req) => {
         throw new Error(`Error fetching all cards: ${allCardsError.message}`);
       }
 
-      return new Response(
-        JSON.stringify({ data: allCards, message: "All cards found in database" }),
-        { headers: corsHeaders }
-      );
+      return createCorsResponse({
+        data: allCards,
+        message: "All cards found in database"
+      });
     }
 
     // Batch processing for missing cards
@@ -214,15 +202,7 @@ Deno.serve(async (req) => {
 
       // Process cards in this batch with parallel image uploads
       const cardProcessingPromises = apiData.data.map(async (card) => {
-        const imageUrl = card.card_images[0]?.image_url || null;
-        const smallImageUrl = card.card_images[0]?.image_url_small || null;
-
-        // Upload both images in parallel
-        await Promise.all([
-          storeCardImage(supabase, imageUrl, card.id, false),
-          storeCardImage(supabase, smallImageUrl, card.id, true)
-        ]);
-
+        // No longer processing images here, just return the card data
         return {
           id: card.id,
           name: card.name,
@@ -250,6 +230,17 @@ Deno.serve(async (req) => {
       if (insertError) {
         throw new Error(`Error inserting cards: ${insertError.message}`);
       }
+
+      // After inserting cards, process images in parallel
+      // This lets us return DB data quickly while images process in the background
+      if (cardsToInsert.length > 0) {
+        // Extract cards with their API data including image URLs
+        const cardsForImageProcessing = cardsToInsert.map(card => card.api_data);
+
+        // Process in batches of 100 cards
+        processCardImages(supabase, cardsForImageProcessing, 500)
+          .catch(error => console.error("Background image processing error:", error));
+      }
     }
 
     // Fetch all requested cards from the database (both existing and newly inserted)
@@ -262,29 +253,14 @@ Deno.serve(async (req) => {
       throw new Error(`Error fetching all cards after insert: ${allCardsError.message}`);
     }
 
-    return new Response(
-      JSON.stringify({
-        data: allCards,
-        newlyFetched: missingCardIds.length,
-        message: `Successfully processed ${cardIds.length} cards. Fetched ${missingCardIds.length} new cards.`
-      }),
-      { headers: corsHeaders }
-    );
+    return createCorsResponse({
+      data: allCards,
+      newlyFetched: missingCardIds.length,
+      message: `Successfully processed ${cardIds.length} cards. Fetched ${missingCardIds.length} new cards.`
+    });
 
   } catch (error) {
     console.error("Error in fetch-card-data function:", error);
-
-    return new Response(
-      JSON.stringify({ error: error.message || "An unexpected error occurred" }),
-      {
-        status: 500,
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Client-Info',
-          'Content-Type': 'application/json'
-        }
-      }
-    );
+    return createErrorResponse(error.message || "An unexpected error occurred");
   }
 })
