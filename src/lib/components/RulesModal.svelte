@@ -104,35 +104,45 @@
 						{:else}
 							<h4 class="font-medium text-gray-900">Rochester Draft Rules</h4>
 							<p>
-								Rochester Draft is a draft format where players pick cards from visible packs in a
-								predetermined order.
+								Rochester Draft is a draft format where players open packs, make picks, and pass the
+								remaining cards to adjacent players.
 							</p>
 
 							<h5 class="font-medium text-gray-800">Setup:</h5>
 							<ol>
-								<li>Each player is assigned a seat position.</li>
-								<li>A number of packs are prepared based on the pool size and pack size.</li>
+								<li>Each player receives a number of sealed packs.</li>
+								<li>Players sit in a circle or around a table.</li>
 							</ol>
 
 							<h5 class="font-medium text-gray-800">Draft Process:</h5>
 							<ol>
-								<li>One pack is opened and all cards are laid out face-up for everyone to see.</li>
-								<li>Players take turns picking one card at a time from the visible pack.</li>
-								<li>In the first pack, the order goes player 1, player 2, player 3, etc.</li>
-								<li>When the pack is empty, another pack is opened.</li>
-								<li>For the second pack, the direction reverses: player n, player n-1, etc.</li>
+								<li>All players simultaneously open one pack each.</li>
 								<li>
-									Direction alternates with each new pack (clockwise, counter-clockwise, clockwise,
-									etc.).
+									Each player selects one card from their open pack and sets it aside face-down.
 								</li>
-								<li>This continues until all packs are drafted.</li>
+								<li>
+									After everyone has picked, each player passes their remaining pack to the adjacent
+									player in the agreed direction.
+								</li>
+								<li>
+									Players then select a card from the new pack they received and continue passing.
+								</li>
+								<li>This continues until all cards from the packs have been drafted.</li>
+								<li>
+									Players then start a new round by opening a new pack of cards each. Each player
+									passes their pack the opposite direction.
+								</li>
+								<li>
+									This process repeats until all packs are drafted and each player has their desired
+									deck size.
+								</li>
 							</ol>
 
 							<h5 class="font-medium text-gray-800">Strategy Tips:</h5>
 							<p>
-								Since all cards are visible, you can see what other players are drafting. This
-								allows for strategic hate-drafting (taking cards to prevent others from getting
-								them) and signaling (showing what types of cards you're prioritizing).
+								Pay attention to what cards you pass and what cards are passed to you. This helps
+								you identify what strategies adjacent players are pursuing, allowing you to avoid
+								competing for the same card types and maximize the quality of cards you receive.
 							</p>
 						{/if}
 					</div>
