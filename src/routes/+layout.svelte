@@ -10,13 +10,19 @@
 	} from '$lib/stores/authStore.svelte';
 	import { page } from '$app/state';
 	import { base } from '$app/paths';
+	import PrivacyPolicyModal from '$lib/components/PrivacyPolicyModal.svelte';
 
 	let { children } = $props();
+	let showPrivacyPolicy = $state(false);
 
 	function confirmDeleteAccount() {
 		if (confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
 			deleteAccount();
 		}
+	}
+	
+	function togglePrivacyPolicy() {
+		showPrivacyPolicy = !showPrivacyPolicy;
 	}
 
 	onMount(async () => {
@@ -55,6 +61,12 @@
 						</button>
 					</div>
 					<div class="flex items-center">
+						<button
+							onclick={togglePrivacyPolicy}
+							class="mr-4 rounded border border-gray-300 px-2 py-1 transition-colors hover:border-indigo-400"
+						>
+							Privacy Policy
+						</button>
 						<a
 							href="https://github.com/a-ws-m/ygo-draft/issues"
 							target="_blank"
@@ -97,6 +109,11 @@
 		<main class="flex-1">
 			{@render children()}
 		</main>
+
+		 <!-- Privacy Policy Modal -->
+		{#if showPrivacyPolicy}
+			<PrivacyPolicyModal on:close={togglePrivacyPolicy} />
+		{/if}
 
 		<!-- Footer could go here -->
 	{:else}

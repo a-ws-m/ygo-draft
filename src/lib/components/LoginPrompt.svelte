@@ -1,19 +1,20 @@
 <script lang="ts">
-	import { createEventDispatcher, onMount } from 'svelte';
+	import { onMount } from 'svelte';
 	import {
 		store as authStore,
 		signInWithGitHub,
 		signInWithDiscord,
 		signInAnonymously
 	} from '$lib/stores/authStore.svelte';
+	import PrivacyPolicyModal from '$lib/components/PrivacyPolicyModal.svelte';
 
-	const dispatch = createEventDispatcher();
 	let isProcessing = $state(false);
 	let hcaptchaWidget: any;
 	let hcaptchaToken = $state('');
 	let hcaptchaLoaded = $state(false);
 	let hcaptchaError = $state(false);
 	const HCAPTCHA_SITE_KEY = import.meta.env.VITE_HCAPTCHA_SITE_KEY;
+	let showPrivacyPolicy = $state(false);
 
 	// Function to check if hCaptcha is loaded and render the widget
 	function renderHcaptcha() {
@@ -111,6 +112,10 @@
 		} finally {
 			isProcessing = false;
 		}
+	}
+
+	function togglePrivacyPolicy() {
+		showPrivacyPolicy = !showPrivacyPolicy;
 	}
 </script>
 
@@ -217,6 +222,21 @@
 					rel="noopener noreferrer">Terms of Service</a
 				> apply.
 			</div>
+
+			<!-- Privacy notice -->
+			<div class="mt-3 text-sm text-gray-600">
+				By signing in, you agree to our
+				<a
+					href="#privacy"
+					onclick={(e) => {
+						e.preventDefault();
+						togglePrivacyPolicy();
+					}}
+					class="text-blue-600 hover:underline"
+				>
+					Privacy Policy
+				</a>
+			</div>
 		</div>
 
 		<button
@@ -266,6 +286,10 @@
 		</div>
 	{/if}
 </div>
+
+{#if showPrivacyPolicy}
+	<PrivacyPolicyModal on:close={togglePrivacyPolicy} />
+{/if}
 
 <style>
 	:global(.h-captcha) {
