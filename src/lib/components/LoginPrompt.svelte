@@ -1,13 +1,68 @@
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
+	import { createEventDispatcher, onMount } from 'svelte';
 	import {
 		store as authStore,
 		signInWithGitHub,
-		signInWithDiscord
+		signInWithDiscord,
+		signInAnonymously
 	} from '$lib/stores/authStore.svelte';
 
 	const dispatch = createEventDispatcher();
 	let isProcessing = $state(false);
+	let hcaptchaWidget: any;
+	let hcaptchaToken = $state('');
+	let hcaptchaLoaded = $state(false);
+	let hcaptchaError = $state(false);
+	const HCAPTCHA_SITE_KEY = import.meta.env.VITE_HCAPTCHA_SITE_KEY;
+
+	// Function to check if hCaptcha is loaded and render the widget
+	function renderHcaptcha() {
+		if (window.hcaptcha) {
+			try {
+				hcaptchaWidget = window.hcaptcha.render('hcaptcha-container', {
+					sitekey: HCAPTCHA_SITE_KEY,
+					theme: 'light',
+					callback: (token: string) => {
+						hcaptchaToken = token;
+					},
+					'expired-callback': () => {
+						hcaptchaToken = '';
+					},
+					'error-callback': () => {
+						hcaptchaError = true;
+					}
+				});
+				hcaptchaLoaded = true;
+				hcaptchaError = false;
+			} catch (error) {
+				console.error('Error rendering hCaptcha:', error);
+				hcaptchaError = true;
+			}
+		}
+	}
+
+	onMount(() => {
+		// Check if hCaptcha is already loaded
+		if (window.hcaptcha) {
+			renderHcaptcha();
+		} else {
+			// Set up a listener to check when the script is loaded
+			window.addEventListener('hCaptchaLoaded', renderHcaptcha);
+
+			// Also set a timeout to check again in case the event isn't fired
+			setTimeout(() => {
+				if (!hcaptchaLoaded && window.hcaptcha) {
+					renderHcaptcha();
+				} else if (!hcaptchaLoaded) {
+					hcaptchaError = true;
+				}
+			}, 3000);
+		}
+
+		return () => {
+			window.removeEventListener('hCaptchaLoaded', renderHcaptcha);
+		};
+	});
 
 	async function handleGitHubLogin() {
 		isProcessing = true;
@@ -32,7 +87,43 @@
 			isProcessing = false;
 		}
 	}
+
+	async function handleAnonymousLogin() {
+		if (!hcaptchaToken) {
+			alert('Please complete the captcha verification first');
+			return;
+		}
+
+		isProcessing = true;
+		try {
+			const result = await signInAnonymously(hcaptchaToken);
+			if (result.success) {
+				dispatch('login');
+			} else {
+				alert('Anonymous login failed. Please try again.');
+				// Reset hCaptcha
+				if (window.hcaptcha) {
+					window.hcaptcha.reset(hcaptchaWidget);
+				}
+			}
+		} catch (error) {
+			console.error('Error signing in anonymously:', error);
+		} finally {
+			isProcessing = false;
+		}
+	}
 </script>
+
+<svelte:head>
+	<script
+		src="https://js.hcaptcha.com/1/api.js"
+		async
+		defer
+		onload={() => {
+			window.dispatchEvent(new Event('hCaptchaLoaded'));
+		}}
+	></script>
+</svelte:head>
 
 <div class="flex flex-col items-center space-y-6 py-8 text-center">
 	<div class="mb-4 space-y-3">
@@ -85,6 +176,56 @@
 			</svg>
 			Sign in with Discord
 		</button>
+
+		<!-- Divider with text -->
+		<div class="relative my-4">
+			<div class="absolute inset-0 flex items-center">
+				<div class="w-full border-t border-gray-300"></div>
+			</div>
+			<div class="relative flex justify-center text-sm">
+				<span class="bg-white px-2 text-gray-500">Or</span>
+			</div>
+		</div>
+
+		<!-- hCaptcha container with loading/error states -->
+		<div class="my-4">
+			{#if hcaptchaError}
+				<div class="mb-2 text-red-500">
+					Failed to load captcha. Please refresh the page and try again.
+				</div>
+			{:else if !hcaptchaLoaded}
+				<div class="flex h-[78px] items-center justify-center">
+					<div class="animate-pulse text-gray-400">Loading captcha...</div>
+				</div>
+			{/if}
+			<div id="hcaptcha-container" class="flex justify-center"></div>
+		</div>
+
+		<button
+			type="button"
+			onclick={handleAnonymousLogin}
+			disabled={isProcessing || !hcaptchaToken}
+			class="flex w-full items-center justify-center rounded-md bg-green-600 px-4 py-2 text-white shadow-sm hover:bg-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:outline-none disabled:bg-gray-400"
+		>
+			<svg
+				xmlns="http://www.w3.org/2000/svg"
+				width="20"
+				height="20"
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="2"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+				class="mr-2"
+			>
+				<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+				<circle cx="9" cy="7" r="4"></circle>
+				<path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+				<path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+			</svg>
+			Continue Anonymously
+		</button>
 	</div>
 
 	{#if isProcessing}
@@ -107,3 +248,9 @@
 		</div>
 	{/if}
 </div>
+
+<style>
+	:global(.h-captcha) {
+		display: inline-block;
+	}
+</style>

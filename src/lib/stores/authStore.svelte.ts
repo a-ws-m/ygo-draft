@@ -86,6 +86,28 @@ export async function signInWithDiscord() {
     }
 }
 
+// Sign in anonymously with hCaptcha verification
+export async function signInAnonymously(hcaptchaToken: string) {
+    try {
+        store.loading = true;
+        // Use Supabase's signInWithOtp to create an anonymous session
+        // We're using the captcha token as verification
+        const { data, error } = await supabase.auth.signInAnonymously({
+            options: {
+                captchaToken: hcaptchaToken,
+            }
+        });
+
+        if (error) throw error;
+        return { success: true, data };
+    } catch (error) {
+        console.error('Error signing in anonymously:', error);
+        return { success: false, error };
+    } finally {
+        store.loading = false;
+    }
+}
+
 // Sign out a user
 export async function signOut() {
     try {
