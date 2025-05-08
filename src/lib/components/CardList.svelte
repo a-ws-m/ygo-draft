@@ -47,6 +47,9 @@
 	let selectedFilterValue = $state('');
 	let showFilterDropdown = $state(false);
 
+	// Track previous filter property to detect changes
+	let previousFilterProperty = $state('');
+
 	// Create a fuzzy searcher instance
 	let searcher = $state(null);
 
@@ -129,6 +132,15 @@
 				sort: true
 			});
 		}
+	});
+
+	// Clear selected filter value only when property changes from a previous value
+	$effect(() => {
+		if (selectedFilterProperty !== previousFilterProperty && previousFilterProperty !== '') {
+			selectedFilterValue = '';
+			showFilterDropdown = false;
+		}
+		previousFilterProperty = selectedFilterProperty;
 	});
 
 	// Handle chart segment click
@@ -427,7 +439,7 @@
 					<div>
 						<svg
 							xmlns="http://www.w3.org/2000/svg"
-							class="mx-auto h-12 w-12 text-gray-400 feather feather-frown"
+							class="feather feather-frown mx-auto h-12 w-12 text-gray-400"
 							width="24"
 							height="24"
 							viewBox="0 0 24 24"
