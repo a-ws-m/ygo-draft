@@ -427,18 +427,23 @@
 					<div>
 						<svg
 							xmlns="http://www.w3.org/2000/svg"
-							class="mx-auto h-12 w-12 text-gray-400"
-							fill="none"
+							class="mx-auto h-12 w-12 text-gray-400 feather feather-frown"
+							width="24"
+							height="24"
 							viewBox="0 0 24 24"
+							fill="none"
 							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							><circle cx="12" cy="12" r="10"></circle><path d="M16 16s-1.5-2-4-2-4 2-4 2"
+							></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line
+								x1="15"
+								y1="9"
+								x2="15.01"
+								y2="9"
+							></line></svg
 						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M12 13a9 9 0 100 18 9 9 0 000-18z"
-							/>
-						</svg>
 						<p class="mt-4 text-lg font-medium">No cards match your filters</p>
 						<p class="mt-2">Try adjusting your search or filter criteria</p>
 						<button
