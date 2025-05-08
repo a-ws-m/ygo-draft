@@ -94,6 +94,8 @@ In Rochester Draft:
 - [Supabase](https://supabase.com/) - Backend, database, and real-time functionality
 - [D3.js](https://d3js.org/) - Data visualization
 - [PapaParse](https://www.papaparse.com/) - CSV parsing
+- [Fuzzy-search](https://github.com/wouterrutgers/fuzzy-search) - Fuzzy searching for card names/descriptions
+- [Feather icons](https://feathericons.com/) - Beautiful, open source icons
 
 ## Contributing
 
