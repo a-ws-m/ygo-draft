@@ -71,7 +71,18 @@
 
 			if (value) values.add(value);
 		});
-		return Array.from(values).sort();
+
+		// Convert Set to Array
+		const arrayValues = Array.from(values);
+
+		// Sort based on property type
+		if (property === 'level') {
+			// Sort levels numerically
+			return arrayValues.sort((a, b) => parseInt(a) - parseInt(b));
+		} else {
+			// Sort other properties alphabetically
+			return arrayValues.sort();
+		}
 	}
 
 	// Filter property options
