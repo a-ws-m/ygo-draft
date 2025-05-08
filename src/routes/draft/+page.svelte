@@ -65,6 +65,19 @@
 			});
 	}
 
+	// Function to handle the window's beforeunload event
+	function handleBeforeUnload(event) {
+		// Only show warning if draft has started and is not finished
+		if (draftStore.store.draftStarted && !draftStore.store.allFinished) {
+			// Standard way of showing a confirmation dialog when leaving
+			event.preventDefault();
+			// Set a return value for older browsers
+			event.returnValue =
+				'You are in the middle of a draft. You cannot return, and the draft will break for other players. Are you sure you want to leave?';
+			return event.returnValue;
+		}
+	}
+
 	// Load draft data
 	async function loadDraftData() {
 		isLoading = true;
@@ -278,7 +291,7 @@
 		// Set shareable URL
 		shareableUrl = `${window.location.origin}${window.location.pathname}?id=${draftId}`;
 
-		 // Get the authenticated user's ID
+		// Get the authenticated user's ID
 		draftStore.store.userId = authStore.session?.user?.id || '';
 		console.log('User ID:', draftStore.store.userId);
 
@@ -382,6 +395,8 @@
 	<title>YGO Draft Room {draftId}</title>
 	<meta name="description" content="Create your custom Yu-Gi-Oh! draft experience." />
 </svelte:head>
+
+<svelte:window on:beforeunload={handleBeforeUnload} />
 
 <RulesModal bind:isOpen={showRulesModal} draftMethod={draftStore.store.draftMethod} />
 
