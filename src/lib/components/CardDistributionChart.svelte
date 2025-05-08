@@ -1,6 +1,9 @@
 <script lang="ts">
 	import * as d3 from 'd3';
-	import { onMount } from 'svelte';
+	import { onMount, createEventDispatcher } from 'svelte';
+
+	// Event dispatcher for chart interactions
+	const dispatch = createEventDispatcher();
 
 	// Props
 	const {
@@ -15,7 +18,7 @@
 			{ value: 'attribute', label: 'Attribute' },
 			{ value: 'race', label: 'Race/Spell Type' },
 			{ value: 'level', label: 'Level/Rank' },
-			{ value: 'rarity', label: 'Rarity' },
+			{ value: 'rarity', label: 'Rarity' }
 		] // New property for selector options
 	} = $props<{
 		cube: any[];
@@ -109,7 +112,15 @@
 			.attr('data-category', (d) => d.category)
 			.style('margin-bottom', '10px')
 			.style('display', 'flex')
-			.style('align-items', 'center');
+			.style('align-items', 'center')
+			.style('cursor', 'pointer')
+			.on('click', function (event, d) {
+				// Dispatch event when legend item is clicked
+				dispatch('chartClick', {
+					property: selectedProperty,
+					value: d.category
+				});
+			});
 
 		// Add color box
 		legendItems
@@ -213,6 +224,14 @@
 			.attr('data-category', (d) => d.data.category)
 			.style('stroke-width', '2px')
 			.style('transition', 'transform 0.2s')
+			.style('cursor', 'pointer')
+			.on('click', function (event, d) {
+				// Dispatch event when chart segment is clicked
+				dispatch('chartClick', {
+					property: selectedProperty,
+					value: d.data.category
+				});
+			})
 			.on('mouseover', function (event, d) {
 				// Scale up the pie segment
 				d3.select(this).style('transform', 'scale(1.05)');
