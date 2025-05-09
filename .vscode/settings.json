@@ -20,5 +20,16 @@
   ],
   "[typescript]": {
     "editor.defaultFormatter": "vscode.typescript-language-features"
-  }
+  },
+  "github.copilot.chat.codeGeneration.instructions": [
+    {
+      "file": "./.vscode/daisyui.md"
+    },
+    {
+      "file": "./.vscode/svelte5.md",
+    },
+    {
+      "file": "./.vscode/instructions.md"
+    }
+  ]
 }
