@@ -45,13 +45,17 @@
 			<header class="navbar bg-base-100 shadow">
 				<div class="navbar-start">
 					<a href={`${base}/`} class="btn btn-ghost text-primary text-xl font-bold">YGO Draft</a>
-					<span class="text-base-content/70 text-sm">{authStore.session.user.email}</span>
 				</div>
 				<div class="navbar-end">
 					<!-- Account dropdown using details/summary -->
 					<details class="dropdown dropdown-end">
 						<summary class="btn btn-primary btn-sm m-1">Account</summary>
 						<ul class="menu dropdown-content bg-base-100 rounded-box z-[1] mt-3 w-52 p-2 shadow">
+							{#if authStore.session.user.email}
+								<li class="menu-title text-base-content/70 px-4 py-2 text-xs">
+									{authStore.session.user.email}
+								</li>
+							{/if}
 							<li><button onclick={signOut} class="text-base-content">Sign Out</button></li>
 							<li>
 								<button onclick={confirmDeleteAccount} class="text-error">Delete Account</button>
