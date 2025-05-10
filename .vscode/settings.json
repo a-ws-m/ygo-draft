@@ -39,7 +39,6 @@
         "type": "stdio",
         "command": "pnpx",
         "args": [
-          "-y",
           "@upstash/context7-mcp@latest"
         ]
       }
