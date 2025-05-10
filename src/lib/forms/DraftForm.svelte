@@ -1,16 +1,12 @@
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { base } from '$app/paths';
 	import { createDraft } from '$lib/utils/supabaseDraftManager';
-	import {
-		store as authStore,
-		signInWithGitHub,
-		signInWithDiscord
-	} from '$lib/stores/authStore.svelte';
+	import { store as authStore } from '$lib/stores/authStore.svelte';
 	import LoginPrompt from '$lib/components/LoginPrompt.svelte';
 
-	const dispatch = createEventDispatcher();
+	// Define a callback prop for handling cube uploads
+	let { onCubeUploaded }: { onCubeUploaded: (cube: any[]) => void } = $props();
 
 	// Use $state for reactive variables in Svelte 5
 	let draftMethod = $state('rochester');
@@ -134,7 +130,9 @@
 						isCubeValid = true;
 						cube = uploadedCube;
 						totalCards = cube.reduce((sum, card) => sum + card.quantity, 0);
-						dispatch('cubeUploaded', { cube });
+
+						// Call the callback prop instead of dispatching an event
+						onCubeUploaded(cube);
 
 						// Check if the cube has custom rarities
 						if (uploadedCube.hasCustomRarities) {
@@ -327,13 +325,13 @@
 		<!-- Cube File Upload -->
 		<div>
 			<div class="mb-1 flex items-center">
-				<label for="cube-file" class="block text-sm font-medium text-gray-700">
+				<label for="cube-file" class="text-base-content block text-sm font-medium">
 					Upload Cube File (.csv)
 				</label>
 				<div class="relative ml-2">
 					<button
 						type="button"
-						class="flex h-5 w-5 items-center justify-center rounded-full bg-gray-200 text-gray-600 hover:bg-gray-300"
+						class="btn btn-xs btn-circle btn-ghost"
 						aria-label="Cube file information"
 						onmouseenter={() => {
 							cancelTooltipFadeOut('cube');
@@ -343,10 +341,9 @@
 					>
 						?
 					</button>
-
 					{#if showCubeTooltip}
 						<div
-							class="prose prose-sm ring-opacity-5 tooltip-fade absolute top-0 left-6 z-10 w-64 rounded-md bg-white p-3 shadow-lg ring-1 ring-black"
+							class="prose prose-sm ring-opacity-5 tooltip-fade bg-base-100 ring-base-300 absolute top-0 left-6 z-10 w-64 rounded-md p-3 shadow-lg ring-1"
 							style={`--fadeOutTime: ${TOOLTIP_FADE_DELAY}ms`}
 							onmouseenter={() => {
 								cancelTooltipFadeOut('cube');
@@ -355,16 +352,17 @@
 							onmouseleave={() => startTooltipFadeOut('cube')}
 							role="tooltip"
 						>
-							<h4 class="text-sm font-medium text-gray-900">Cube File Format</h4>
-							<p class="text-xs text-gray-600">
+							<h4 class="text-base-content text-sm font-medium">Cube File Format</h4>
+							<p class="text-base-content/70 text-xs">
 								Visit <a
 									href="https://ygoprodeck.com/cube/"
 									target="_blank"
 									rel="noopener noreferrer"
-									class="text-blue-600 hover:underline">YGOProdeck Cube Builder</a
-								> to find or build a cube, then click the button to download it as a CSV file.
+									class="link link-primary">YGOProdeck Cube Builder</a
+								>
+								to find or build a cube, then click the button to download it as a CSV file.
 							</p>
-							<p class="mt-1 text-xs text-gray-600">
+							<p class="text-base-content/70 mt-1 text-xs">
 								<strong>Custom Rarities:</strong> To add custom rarities, include a fifth column in your
 								CSV with one of the following values: "Common", "Rare", "Super Rare", "Ultra Rare". To
 								do this, add a comma to each row, followed by the custom rarity. You can also just use
@@ -380,55 +378,32 @@
 					id="cube-file"
 					accept=".csv"
 					onchange={handleFileUpload}
-					class="block w-full text-sm text-gray-500 file:mr-4 file:rounded-md file:border file:border-gray-300 file:bg-gray-50 file:px-4 file:py-2 file:text-sm file:font-medium file:text-gray-700 hover:file:bg-gray-100"
+					class="file-input file-input-bordered w-full max-w-xs"
 					disabled={isProcessing}
 				/>
 				{#if isProcessing}
 					<!-- Spinner with loading message -->
-					<div class="bg-opacity-75 absolute inset-0 flex items-center justify-center bg-white">
-						<div class="flex items-center">
-							<svg
-								class="mr-3 h-6 w-6 animate-spin text-indigo-600"
-								xmlns="http://www.w3.org/2000/svg"
-								fill="none"
-								viewBox="0 0 24 24"
-							>
-								<circle
-									class="opacity-25"
-									cx="12"
-									cy="12"
-									r="10"
-									stroke="currentColor"
-									stroke-width="4"
-								></circle>
-								<path
-									class="opacity-75"
-									fill="currentColor"
-									d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-								></path>
-							</svg>
-							<span class="text-sm text-indigo-700">Fetching card data (this may take a while)</span
-							>
-						</div>
+					<div class="bg-opacity-75 bg-base-100 absolute inset-0 flex items-center justify-center">
+						<span class="loading loading-spinner loading-lg text-primary mr-3"></span>
+						<span class="text-primary text-sm">Fetching card data (this may take a while)</span>
 					</div>
 				{/if}
 			</div>
 			{#if errorMessage}
-				<!-- Error Message -->
-				<p class="mt-2 text-sm text-red-600">{errorMessage}</p>
+				<p class="text-error mt-2 text-sm">{errorMessage}</p>
 			{/if}
 		</div>
 
 		<!-- Draft Method Selection -->
 		<div>
 			<div class="mb-1 flex items-center">
-				<label for="draft-method" class="block text-sm font-medium text-gray-700">
+				<label for="draft-method" class="text-base-content block text-sm font-medium">
 					Draft Method
 				</label>
 				<div class="relative ml-2">
 					<button
 						type="button"
-						class="flex h-5 w-5 items-center justify-center rounded-full bg-gray-200 text-gray-600 hover:bg-gray-300"
+						class="btn btn-xs btn-circle btn-ghost"
 						aria-label="Draft method information"
 						onmouseenter={() => {
 							cancelTooltipFadeOut('method');
@@ -438,10 +413,9 @@
 					>
 						?
 					</button>
-
 					{#if showMethodTooltip}
 						<div
-							class="prose prose-sm ring-opacity-5 tooltip-fade absolute top-0 left-6 z-10 w-64 rounded-md bg-white p-3 shadow-lg ring-1 ring-black"
+							class="prose prose-sm ring-opacity-5 tooltip-fade bg-base-100 ring-base-300 absolute top-0 left-6 z-10 w-64 rounded-md p-3 shadow-lg ring-1"
 							style={`--fadeOutTime: ${TOOLTIP_FADE_DELAY}ms`}
 							onmouseenter={() => {
 								cancelTooltipFadeOut('method');
@@ -450,12 +424,12 @@
 							onmouseleave={() => startTooltipFadeOut('method')}
 							role="tooltip"
 						>
-							<h4 class="text-sm font-medium text-gray-900">Draft Methods</h4>
-							<p class="text-xs text-gray-600">
+							<h4 class="text-base-content text-sm font-medium">Draft Methods</h4>
+							<p class="text-base-content/70 text-xs">
 								<strong>Rochester Draft:</strong>
 								{draftMethodDescriptions.rochester}
 							</p>
-							<p class="mb-2 text-xs text-gray-600">
+							<p class="text-base-content/70 mb-2 text-xs">
 								<strong>Winston Draft:</strong>
 								{draftMethodDescriptions.winston}
 							</p>
@@ -467,7 +441,7 @@
 				id="draft-method"
 				bind:value={draftMethod}
 				onchange={validateOptions}
-				class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+				class="select select-bordered w-full"
 			>
 				<option value="rochester">Rochester Draft</option>
 				<option value="winston">Winston Draft</option>
@@ -477,8 +451,10 @@
 		<!-- Pool Size -->
 		{#if draftMethod === 'rochester'}
 			<div>
-				<label for="drafted-deck-size" class="mb-1 block text-sm font-medium text-gray-700">
-					Drafted deck size <span class="text-xs text-gray-500">(max: {maxDraftedDeckSize})</span>
+				<label for="drafted-deck-size" class="text-base-content mb-1 block text-sm font-medium">
+					Drafted deck size <span class="text-base-content/60 text-xs"
+						>(max: {maxDraftedDeckSize})</span
+					>
 				</label>
 				<input
 					type="number"
@@ -487,16 +463,16 @@
 					min="1"
 					max={maxDraftedDeckSize}
 					oninput={validateOptions}
-					class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+					class="input input-bordered w-full"
 				/>
-				<p class="mt-1 text-sm text-gray-500">
+				<p class="text-base-content/60 mt-1 text-sm">
 					Total pool size: {draftedDeckSize * numberOfPlayers} cards
 				</p>
 			</div>
 		{:else}
 			<div>
-				<label for="pool-size" class="mb-1 block text-sm font-medium text-gray-700">
-					Pool Size <span class="text-xs text-gray-500">(max: {MAX_POOL_SIZE})</span>
+				<label for="pool-size" class="text-base-content mb-1 block text-sm font-medium">
+					Pool Size <span class="text-base-content/60 text-xs">(max: {MAX_POOL_SIZE})</span>
 				</label>
 				<input
 					type="number"
@@ -505,15 +481,15 @@
 					min="1"
 					max={MAX_POOL_SIZE}
 					oninput={validateOptions}
-					class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+					class="input input-bordered w-full"
 				/>
 			</div>
 		{/if}
 
 		<!-- Number of Players -->
 		<div>
-			<label for="number-of-players" class="mb-1 block text-sm font-medium text-gray-700">
-				Number of Players <span class="text-xs text-gray-500">(max: {MAX_PLAYERS})</span>
+			<label for="number-of-players" class="text-base-content mb-1 block text-sm font-medium">
+				Number of Players <span class="text-base-content/60 text-xs">(max: {MAX_PLAYERS})</span>
 			</label>
 			<input
 				type="number"
@@ -522,14 +498,14 @@
 				min="2"
 				max={MAX_PLAYERS}
 				oninput={validateOptions}
-				class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+				class="input input-bordered w-full"
 			/>
 		</div>
 
 		<!-- Rochester Draft Options -->
 		{#if draftMethod === 'rochester'}
 			<div>
-				<label for="pack-size" class="mb-1 block text-sm font-medium text-gray-700">
+				<label for="pack-size" class="text-base-content mb-1 block text-sm font-medium">
 					Pack Size
 				</label>
 				<input
@@ -538,47 +514,38 @@
 					bind:value={packSize}
 					min="1"
 					oninput={validateOptions}
-					class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+					class="input input-bordered w-full"
 				/>
 			</div>
 
 			<!-- Rarity Distribution Option -->
-			<div class="flex items-center">
-				<input
-					type="checkbox"
-					id="use-rarity-distribution"
-					bind:checked={useRarityDistribution}
-					onchange={() => {
-						if (useRarityDistribution) {
-							extraDeckAtEnd = false;
-							// Only show the warning when the checkbox is checked
-							checkForCardsWithoutRarity();
-						} else {
-							// Hide the warning when unchecked
-							showRarityWarning = false;
-						}
-						validateOptions();
-					}}
-					disabled={extraDeckAtEnd}
-					class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
-				/>
-				<label
-					for="use-rarity-distribution"
-					class={[
-						'ml-2 block text-sm',
-						{ 'text-gray-700': !extraDeckAtEnd },
-						{ 'linethrough text-gray-400': extraDeckAtEnd }
-					]}
-				>
-					Use pack rarity distribution
+			<div class="form-control">
+				<label class="label cursor-pointer">
+					<input
+						type="checkbox"
+						id="use-rarity-distribution"
+						bind:checked={useRarityDistribution}
+						onchange={() => {
+							if (useRarityDistribution) {
+								extraDeckAtEnd = false;
+								checkForCardsWithoutRarity();
+							} else {
+								showRarityWarning = false;
+							}
+							validateOptions();
+						}}
+						disabled={extraDeckAtEnd}
+						class="checkbox checkbox-primary"
+					/>
+					<span class="label-text ml-2">Use pack rarity distribution</span>
 				</label>
 			</div>
 
 			<!-- Rarity Distribution Settings -->
 			{#if useRarityDistribution}
-				<div class="ml-6 space-y-3 rounded-md border border-gray-200 bg-gray-50 p-4">
+				<div class="border-primary/20 bg-primary/5 ml-6 space-y-3 rounded-md border p-4">
 					<div>
-						<label for="common-per-pack" class="mb-1 block text-sm font-medium text-gray-700">
+						<label for="common-per-pack" class="text-base-content mb-1 block text-sm font-medium">
 							Commons per pack
 						</label>
 						<input
@@ -587,11 +554,11 @@
 							bind:value={commonPerPack}
 							min="0"
 							oninput={validateOptions}
-							class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+							class="input input-bordered w-full"
 						/>
 					</div>
 					<div>
-						<label for="rare-per-pack" class="mb-1 block text-sm font-medium text-gray-700">
+						<label for="rare-per-pack" class="text-base-content mb-1 block text-sm font-medium">
 							Rares per pack
 						</label>
 						<input
@@ -600,11 +567,14 @@
 							bind:value={rarePerPack}
 							min="0"
 							oninput={validateOptions}
-							class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+							class="input input-bordered w-full"
 						/>
 					</div>
 					<div>
-						<label for="super-rare-per-pack" class="mb-1 block text-sm font-medium text-gray-700">
+						<label
+							for="super-rare-per-pack"
+							class="text-base-content mb-1 block text-sm font-medium"
+						>
 							Super Rares per pack
 						</label>
 						<input
@@ -613,11 +583,14 @@
 							bind:value={superRarePerPack}
 							min="0"
 							oninput={validateOptions}
-							class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+							class="input input-bordered w-full"
 						/>
 					</div>
 					<div>
-						<label for="ultra-rare-per-pack" class="mb-1 block text-sm font-medium text-gray-700">
+						<label
+							for="ultra-rare-per-pack"
+							class="text-base-content mb-1 block text-sm font-medium"
+						>
 							Ultra Rares per pack
 						</label>
 						<input
@@ -626,23 +599,20 @@
 							bind:value={ultraRarePerPack}
 							min="0"
 							oninput={validateOptions}
-							class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+							class="input input-bordered w-full"
 						/>
 					</div>
-
-					<div class="rounded border border-blue-200 bg-blue-50 p-2 text-blue-800">
-						<p class="text-sm">
+					<div class="alert alert-info p-2">
+						<span>
 							Total: {commonPerPack + rarePerPack + superRarePerPack + ultraRarePerPack}
 							(must equal pack size of {packSize})
-						</p>
+						</span>
 					</div>
 				</div>
 			{/if}
-
-			<!-- Winston Draft Options -->
 		{:else if draftMethod === 'winston'}
 			<div>
-				<label for="number-of-piles" class="mb-1 block text-sm font-medium text-gray-700">
+				<label for="number-of-piles" class="text-base-content mb-1 block text-sm font-medium">
 					Number of Piles
 				</label>
 				<input
@@ -651,71 +621,64 @@
 					bind:value={numberOfPiles}
 					min="1"
 					oninput={validateOptions}
-					class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+					class="input input-bordered w-full"
 				/>
 			</div>
 		{/if}
 
 		<!-- Extra Deck at End Option -->
-		<div class="flex items-center">
-			<input
-				type="checkbox"
-				id="extra-deck-at-end"
-				bind:checked={extraDeckAtEnd}
-				onchange={() => {
-					if (extraDeckAtEnd) {
-						useRarityDistribution = false;
-					}
-					validateOptions();
-				}}
-				disabled={useRarityDistribution}
-				class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
-			/>
-			<label
-				for="extra-deck-at-end"
-				class={[
-					'ml-2 block text-sm',
-					{ 'text-gray-700': !useRarityDistribution },
-					{ 'linethrough text-gray-400': useRarityDistribution }
-				]}
-			>
-				Move extra deck cards to end of the pool
+		<div class="form-control">
+			<label class="label cursor-pointer">
+				<input
+					type="checkbox"
+					id="extra-deck-at-end"
+					bind:checked={extraDeckAtEnd}
+					onchange={() => {
+						if (extraDeckAtEnd) {
+							useRarityDistribution = false;
+						}
+						validateOptions();
+					}}
+					disabled={useRarityDistribution}
+					class="checkbox checkbox-primary"
+				/>
+				<span class="label-text ml-2">Move extra deck cards to end of the pool</span>
 			</label>
 		</div>
 
 		<!-- Option Validation Error -->
 		{#if optionErrorMessage}
-			<p class="mt-2 text-sm text-red-600">{optionErrorMessage}</p>
+			<p class="text-error mt-2 text-sm">{optionErrorMessage}</p>
 		{/if}
 
 		<!-- Uneven Pool Warning -->
 		{#if showUnevenPoolWarning && useRarityDistribution && draftMethod === 'rochester'}
-			<div class="mt-4 rounded-md bg-orange-50 p-3">
-				<div class="flex">
-					<div class="flex-shrink-0">
-						<svg
-							class="h-5 w-5 text-orange-400"
-							viewBox="0 0 20 20"
-							fill="currentColor"
-							aria-hidden="true"
-						>
-							<path
-								fill-rule="evenodd"
-								d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z"
-								clip-rule="evenodd"
-							/>
-						</svg>
-					</div>
-					<div class="ml-3">
-						<h3 class="text-sm font-medium text-orange-800">Uneven pool warning</h3>
-						<div class="mt-2 text-sm text-orange-700">
-							<p>
-								The total pool size ({poolSize}) is not evenly divisible by the number of cards in
-								each round ({packSize * numberOfPlayers}). The last round's packs will be smaller
-								and won't match your specified rarity distribution.
-							</p>
-						</div>
-					</div>
+			<div class="alert alert-warning mt-4">
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					width="24"
+					height="24"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					class="feather feather-alert-circle"
+					><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line
+						x1="12"
+						y1="16"
+						x2="12.01"
+						y2="16"
+					></line></svg
+				>
+				<div>
+					<h3 class="font-bold">Uneven pool warning</h3>
+					<p>
+						The total pool size ({poolSize}) is not evenly divisible by the number of cards in each
+						round ({packSize * numberOfPlayers}). The last round's packs will be smaller and won't
+						match your specified rarity distribution.
+					</p>
 				</div>
 			</div>
 		{/if}
@@ -723,79 +686,67 @@
 		<!-- Custom Rarities Message -->
 		{#if isCubeValid && hasCustomRarities && useRarityDistribution}
 			{#if cardsWithoutCustomRarity.length > 0}
-				<!-- Warning for cards without custom rarity -->
-				<div class="mt-4 rounded-md bg-orange-50 p-3">
-					<div class="flex">
-						<div class="flex-shrink-0">
-							<svg
-								class="h-5 w-5 text-orange-400"
-								viewBox="0 0 20 20"
-								fill="currentColor"
-								aria-hidden="true"
+				<div class="alert alert-warning mt-4">
+					<svg
+						class="text-warning h-5 w-5"
+						viewBox="0 0 20 20"
+						fill="currentColor"
+						aria-hidden="true"
+					>
+						<path
+							fill-rule="evenodd"
+							d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z"
+							clip-rule="evenodd"
+						/>
+					</svg>
+					<div>
+						<h3 class="font-bold">Cards without custom rarity</h3>
+						<p>
+							{cardsWithoutCustomRarity.length} cards don't have custom rarity information.
+							{#if cardsMissingBothRarities.length === 0}
+								Master Duel rarities will be used for all these cards.
+							{:else}
+								Master Duel rarities will be used for {cardsWithoutCustomRarity.length -
+									cardsMissingBothRarities.length} cards.
+								<span class="text-error font-semibold">
+									However, {cardsMissingBothRarities.length}
+									{cardsMissingBothRarities.length === 1 ? 'card' : 'cards'}
+									{cardsMissingBothRarities.length === 1 ? 'is' : 'are'} missing both custom and Master
+									Duel rarities and won't be included in the draft.
+								</span>
+							{/if}
+							<button
+								type="button"
+								class="btn btn-link btn-xs text-warning ml-1"
+								onclick={() => {
+									showRarityWarning = true;
+									cardsWithoutRarity = cardsWithoutCustomRarity;
+								}}
 							>
-								<path
-									fill-rule="evenodd"
-									d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z"
-									clip-rule="evenodd"
-								/>
-							</svg>
-						</div>
-						<div class="ml-3">
-							<h3 class="text-sm font-medium text-orange-800">Cards without custom rarity</h3>
-							<div class="mt-2 text-sm text-orange-700">
-								<p>
-									{cardsWithoutCustomRarity.length} cards don't have custom rarity information.
-									{#if cardsMissingBothRarities.length === 0}
-										Master Duel rarities will be used for all these cards.
-									{:else}
-										Master Duel rarities will be used for {cardsWithoutCustomRarity.length -
-											cardsMissingBothRarities.length} cards.
-										<span class="font-semibold text-red-600">
-											However, {cardsMissingBothRarities.length}
-											{cardsMissingBothRarities.length === 1 ? 'card' : 'cards'}
-											{cardsMissingBothRarities.length === 1 ? 'is' : 'are'} missing both custom and
-											Master Duel rarities and won't be included in the draft.
-										</span>
-									{/if}
-									<button
-										type="button"
-										class="ml-1 text-orange-800 underline"
-										onclick={() => {
-											showRarityWarning = true;
-											cardsWithoutRarity = cardsWithoutCustomRarity;
-										}}
-									>
-										View affected cards.
-									</button>
-								</p>
-							</div>
-						</div>
+								View affected cards.
+							</button>
+						</p>
 					</div>
 				</div>
 			{:else}
-				<!-- Success message when all cards have custom rarity -->
-				<div class="mt-4 rounded-md bg-green-50 p-3">
-					<div class="flex">
-						<div class="flex-shrink-0">
-							<svg
-								class="h-5 w-5 text-green-400"
-								viewBox="0 0 20 20"
-								fill="currentColor"
-								aria-hidden="true"
-							>
-								<path
-									fill-rule="evenodd"
-									d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z"
-									clip-rule="evenodd"
-								/>
-							</svg>
-						</div>
-						<div class="ml-3">
-							<h3 class="text-sm font-medium text-green-800">Custom rarities detected</h3>
-							<div class="mt-2 text-sm text-green-700">
-								<p>Custom rarities will be used for card distribution in Rochester draft.</p>
-							</div>
-						</div>
+				<div class="alert alert-success mt-4">
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						width="24"
+						height="24"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						class="feather feather-alert-circle"
+						><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"
+						></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg
+					>
+					<div>
+						<h3 class="font-bold">Custom rarities detected</h3>
+						<p>Custom rarities will be used for card distribution in Rochester draft.</p>
 					</div>
 				</div>
 			{/if}
@@ -805,7 +756,7 @@
 		<div>
 			<button
 				type="button"
-				class="w-full rounded-md bg-indigo-600 px-4 py-2 text-white shadow-sm hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-400"
+				class="btn btn-primary w-full"
 				onclick={startDraft}
 				disabled={!isCubeValid || isProcessing || optionErrorMessage}
 			>
@@ -825,140 +776,103 @@
 
 <!-- Warning Modal for Cards Without Rarity -->
 {#if showRarityWarning && cardsWithoutRarity.length > 0}
-	<div
-		class="bg-opacity-50 fixed inset-0 z-50 flex items-center justify-center overflow-auto bg-black p-4"
-	>
-		<div class="relative mx-auto max-w-2xl rounded-lg bg-white shadow-xl">
-			<div class="p-6">
-				<div class="mb-4 text-center">
-					<h3 class="text-lg font-medium text-gray-900">
-						Warning: Cards Without Rarity Information
-					</h3>
-
-					{#if hasCustomRarities}
-						<!-- Custom rarities are being used -->
-						<p class="mt-2 text-sm text-gray-500">
-							The following cards don't have custom rarity information. Master Duel rarities will be
-							used for these cards.
-							{#if cardsMissingBothRarities.length > 0}
-								<span class="font-semibold text-red-600">
-									However, some cards (highlighted in red) are missing both custom and Master Duel
-									rarities and won't be included in the draft.
-								</span>
-							{/if}
-						</p>
-					{:else}
-						<!-- Using Master Duel rarities -->
-						<p class="mt-2 text-sm text-gray-500">
-							The following cards don't have Master Duel rarity information and won't be included in
-							the draft if you use rarity distribution:
-						</p>
+	<div class="modal modal-open">
+		<div class="modal-box max-w-2xl">
+			<h3 class="text-base-content text-lg font-bold">Warning: Cards Without Rarity Information</h3>
+			{#if hasCustomRarities}
+				<p class="text-base-content/70 mt-2 text-sm">
+					The following cards don't have custom rarity information. Master Duel rarities will be
+					used for these cards.
+					{#if cardsMissingBothRarities.length > 0}
+						<span class="text-error font-semibold">
+							However, some cards (highlighted in red) are missing both custom and Master Duel
+							rarities and won't be included in the draft.
+						</span>
 					{/if}
-				</div>
-
-				<div class="max-h-96 overflow-auto">
-					<div class="space-y-2 p-2">
-						{#each cardsWithoutRarity as card}
-							<div
-								class="flex items-center rounded border border-gray-200 p-2"
-								class:border-red-300={hasCustomRarities &&
-									!card?.custom_rarity &&
-									!card?.apiData?.rarity}
-								class:bg-red-50={hasCustomRarities &&
-									!card?.custom_rarity &&
-									!card?.apiData?.rarity}
-							>
-								{#if card.smallImageUrl instanceof Promise || card.imageUrl instanceof Promise}
-									{#await card.smallImageUrl instanceof Promise ? card.smallImageUrl : card.imageUrl}
-										<div
-											class="mr-2 flex h-12 w-12 items-center justify-center rounded bg-gray-100"
-										>
-											<svg
-												class="h-5 w-5 animate-spin text-gray-500"
-												xmlns="http://www.w3.org/2000/svg"
-												fill="none"
-												viewBox="0 0 24 24"
-											>
-												<circle
-													class="opacity-25"
-													cx="12"
-													cy="12"
-													r="10"
-													stroke="currentColor"
-													stroke-width="4"
-												></circle>
-												<path
-													class="opacity-75"
-													fill="currentColor"
-													d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-												></path>
-											</svg>
-										</div>
-									{:then imageUrl}
-										<img
-											src={imageUrl}
-											alt={card.name}
-											class="mr-2 h-12 w-12 rounded object-cover"
-											onerror={(e) => {
-												e.target.src = 'https://via.placeholder.com/400x586?text=Image+Not+Found';
-											}}
-										/>
-									{:catch}
-										<img
-											src="https://via.placeholder.com/400x586?text=Image+Not+Found"
-											alt={card.name}
-											class="mr-2 h-12 w-12 rounded object-cover"
-										/>
-									{/await}
-								{:else}
+				</p>
+			{:else}
+				<p class="text-base-content/70 mt-2 text-sm">
+					The following cards don't have Master Duel rarity information and won't be included in the
+					draft if you use rarity distribution:
+				</p>
+			{/if}
+			<div class="mt-4 max-h-96 overflow-auto">
+				<div class="space-y-2 p-2">
+					{#each cardsWithoutRarity as card}
+						<div
+							class="flex items-center rounded border p-2"
+							class:border-error={hasCustomRarities &&
+								!card?.custom_rarity &&
+								!card?.apiData?.rarity}
+							class:bg-error={hasCustomRarities && !card?.custom_rarity && !card?.apiData?.rarity}
+						>
+							{#if card.smallImageUrl instanceof Promise || card.imageUrl instanceof Promise}
+								{#await card.smallImageUrl instanceof Promise ? card.smallImageUrl : card.imageUrl}
+									<div class="bg-base-200 mr-2 flex h-12 w-12 items-center justify-center rounded">
+										<span class="loading loading-spinner loading-xs text-base-content"></span>
+									</div>
+								{:then imageUrl}
 									<img
-										src={card.smallImageUrl || card.imageUrl}
+										src={imageUrl}
 										alt={card.name}
 										class="mr-2 h-12 w-12 rounded object-cover"
 										onerror={(e) => {
 											e.target.src = 'https://via.placeholder.com/400x586?text=Image+Not+Found';
 										}}
 									/>
+								{:catch}
+									<img
+										src="https://via.placeholder.com/400x586?text=Image+Not+Found"
+										alt={card.name}
+										class="mr-2 h-12 w-12 rounded object-cover"
+									/>
+								{/await}
+							{:else}
+								<img
+									src={card.smallImageUrl || card.imageUrl}
+									alt={card.name}
+									class="mr-2 h-12 w-12 rounded object-cover"
+									onerror={(e) => {
+										e.target.src = 'https://via.placeholder.com/400x586?text=Image+Not+Found';
+									}}
+								/>
+							{/if}
+							<span
+								class="text-sm"
+								class:text-error={hasCustomRarities &&
+									!card?.custom_rarity &&
+									!card?.apiData?.rarity}
+							>
+								{card.name}
+								{#if hasCustomRarities && !card?.custom_rarity && !card?.apiData?.rarity}
+									<span class="ml-2 text-xs font-medium">(No Master Duel rarity)</span>
 								{/if}
-								<span
-									class="text-sm"
-									class:text-red-700={hasCustomRarities &&
-										!card?.custom_rarity &&
-										!card?.apiData?.rarity}
-								>
-									{card.name}
-									{#if hasCustomRarities && !card?.custom_rarity && !card?.apiData?.rarity}
-										<span class="ml-2 text-xs font-medium">(No Master Duel rarity)</span>
-									{/if}
-								</span>
-							</div>
-						{/each}
-					</div>
+							</span>
+						</div>
+					{/each}
 				</div>
-
-				<div class="mt-6 flex justify-center space-x-4">
-					<button
-						type="button"
-						class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:outline-none"
-						onclick={() => {
-							showRarityWarning = false;
-						}}
-					>
-						I Understand
-					</button>
-
-					<button
-						type="button"
-						class="rounded-md bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 focus:outline-none"
-						onclick={() => {
-							useRarityDistribution = false;
-							showRarityWarning = false;
-							validateOptions();
-						}}
-					>
-						Disable Rarity Distribution
-					</button>
-				</div>
+			</div>
+			<div class="modal-action">
+				<button
+					type="button"
+					class="btn btn-primary"
+					onclick={() => {
+						showRarityWarning = false;
+					}}
+				>
+					I Understand
+				</button>
+				<button
+					type="button"
+					class="btn"
+					onclick={() => {
+						useRarityDistribution = false;
+						showRarityWarning = false;
+						validateOptions();
+					}}
+				>
+					Disable Rarity Distribution
+				</button>
 			</div>
 		</div>
 	</div>
@@ -969,7 +883,6 @@
 		opacity: 1;
 		transition: opacity var(--fadeOutTime) linear;
 	}
-
 	:global(.tooltip-fade.hiding) {
 		opacity: 0;
 	}
