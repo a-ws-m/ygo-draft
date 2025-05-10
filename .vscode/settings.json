@@ -31,5 +31,18 @@
     {
       "file": "./.vscode/instructions.md"
     }
-  ]
+  ],
+  "mcp": {
+    "inputs": [],
+    "servers": {
+      "Context7": {
+        "type": "stdio",
+        "command": "pnpx",
+        "args": [
+          "-y",
+          "@upstash/context7-mcp@latest"
+        ]
+      }
+    }
+  }
 }
