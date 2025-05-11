@@ -471,7 +471,7 @@
 										<div
 											class="bg-base-200 absolute inset-0 flex items-center justify-center rounded"
 										>
-											<span class="loading loading-dots loading-md"></span>
+											<span class="loading loading-ring loading-lg"></span>
 										</div>
 									{:then imageUrl}
 										<picture>
