@@ -222,13 +222,17 @@
 			availablePositions.push({ direction: 'right', space: spaceRight });
 		}
 
-		// Default to 'above' if no positions have enough space
+		// If no positions have enough space, get all possible positions with their available space
 		if (availablePositions.length === 0) {
-			popupPosition = 'above';
-		} else {
-			// Sort by available space (descending) and select the best direction
-			popupPosition = availablePositions.sort((a, b) => b.space - a.space)[0].direction;
+			// Add all directions with their available space
+			availablePositions.push({ direction: 'above', space: spaceAbove });
+			availablePositions.push({ direction: 'below', space: spaceBelow });
+			availablePositions.push({ direction: 'left', space: spaceLeft });
+			availablePositions.push({ direction: 'right', space: spaceRight });
 		}
+
+		// Sort by available space (descending) and select the best direction
+		popupPosition = availablePositions.sort((a, b) => b.space - a.space)[0].direction;
 
 		// Position based on selected direction
 		if (popupPosition === 'above') {
@@ -437,7 +441,7 @@
 		<div class={`flex-1 overflow-y-auto ${border ? 'card card-bordered card-compact' : ''}`}>
 			{#if filteredCube.length === 0}
 				<div class="flex h-full items-center justify-center p-8 text-center">
-						<div class="flex flex-col items-center">
+					<div class="flex flex-col items-center">
 						<span class="text-opacity-40 flex justify-center">
 							{@html feather.icons.frown.toSvg({ width: 48, height: 48 })}
 						</span>
