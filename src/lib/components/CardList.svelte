@@ -5,6 +5,7 @@
 	import { convertToYdk, downloadYdkFile } from '$lib/utils/ydkExporter';
 	import { onMount } from 'svelte';
 	import FuzzySearch from 'fuzzy-search';
+	import feather from 'feather-icons';
 
 	// Props using $props rune
 	const {
@@ -194,17 +195,40 @@
 		const spaceLeft = rect.left;
 		const spaceRight = window.innerWidth - rect.right;
 
-		// Find the direction with most space
-		const spaces = [
-			{ direction: 'above', space: spaceAbove },
-			{ direction: 'below', space: spaceBelow },
-			{ direction: 'left', space: spaceLeft },
-			{ direction: 'right', space: spaceRight }
-		];
+		// Estimated heights for different positions
+		// Vertical positions need more space (400px) than horizontal positions (200px)
+		const neededVerticalSpace = 400; // Approximate height needed for details in above/below positions
+		const neededHorizontalSpace = 200; // Approximate height needed for details in left/right positions
 
-		// Sort by available space (descending) and select the best direction
-		const bestDirection = spaces.sort((a, b) => b.space - a.space)[0].direction;
-		popupPosition = bestDirection;
+		// Determine available positions based on space requirements
+		const availablePositions = [];
+
+		if (spaceAbove >= neededVerticalSpace)
+			availablePositions.push({ direction: 'above', space: spaceAbove });
+		if (spaceBelow >= neededVerticalSpace)
+			availablePositions.push({ direction: 'below', space: spaceBelow });
+
+		// For left/right positions, also check if we have enough vertical space (bottom of screen)
+		// We need to ensure the card details won't extend beyond bottom of viewport
+		const verticalCenterSpace = Math.min(
+			spaceBelow,
+			window.innerHeight - rect.top - rect.height / 2
+		);
+
+		if (spaceLeft >= 300 && verticalCenterSpace >= neededHorizontalSpace / 2) {
+			availablePositions.push({ direction: 'left', space: spaceLeft });
+		}
+		if (spaceRight >= 300 && verticalCenterSpace >= neededHorizontalSpace / 2) {
+			availablePositions.push({ direction: 'right', space: spaceRight });
+		}
+
+		// Default to 'above' if no positions have enough space
+		if (availablePositions.length === 0) {
+			popupPosition = 'above';
+		} else {
+			// Sort by available space (descending) and select the best direction
+			popupPosition = availablePositions.sort((a, b) => b.space - a.space)[0].direction;
+		}
 
 		// Position based on selected direction
 		if (popupPosition === 'above') {
@@ -216,10 +240,24 @@
 		} else if (popupPosition === 'left') {
 			popupX = rect.left - 10;
 			popupY = rect.top + rect.height / 2;
+
+			// Ensure it doesn't go beyond bottom of screen by adjusting Y position if needed
+			const cardDetailsHeight = neededHorizontalSpace;
+			const bottomOverflow = popupY + cardDetailsHeight / 2 - window.innerHeight;
+			if (bottomOverflow > 0) {
+				popupY = Math.max(cardDetailsHeight / 2, popupY - bottomOverflow);
+			}
 		} else {
 			// right
 			popupX = rect.right + 10;
 			popupY = rect.top + rect.height / 2;
+
+			// Ensure it doesn't go beyond bottom of screen by adjusting Y position if needed
+			const cardDetailsHeight = neededHorizontalSpace;
+			const bottomOverflow = popupY + cardDetailsHeight / 2 - window.innerHeight;
+			if (bottomOverflow > 0) {
+				popupY = Math.max(cardDetailsHeight / 2, popupY - bottomOverflow);
+			}
 		}
 	}
 
@@ -267,163 +305,126 @@
 	<!-- Header with all controls aligned on same centerline -->
 	<div class="flex flex-col space-y-2 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
 		<div class="flex items-center space-x-4">
-			<p class="text-lg font-medium text-gray-700">
+			<p class="text-lg font-medium">
 				Total Cards: {totalCards}
 			</p>
 
 			{#if showYdkDownload}
-				<button
-					onclick={handleYdkDownload}
-					class="rounded bg-blue-600 px-3 py-1 text-sm text-white hover:bg-blue-700 focus:ring-2 focus:ring-blue-300 focus:outline-none"
-				>
+				<button onclick={handleYdkDownload} class="btn btn-primary btn-sm">
+					<span class="mr-1">{@html feather.icons.download.toSvg({ width: 16, height: 16 })}</span>
 					Download YDK
 				</button>
 			{/if}
 		</div>
 
 		<!-- View Mode Button Group -->
-		<div class="inline-flex rounded-md shadow-sm" role="group">
+		<div class="join">
 			<button
 				type="button"
-				class={`rounded-l-lg px-4 py-2 text-sm font-medium ${!isListView ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-100'} border border-gray-200`}
+				class={`btn join-item ${!isListView ? 'btn-active' : ''}`}
 				onclick={() => setViewMode('tile')}
 			>
-				Tile
+				<span>{@html feather.icons.grid.toSvg({ width: 18, height: 18 })}</span>
 			</button>
 			<button
 				type="button"
-				class={`rounded-r-lg px-4 py-2 text-sm font-medium ${isListView ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-100'} border border-gray-200`}
+				class={`btn join-item ${isListView ? 'btn-active' : ''}`}
 				onclick={() => setViewMode('list')}
 			>
-				List
+				<span>{@html feather.icons.list.toSvg({ width: 18, height: 18 })}</span>
 			</button>
 		</div>
 	</div>
 
 	<!-- Search and filter bar -->
-	<div class="flex flex-wrap items-center gap-2">
-		<!-- Search input -->
-		<div class="relative max-w-md flex-grow">
-			<input
-				type="text"
-				bind:value={searchText}
-				placeholder="Search card name or text..."
-				class="w-full rounded border border-gray-300 py-2 pr-4 pl-10 text-sm focus:border-blue-500 focus:outline-none"
-			/>
-			<svg
-				xmlns="http://www.w3.org/2000/svg"
-				class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform text-gray-400"
-				fill="none"
-				viewBox="0 0 24 24"
-				stroke="currentColor"
-			>
-				<path
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					stroke-width="2"
-					d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-				/>
-			</svg>
-		</div>
-
-		<!-- Match description toggle -->
-		<div class="flex items-center space-x-2">
-			<label class="inline-flex cursor-pointer items-center">
-				<span class="mr-2 text-sm text-gray-700">Match description</span>
-				<div class="relative">
-					<input type="checkbox" bind:checked={matchDescription} class="peer sr-only" />
-					<div
-						class="peer h-5 w-9 rounded-full bg-gray-200 peer-checked:bg-blue-600 peer-focus:ring-2 peer-focus:ring-blue-300 peer-focus:outline-none after:absolute after:top-[2px] after:left-[2px] after:h-4 after:w-4 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:after:translate-x-full peer-checked:after:border-white dark:bg-gray-700"
-					></div>
-				</div>
-			</label>
-		</div>
-
-		<!-- Filter dropdown -->
-		<div class="max-w-xs min-w-[200px] flex-grow">
-			<select
-				bind:value={selectedFilterProperty}
-				class="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none {!selectedFilterProperty
-					? 'text-gray-500'
-					: ''}"
-			>
-				<option value="">Filter by property</option>
-				{#each filterProperties as property}
-					<option value={property.value}>{property.label}</option>
-				{/each}
-			</select>
-		</div>
-
-		<!-- Filter value dropdown -->
-		{#if selectedFilterProperty}
-			<div class="relative max-w-xs min-w-[200px] flex-grow">
-				<button
-					type="button"
-					onclick={toggleFilterDropdown}
-					class="flex w-full items-center justify-between rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+	<fieldset class="fieldset">
+		<div class="flex flex-wrap items-center gap-3">
+			<!-- Search input with integrated match description toggle -->
+			<div class="flex flex-1 items-center gap-2">
+				<label
+					class="input input-bordered flex flex-1 items-center gap-2 focus-within:outline-none"
 				>
-					<span class={!selectedFilterValue ? 'text-gray-500' : ''}>
-						{selectedFilterValue || 'Select value'}
-					</span>
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						class="h-4 w-4 text-gray-400"
-						fill="none"
-						viewBox="0 0 24 24"
-						stroke="currentColor"
-					>
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M19 9l-7 7-7-7"
-						/>
-					</svg>
-				</button>
+					<span>{@html feather.icons.search.toSvg({ width: 18, height: 18 })}</span>
+					<input
+						type="text"
+						bind:value={searchText}
+						placeholder="Search card name or text..."
+						class="grow focus:outline-none"
+					/>
+				</label>
 
-				{#if showFilterDropdown}
-					<div
-						class="absolute z-10 mt-1 max-h-60 w-full overflow-y-auto rounded-md border border-gray-300 bg-white shadow-lg"
-					>
-						{#each availableFilterValues as value}
+				<!-- Match description toggle inline with search -->
+				<div class="form-control">
+					<label class="label cursor-pointer gap-2">
+						<span class="label-text text-sm whitespace-nowrap">Search description</span>
+						<input
+							type="checkbox"
+							bind:checked={matchDescription}
+							class="toggle toggle-primary toggle-sm"
+						/>
+					</label>
+				</div>
+			</div>
+		</div>
+
+		<div class="mt-3 flex flex-wrap items-center gap-3">
+			<div class="join">
+				<!-- Filter dropdown -->
+				<div class="form-control max-w-xs min-w-[200px] flex-grow">
+					<select bind:value={selectedFilterProperty} class="select select-bordered w-full">
+						<option value="">Filter by property</option>
+						{#each filterProperties as property}
+							<option value={property.value}>{property.label}</option>
+						{/each}
+					</select>
+				</div>
+
+				<!-- Filter value dropdown -->
+				{#if selectedFilterProperty}
+					<div class="form-control relative max-w-xs min-w-[200px] flex-grow">
+						<div class="dropdown w-full">
 							<button
 								type="button"
-								onclick={() => applyFilterValue(value)}
-								class="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
+								onclick={toggleFilterDropdown}
+								class="btn btn-outline w-full justify-between"
 							>
-								{value}
+								<span class={!selectedFilterValue ? 'opacity-70' : ''}>
+									{selectedFilterValue || 'Select value'}
+								</span>
+								<span>{@html feather.icons['chevron-down'].toSvg({ width: 16, height: 16 })}</span>
 							</button>
-						{/each}
+
+							{#if showFilterDropdown}
+								<div
+									class="dropdown-content menu bg-base-200 rounded-box z-10 max-h-60 w-full overflow-y-auto shadow-lg"
+								>
+									{#each availableFilterValues as value}
+										<li>
+											<button
+												type="button"
+												onclick={() => applyFilterValue(value)}
+												class="w-full text-left"
+											>
+												{value}
+											</button>
+										</li>
+									{/each}
+								</div>
+							{/if}
+						</div>
 					</div>
 				{/if}
 			</div>
-		{/if}
 
-		<!-- Clear filters button -->
-		{#if hasFilters}
-			<button
-				type="button"
-				onclick={clearFilters}
-				class="flex items-center space-x-1 rounded border border-gray-300 px-3 py-1 text-sm hover:bg-gray-100 focus:outline-none"
-			>
-				<svg
-					xmlns="http://www.w3.org/2000/svg"
-					class="h-4 w-4 text-gray-600"
-					fill="none"
-					viewBox="0 0 24 24"
-					stroke="currentColor"
-				>
-					<path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2"
-						d="M6 18L18 6M6 6l12 12"
-					/>
-				</svg>
-				<span>Clear filters</span>
-			</button>
-		{/if}
-	</div>
+			<!-- Clear filters button -->
+			{#if hasFilters}
+				<button type="button" onclick={clearFilters} class="btn btn-ghost">
+					<span>{@html feather.icons.x.toSvg({ width: 16, height: 16 })}</span>
+					Clear filters
+				</button>
+			{/if}
+		</div>
+	</fieldset>
 
 	{#if showChart}
 		<!-- Card Distribution Chart with property selector moved into the chart component -->
@@ -433,36 +434,16 @@
 	<!-- Container for cards and details -->
 	<div class="relative flex h-[60vh] flex-col">
 		<!-- Card Previews -->
-		<div class={`flex-1 overflow-y-auto rounded shadow-sm ${border ? 'border' : ''}`}>
+		<div class={`flex-1 overflow-y-auto ${border ? 'card card-bordered card-compact' : ''}`}>
 			{#if filteredCube.length === 0}
-				<div class="flex h-full items-center justify-center p-8 text-center text-gray-500">
+				<div class="flex h-full items-center justify-center p-8 text-center">
 					<div>
-						<svg
-							xmlns="http://www.w3.org/2000/svg"
-							class="feather feather-frown mx-auto h-12 w-12 text-gray-400"
-							width="24"
-							height="24"
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="2"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							><circle cx="12" cy="12" r="10"></circle><path d="M16 16s-1.5-2-4-2-4 2-4 2"
-							></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line
-								x1="15"
-								y1="9"
-								x2="15.01"
-								y2="9"
-							></line></svg
-						>
+						<span class="text-opacity-40 text-5xl">
+							{@html feather.icons.frown.toSvg({ width: 48, height: 48 })}
+						</span>
 						<p class="mt-4 text-lg font-medium">No cards match your filters</p>
-						<p class="mt-2">Try adjusting your search or filter criteria</p>
-						<button
-							type="button"
-							onclick={clearFilters}
-							class="mt-4 inline-flex items-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none"
-						>
+						<p class="mt-2 opacity-75">Try adjusting your search or filter criteria</p>
+						<button type="button" onclick={clearFilters} class="btn btn-primary mt-4">
 							Clear all filters
 						</button>
 					</div>
@@ -475,8 +456,8 @@
 					{#each filteredCube as card}
 						<div class="flex w-full max-w-[271px] flex-col items-center">
 							<button
-								class="group card relative w-full {clickable
-									? 'cursor-pointer hover:ring-2 hover:ring-blue-400'
+								class="card relative w-full transition-shadow hover:shadow-lg {clickable
+									? 'hover:ring-primary ring-opacity-50 cursor-pointer hover:ring'
 									: ''}"
 								type="button"
 								onmouseenter={(e) => handleMouseEnter(card, e)}
@@ -488,13 +469,9 @@
 								<div class="relative aspect-[813/1185] w-full max-w-[271px]">
 									{#await getCardImage(card)}
 										<div
-											class="absolute inset-0 flex items-center justify-center rounded bg-gray-100"
+											class="bg-base-200 absolute inset-0 flex items-center justify-center rounded"
 										>
-											<div class="flex animate-pulse space-x-2">
-												<div class="h-2 w-2 rounded-full bg-gray-400"></div>
-												<div class="h-2 w-2 rounded-full bg-gray-400"></div>
-												<div class="h-2 w-2 rounded-full bg-gray-400"></div>
-											</div>
+											<span class="loading loading-dots loading-md"></span>
 										</div>
 									{:then imageUrl}
 										<picture>
@@ -510,17 +487,19 @@
 										</picture>
 									{:catch error}
 										<div
-											class="absolute inset-0 flex items-center justify-center rounded bg-gray-100"
+											class="bg-base-200 absolute inset-0 flex items-center justify-center rounded"
 										>
-											<p class="text-xs text-gray-500">Image failed to load</p>
+											<span>
+												{@html feather.icons['image-off'].toSvg({ width: 24, height: 24 })}
+											</span>
 										</div>
 									{/await}
 								</div>
 							</button>
 							<!-- Card Name and Quantity -->
-							<p class="mt-1 text-center text-sm text-gray-600">{card.name}</p>
+							<p class="mt-1 text-center text-sm">{card.name}</p>
 							{#if card.quantity && card.quantity > 1}
-								<p class="text-xs text-gray-500">x{card.quantity}</p>
+								<p class="badge badge-neutral text-xs">x{card.quantity}</p>
 							{/if}
 						</div>
 					{/each}
@@ -557,56 +536,40 @@
 
 		<!-- Confirmation Modal -->
 		{#if showConfirmModal && selectedCard}
-			<div
-				class="bg-opacity-50 fixed inset-0 z-50 flex items-center justify-center bg-black"
-				role="dialog"
-				aria-modal="true"
-			>
-				<div class="relative mx-4 max-w-md rounded-lg bg-white p-6 shadow-xl sm:mx-0">
-					<div class="text-center">
-						<h3 class="mb-2 text-xl font-medium text-gray-900">Confirm Selection</h3>
-						<div class="mb-4 flex justify-center">
-							<div class="relative w-40">
-								{#await getCardImage(selectedCard)}
-									<div
-										class="absolute inset-0 flex items-center justify-center rounded bg-gray-100"
-									>
-										<div class="flex animate-pulse space-x-2">
-											<div class="h-2 w-2 rounded-full bg-gray-400"></div>
-											<div class="h-2 w-2 rounded-full bg-gray-400"></div>
-											<div class="h-2 w-2 rounded-full bg-gray-400"></div>
-										</div>
-									</div>
-								{:then imageUrl}
-									<img src={imageUrl} alt={selectedCard.name} class="rounded shadow" />
-								{:catch}
-									<div class="flex h-full items-center justify-center rounded bg-gray-100">
-										<p class="text-xs text-gray-500">Image failed to load</p>
-									</div>
-								{/await}
-							</div>
-						</div>
-						<p class="mb-4 text-gray-700">
-							Are you sure you want to select <span class="font-semibold">{selectedCard.name}</span
-							>?
-						</p>
-						<div class="flex justify-center space-x-4">
-							<button
-								class="rounded bg-gray-200 px-4 py-2 text-gray-700 hover:bg-gray-300 focus:ring-2 focus:ring-gray-400 focus:outline-none"
-								onclick={cancelCardSelection}
-							>
-								Cancel
-							</button>
-							<button
-								class="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-								onclick={confirmCardSelection}
-							>
-								Confirm
-							</button>
+			<dialog class="modal modal-open">
+				<div class="modal-box">
+					<h3 class="mb-4 text-xl font-medium">Confirm Selection</h3>
+					<div class="mb-4 flex justify-center">
+						<div class="relative w-40">
+							{#await getCardImage(selectedCard)}
+								<div class="bg-base-200 flex aspect-[813/1185] items-center justify-center rounded">
+									<span class="loading loading-spinner"></span>
+								</div>
+							{:then imageUrl}
+								<img src={imageUrl} alt={selectedCard.name} class="rounded shadow" />
+							{:catch}
+								<div
+									class="bg-base-200 flex aspect-[813/1185] h-full items-center justify-center rounded"
+								>
+									<span>
+										{@html feather.icons['image-off'].toSvg({ width: 24, height: 24 })}
+									</span>
+								</div>
+							{/await}
 						</div>
 					</div>
+					<p class="mb-4">
+						Are you sure you want to select <span class="font-semibold">{selectedCard.name}</span>?
+					</p>
+					<div class="modal-action">
+						<button class="btn" onclick={cancelCardSelection}> Cancel </button>
+						<button class="btn btn-primary" onclick={confirmCardSelection}> Confirm </button>
+					</div>
 				</div>
-			</div>
+				<form method="dialog" class="modal-backdrop">
+					<button onclick={cancelCardSelection}>close</button>
+				</form>
+			</dialog>
 		{/if}
 	</div>
 </div>

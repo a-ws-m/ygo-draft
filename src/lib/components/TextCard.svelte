@@ -1,15 +1,17 @@
 <script lang="ts">
 	import CardDetails from '$lib/components/CardDetails.svelte';
+	import feather from 'feather-icons';
 
 	// Props using $props rune
 	const {
 		card,
 		showDescription = false,
 		clickable = false,
-		onSelect = () => {}
+		onSelect = () => {},
+		imageUrl = '',
+		smallImageUrl = ''
 	} = $props<{
 		card: {
-			imageUrl: string;
 			name: string;
 			type: string;
 			apiData: {
@@ -27,13 +29,15 @@
 		showDescription?: boolean;
 		clickable?: boolean;
 		onSelect?: () => void;
+		imageUrl?: string;
+		smallImageUrl?: string;
 	}>();
 
 	// Map card types to colors
 	const typeColors = {
-		spell: 'border-green-500',
-		monster: 'border-yellow-400',
-		trap: 'border-fuchsia-400'
+		spell: 'border-success',
+		monster: 'border-warning',
+		trap: 'border-secondary'
 	};
 
 	// Function to determine the card type color
@@ -41,47 +45,45 @@
 		if (type.toLowerCase().includes('spell')) return typeColors.spell;
 		if (type.toLowerCase().includes('monster')) return typeColors.monster;
 		if (type.toLowerCase().includes('trap')) return typeColors.trap;
-		return 'border-gray-500'; // Default color
+		return 'border-base-300'; // Default color
 	};
 
 	function handleSelect(event) {
 		event.stopPropagation();
 		onSelect();
 	}
+
+	// Derived values
+	const cardTypeColor = $derived(getTypeColor(card.type));
 </script>
 
-<div class={`rounded border-l-4 p-2 shadow-sm ${getTypeColor(card.type)}`}>
-	<details open={showDescription}>
-		<summary class="flex cursor-pointer items-center justify-between">
-			<p class="text-sm font-medium text-gray-700">{card.name}</p>
-			<div class="flex items-center">
-				{#if card.quantity}
-					<p class="text-xs text-gray-500">x{card.quantity}</p>
-				{/if}
-				{#if clickable}
-					<button
-						class="focus:ring-opacity-50 ml-2 flex h-8 w-8 items-center justify-center rounded-full bg-green-500 text-white hover:bg-green-600 focus:ring-2 focus:ring-green-400 focus:outline-none"
-						aria-label="Select card"
-						onclick={handleSelect}
-					>
-						<svg
-							xmlns="http://www.w3.org/2000/svg"
-							class="h-5 w-5"
-							viewBox="0 0 20 20"
-							fill="currentColor"
-						>
-							<path
-								fill-rule="evenodd"
-								d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-								clip-rule="evenodd"
-							/>
-						</svg>
-					</button>
-				{/if}
-			</div>
-		</summary>
-		<div class="mt-2">
-			<CardDetails {card} compact={true} />
+<div
+	class={`collapse-arrow collapse border-l-4 ${cardTypeColor} bg-base-100 rounded-box shadow-sm`}
+	data-expanded={showDescription ? 'true' : undefined}
+>
+	<input type="checkbox" checked={showDescription} />
+	<div class="collapse-title flex items-center justify-between px-4 py-2">
+		<div class="flex items-center gap-2">
+			<p class="font-medium">{card.name}</p>
+			{#if card.quantity && card.quantity > 1}
+				<span class="badge badge-outline">x{card.quantity}</span>
+			{/if}
 		</div>
-	</details>
+		<div class="flex items-center">
+			{#if clickable}
+				<button
+					class="btn btn-success btn-circle btn-sm"
+					aria-label="Select card"
+					onclick={handleSelect}
+				>
+					<span>{@html feather.icons.check.toSvg({ width: 16, height: 16 })}</span>
+				</button>
+			{/if}
+		</div>
+	</div>
+	<div class="collapse-content pb-4">
+		<div class="mt-2">
+			<CardDetails {card} {imageUrl} {smallImageUrl} compact={true} />
+		</div>
+	</div>
 </div>
