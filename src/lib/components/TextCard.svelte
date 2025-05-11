@@ -69,21 +69,13 @@
 				<span class="badge badge-outline">x{card.quantity}</span>
 			{/if}
 		</div>
-		<div class="flex items-center">
-			{#if clickable}
-				<button
-					class="btn btn-success btn-circle btn-sm"
-					aria-label="Select card"
-					onclick={handleSelect}
-				>
-					<span>{@html feather.icons.check.toSvg({ width: 16, height: 16 })}</span>
-				</button>
-			{/if}
+		<div class="flex-shrink-0">
+			<!-- Dropdown arrow controlled by collapse -->
 		</div>
 	</div>
 	<div class="collapse-content pb-4">
 		<div class="mt-2">
-			<CardDetails {card} {imageUrl} {smallImageUrl} compact={true} />
+			<CardDetails {card} {imageUrl} {smallImageUrl} compact={true} {clickable} {onSelect} />
 		</div>
 	</div>
 </div>

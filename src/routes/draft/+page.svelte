@@ -408,7 +408,7 @@
 					</div>
 					<span>Draft Finished!</span>
 				</div>
-				<div class="card bg-base-100 w-1/3 shadow-xl">
+				<div class="card bg-base-100 w-full shadow-xl md:w-2/3 lg:w-1/3">
 					<div class="card-body">
 						<h2 class="card-title">Your Drafted Deck</h2>
 						<CardList cube={draftStore.store.draftedDeck} showYdkDownload={true} showChart={true} />
@@ -416,8 +416,8 @@
 				</div>
 			</div>
 		{:else if draftStore.store.draftMethod === 'winston'}
-			<div class="flex flex-1 gap-4 p-6">
-				<div class="border-base-300 flex-1 overflow-y-auto border-r pr-4">
+			<div class="flex flex-col gap-4 p-6 lg:flex-row">
+				<div class="border-base-300 flex-1 overflow-y-auto lg:border-r lg:pr-4">
 					{#if isActivePlayer}
 						<div class="mb-4">
 							<div class="flex items-center space-x-3 p-0.5">
@@ -478,7 +478,7 @@
 					{/if}
 				</div>
 
-				<div class="w-1/4 overflow-y-auto pl-4">
+				<div class="mt-4 w-full lg:mt-0 lg:w-1/4 lg:pl-4">
 					<div class="card bg-base-100 shadow-lg">
 						<div class="card-body">
 							<h2 class="card-title">Your Drafted Deck</h2>

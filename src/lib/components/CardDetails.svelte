@@ -2,7 +2,12 @@
 	import feather from 'feather-icons';
 
 	// Props using $props rune
-	const { card, compact = false } = $props<{
+	const {
+		card,
+		compact = false,
+		clickable = false,
+		onSelect = () => {}
+	} = $props<{
 		card: {
 			name?: string;
 			type: string;
@@ -20,6 +25,8 @@
 			};
 		};
 		compact?: boolean;
+		clickable?: boolean;
+		onSelect?: () => void;
 	}>();
 
 	// Derived values
@@ -54,6 +61,11 @@
 		return 'badge-ghost'; // Default
 	}
 
+	function handleSelect(event) {
+		event.stopPropagation();
+		onSelect();
+	}
+
 	// Check for custom rarity first, then fall back to API rarity
 	const displayRarity = $derived(card.custom_rarity || card.apiData.rarity);
 	const raritySource = $derived(card.custom_rarity ? 'Custom Rarity' : 'Master Duel Rarity');
@@ -68,6 +80,7 @@
 	const levelIcon = feather.icons.star.toSvg({ width: 16, height: 16 });
 	const raceIcon = feather.icons.users.toSvg({ width: 16, height: 16, class: 'ml-0.5' });
 	const attributeIcon = feather.icons.droplet.toSvg({ width: 16, height: 16 });
+	const checkIcon = feather.icons.check.toSvg({ width: 14, height: 14 });
 </script>
 
 <div class={compact ? 'p-2' : 'card bg-base-100 shadow-md'}>
@@ -75,12 +88,21 @@
 		{#if !compact && card.name}
 			<div class="flex w-full items-center justify-between">
 				<h3 class="card-title break-words">{card.name}</h3>
+				{#if clickable}
+					<button
+						class="btn btn-success btn-circle btn-xs ml-2"
+						aria-label="Select card"
+						onclick={handleSelect}
+					>
+						<span>{@html checkIcon}</span>
+					</button>
+				{/if}
 			</div>
 		{/if}
 
 		<div class={`flex w-full flex-col space-y-2 ${!compact ? 'max-w-xl' : ''}`}>
 			<div class="flex w-full flex-wrap items-stretch justify-between">
-				<div class="flex flex-col justify-between space-y-2">
+				<div class="flex flex-1 flex-col justify-between space-y-2">
 					<div class="flex items-center gap-2">
 						<span class="text-opacity-70" title={isMonsterCard ? 'Type' : 'Card Type'}>
 							{@html typeIcon}
@@ -147,8 +169,17 @@
 
 			<div class="divider my-1"></div>
 
-			<div class="prose prose-sm max-w-none">
-				<p class="text-sm">{card.apiData.desc}</p>
+			<div class="prose prose-sm relative max-w-none">
+				<p class="pr-6 text-sm">{card.apiData.desc}</p>
+				{#if clickable}
+					<button
+						class="btn btn-success btn-circle btn-xs absolute right-0 bottom-0"
+						aria-label="Select card"
+						onclick={handleSelect}
+					>
+						<span>{@html checkIcon}</span>
+					</button>
+				{/if}
 			</div>
 		</div>
 	</div>
