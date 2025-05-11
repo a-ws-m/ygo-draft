@@ -484,6 +484,7 @@
 											{/await}
 											<source media="(min-width: 297px)" srcset={imageUrl} />
 											<img
+												loading="lazy"
 												src={imageUrl}
 												alt={card.name}
 												class="h-full w-full rounded object-cover shadow"
