@@ -437,8 +437,8 @@
 		<div class={`flex-1 overflow-y-auto ${border ? 'card card-bordered card-compact' : ''}`}>
 			{#if filteredCube.length === 0}
 				<div class="flex h-full items-center justify-center p-8 text-center">
-					<div>
-						<span class="text-opacity-40 text-5xl">
+						<div class="flex flex-col items-center">
+						<span class="text-opacity-40 flex justify-center">
 							{@html feather.icons.frown.toSvg({ width: 48, height: 48 })}
 						</span>
 						<p class="mt-4 text-lg font-medium">No cards match your filters</p>
