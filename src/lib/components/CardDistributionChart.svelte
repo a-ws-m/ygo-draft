@@ -264,26 +264,26 @@
 
 				{#if showLegend && distributionData.length > 0}
 					<div class="legend-wrapper w-full">
-						<div class="flex flex-wrap justify-center gap-2 p-2">
+						<div class="grid grid-cols-2 md:grid-cols-3 gap-2 p-2 w-full">
 							{#each distributionData as item, i}
 								{@const percentage = Math.round((item.count / totalCount) * 100)}
 								{@const isHovered = hoveredCategory === item.category}
 								<button
-									class="btn btn-ghost btn-sm h-auto overflow-hidden px-3 py-1 text-left normal-case"
-									style="transition: all 0.2s"
+									class="btn btn-ghost btn-sm h-auto overflow-hidden px-3 py-1 text-left normal-case w-full"
+									style="transition: all 0.2s; {isHovered ? 'transform: scale(1.05);' : ''}"
 									onclick={() =>
 										dispatch('chartClick', { property: selectedProperty, value: item.category })}
 									onmouseenter={() => (hoveredCategory = item.category)}
 									onmouseleave={() => (hoveredCategory = null)}
 								>
-									<div class="flex items-center gap-2">
+									<div class="flex items-center w-full">
 										<div
-											class="h-3 w-3 flex-shrink-0 rounded-sm"
+											class="h-3 w-3 flex-shrink-0 rounded-sm mr-2"
 											style="background-color: {colorScale(i)}"
 										></div>
-										<div class="flex flex-col items-start">
-											<span class="text-sm font-medium">{item.category}</span>
-											<span class="text-xs opacity-75">{item.count} ({percentage}%)</span>
+										<div class="flex flex-col items-center flex-grow">
+											<span class="text-sm font-medium max-w-full text-center">{item.category}</span>
+											<span class="text-xs opacity-75 text-center">{item.count} ({percentage}%)</span>
 										</div>
 									</div>
 								</button>
