@@ -550,7 +550,7 @@
 									<span class="loading loading-spinner"></span>
 								</div>
 							{:then imageUrl}
-								<img src={imageUrl} alt={selectedCard.name} class="rounded shadow" />
+								<img loading="lazy" src={imageUrl} alt={selectedCard.name} class="rounded shadow" />
 							{:catch}
 								<div
 									class="bg-base-200 flex aspect-[813/1185] h-full items-center justify-center rounded"
