@@ -119,9 +119,6 @@
 							</span>
 							<span class="badge badge-sm badge-outline">{card.apiData.archetype}</span>
 						</div>
-					{:else}
-						<div class="h-6"></div>
-						<!-- Spacer when no archetype -->
 					{/if}
 
 					{#if displayRarity}
@@ -129,9 +126,6 @@
 							<span class="text-xs opacity-70">{raritySource}:</span>
 							<span class={`badge badge-sm ${rarityColorClass}`}>{displayRarity}</span>
 						</div>
-					{:else}
-						<div class="h-6"></div>
-						<!-- Spacer when no rarity -->
 					{/if}
 				</div>
 
