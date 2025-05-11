@@ -269,9 +269,7 @@
 								{@const percentage = Math.round((item.count / totalCount) * 100)}
 								{@const isHovered = hoveredCategory === item.category}
 								<button
-									class="btn btn-ghost btn-sm h-auto overflow-hidden px-3 py-1 text-left normal-case {isHovered
-										? 'scale-105 font-bold'
-										: ''}"
+									class="btn btn-ghost btn-sm h-auto overflow-hidden px-3 py-1 text-left normal-case"
 									style="transition: all 0.2s"
 									onclick={() =>
 										dispatch('chartClick', { property: selectedProperty, value: item.category })}
