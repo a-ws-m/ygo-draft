@@ -1,14 +1,14 @@
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
 	import feather from 'feather-icons';
 
-	const dispatch = createEventDispatcher();
+	// Define the onClose prop
+	let { onClose } = $props<{ onClose: () => void }>();
 
 	// Create SVG strings for the icons we need
 	const crossIcon = feather.icons['x'].toSvg({ width: 16, height: 16 });
 
 	function closeModal() {
-		dispatch('close');
+		onClose();
 	}
 
 	// Close modal when clicking outside or pressing escape
@@ -29,8 +29,8 @@
 
 <div
 	class="modal modal-open modal-bottom sm:modal-middle"
-	on:click={handleBackdropClick}
-	on:keydown={(e) => e.key === 'Enter' && handleBackdropClick(e)}
+	onclick={handleBackdropClick}
+	onkeydown={(e) => e.key === 'Enter' && handleBackdropClick(e)}
 	role="dialog"
 	aria-modal="true"
 	tabindex="-1"
@@ -38,7 +38,7 @@
 	<div class="modal-box relative max-h-[90vh] max-w-3xl overflow-y-auto">
 		<button
 			class="btn btn-sm btn-circle btn-ghost absolute top-2 right-2"
-			on:click={closeModal}
+			onclick={closeModal}
 			aria-label="Close"
 		>
 			{@html crossIcon}

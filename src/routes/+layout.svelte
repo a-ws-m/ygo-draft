@@ -154,7 +154,7 @@
 
 		<!-- Privacy Policy Modal -->
 		{#if showPrivacyPolicy}
-			<PrivacyPolicyModal on:close={togglePrivacyPolicy} />
+			<PrivacyPolicyModal onClose={togglePrivacyPolicy} />
 		{/if}
 
 		<!-- Footer could go here -->
