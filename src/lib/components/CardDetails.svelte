@@ -1,6 +1,13 @@
 <script lang="ts">
+	import feather from 'feather-icons';
+
 	// Props using $props rune
-	const { card, compact = false } = $props<{
+	const {
+		card,
+		compact = false,
+		clickable = false,
+		onSelect = () => {}
+	} = $props<{
 		card: {
 			name?: string;
 			type: string;
@@ -18,6 +25,8 @@
 			};
 		};
 		compact?: boolean;
+		clickable?: boolean;
+		onSelect?: () => void;
 	}>();
 
 	// Derived values
@@ -36,82 +45,142 @@
 
 	// Helper function to get the color class for the rarity
 	function getRarityColorClass(rarity: string | null) {
-		if (!rarity) return 'text-gray-600';
+		if (!rarity) return '';
 
 		const lowerRarity = rarity.toLowerCase();
-		if (lowerRarity.includes('common')) return 'text-gray-500';
+		if (lowerRarity.includes('common')) return 'badge-ghost';
 		if (
 			lowerRarity.includes('rare') &&
 			!lowerRarity.includes('super') &&
 			!lowerRarity.includes('ultra')
 		)
-			return 'text-blue-500';
-		if (lowerRarity.includes('super')) return 'text-orange-500';
-		if (lowerRarity.includes('ultra')) return 'text-purple-600';
+			return 'badge-primary';
+		if (lowerRarity.includes('super')) return 'badge-warning';
+		if (lowerRarity.includes('ultra')) return 'badge-secondary';
 
-		return 'text-gray-600'; // Default
+		return 'badge-ghost'; // Default
+	}
+
+	function handleSelect(event) {
+		event.stopPropagation();
+		onSelect();
 	}
 
 	// Check for custom rarity first, then fall back to API rarity
 	const displayRarity = $derived(card.custom_rarity || card.apiData.rarity);
 	const raritySource = $derived(card.custom_rarity ? 'Custom Rarity' : 'Master Duel Rarity');
 	const rarityColorClass = $derived(getRarityColorClass(displayRarity));
+
+	// Get icons for properties
+	const monsterIcon = feather.icons.zap.toSvg({ width: 16, height: 16 });
+	const typeIcon = feather.icons.tag.toSvg({ width: 16, height: 16 });
+	const archetypeIcon = feather.icons.package.toSvg({ width: 16, height: 16 });
+	const atkIcon = feather.icons.crosshair.toSvg({ width: 16, height: 16 });
+	const defIcon = feather.icons.shield.toSvg({ width: 16, height: 16 });
+	const levelIcon = feather.icons.star.toSvg({ width: 16, height: 16 });
+	const raceIcon = feather.icons.users.toSvg({ width: 16, height: 16, class: 'ml-0.5' });
+	const attributeIcon = feather.icons.droplet.toSvg({ width: 16, height: 16 });
+	const checkIcon = feather.icons.check.toSvg({ width: 14, height: 14 });
 </script>
 
-<div class={compact ? '' : 'w-64 rounded border border-gray-200 bg-white p-3 shadow-lg'}>
-	{#if !compact && card.name}
-		<h3 class="text-lg font-bold text-gray-800">{card.name}</h3>
-	{/if}
+<div class={compact ? 'p-2' : 'card bg-base-100 shadow-md'}>
+	<div class={compact ? '' : 'card-body p-4'}>
+		{#if !compact && card.name}
+			<div class="flex w-full items-center justify-between">
+				<h3 class="card-title break-words">{card.name}</h3>
+				{#if clickable}
+					<button
+						class="btn btn-success btn-circle btn-xs ml-2"
+						aria-label="Select card"
+						onclick={handleSelect}
+					>
+						<span>{@html checkIcon}</span>
+					</button>
+				{/if}
+			</div>
+		{/if}
 
-	<p class="text-sm text-gray-600">
-		<span class="font-medium">Type:</span>
-		{card.type}
-	</p>
+		<div class={`flex w-full flex-col space-y-2 ${!compact ? 'max-w-xl' : ''}`}>
+			<div class="flex w-full flex-wrap items-stretch justify-between">
+				<div class="flex flex-1 flex-col justify-between space-y-2">
+					<div class="flex items-center gap-2">
+						<span class="text-opacity-70" title={isMonsterCard ? 'Type' : 'Card Type'}>
+							{@html typeIcon}
+						</span>
+						<span class="badge badge-sm"
+							>{isMonsterCard ? card.type : `${formatSpellTrapRace()}`}</span
+						>
+					</div>
 
-	{#if card.apiData.archetype}
-		<p class="text-sm text-gray-600">
-			<span class="font-medium">Archetype:</span>
-			{card.apiData.archetype}
-		</p>
-	{/if}
+					{#if card.apiData.archetype}
+						<div class="flex items-center gap-2">
+							<span class="text-opacity-70" title="Archetype">
+								{@html archetypeIcon}
+							</span>
+							<span class="badge badge-sm badge-outline">{card.apiData.archetype}</span>
+						</div>
+					{:else}
+						<div class="h-6"></div>
+						<!-- Spacer when no archetype -->
+					{/if}
 
-	{#if displayRarity}
-		<p class="text-sm">
-			<span class="font-medium text-gray-600">{raritySource}:</span>
-			<span class={`font-medium ${rarityColorClass}`}>{displayRarity}</span>
-		</p>
-	{/if}
+					{#if displayRarity}
+						<div class="flex items-center gap-2">
+							<span class="text-xs opacity-70">{raritySource}:</span>
+							<span class={`badge badge-sm ${rarityColorClass}`}>{displayRarity}</span>
+						</div>
+					{:else}
+						<div class="h-6"></div>
+						<!-- Spacer when no rarity -->
+					{/if}
+				</div>
 
-	<p class="mt-2 text-sm text-gray-600">
-		{card.apiData.desc}
-	</p>
+				{#if isMonsterCard}
+					<div class="ml-auto flex flex-col items-end justify-start gap-1 text-xs">
+						<!-- ATK/DEF stats with join component -->
+						<div class="join join-vertical lg:join-horizontal gap-1">
+							<span class="join-item flex items-center gap-1">
+								{@html atkIcon}
+								<span class="font-semibold">{card.apiData.atk}</span> ATK
+							</span>
+							<span class="join-item flex items-center gap-1">
+								{@html defIcon}
+								<span class="font-semibold">{card.apiData.def}</span> DEF
+							</span>
+						</div>
+						<!-- Level, Attribute and Race with join component -->
+						<div class="join join-vertical lg:join-horizontal mt-1 gap-1">
+							<span class="join-item flex items-center gap-1">
+								{@html levelIcon}
+								LVL <span class="font-semibold">{card.apiData.level}</span>
+							</span>
+							<span class="join-item flex items-center gap-1">
+								{@html attributeIcon}
+								<span class="font-semibold">{card.apiData.attribute}</span>
+							</span>
+							<span class="join-item flex items-center gap-1">
+								{@html raceIcon}
+								<span class="font-semibold">{card.apiData.race}</span>
+							</span>
+						</div>
+					</div>
+				{/if}
+			</div>
 
-	{#if isMonsterCard}
-		<div class="mt-2 space-y-1">
-			<p class="text-sm text-gray-600">
-				<span class="font-medium">ATK:</span>
-				{card.apiData.atk}
-			</p>
-			<p class="text-sm text-gray-600">
-				<span class="font-medium">DEF:</span>
-				{card.apiData.def}
-			</p>
-			<p class="text-sm text-gray-600">
-				<span class="font-medium">Level:</span>
-				{card.apiData.level}
-			</p>
-			<p class="text-sm text-gray-600">
-				<span class="font-medium">Race:</span>
-				{card.apiData.race}
-			</p>
-			<p class="text-sm text-gray-600">
-				<span class="font-medium">Attribute:</span>
-				{card.apiData.attribute}
-			</p>
+			<div class="divider my-1"></div>
+
+			<div class="prose prose-sm relative max-w-none">
+				<p class="pr-6 text-sm">{card.apiData.desc}</p>
+				{#if clickable}
+					<button
+						class="btn btn-success btn-circle btn-xs absolute right-0 bottom-0"
+						aria-label="Select card"
+						onclick={handleSelect}
+					>
+						<span>{@html checkIcon}</span>
+					</button>
+				{/if}
+			</div>
 		</div>
-	{:else}
-		<div class="mt-2">
-			<p class="text-sm text-gray-600">{formatSpellTrapRace()}</p>
-		</div>
-	{/if}
+	</div>
 </div>

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import * as d3 from 'd3';
 	import { onMount, createEventDispatcher } from 'svelte';
+	import feather from 'feather-icons';
 
 	// Event dispatcher for chart interactions
 	const dispatch = createEventDispatcher();
@@ -32,12 +33,12 @@
 	}>();
 
 	let chartElement = $state();
-	let legendElement = $state();
 	let containerWidth = $state();
 	let containerHeight = $state();
 	let selectedProperty = $state(property);
-	let distributionData = $state([]);
-	let colorScale;
+	let distributionData = $state<Array<{ category: string; count: number }>>([]);
+	let hoveredCategory = $state<string | null>(null);
+	const colorScale = d3.scaleOrdinal(d3.schemeCategory10);
 
 	// Process data to get distribution based on the selected property
 	function getDistribution(cards, prop) {
@@ -88,84 +89,6 @@
 		return result;
 	}
 
-	// Create separate legend
-	function createLegend(data) {
-		if (!legendElement) return;
-
-		// Clear previous legend if any
-		d3.select(legendElement).selectAll('*').remove();
-
-		const totalCount = data.reduce((sum, d) => sum + d.count, 0);
-
-		const legendContainer = d3
-			.select(legendElement)
-			.append('div')
-			.attr('class', 'legend-container');
-
-		// Create legend items
-		const legendItems = legendContainer
-			.selectAll('.legend-item')
-			.data(data)
-			.enter()
-			.append('div')
-			.attr('class', 'legend-item')
-			.attr('data-category', (d) => d.category)
-			.style('margin-bottom', '10px')
-			.style('display', 'flex')
-			.style('align-items', 'center')
-			.style('cursor', 'pointer')
-			.on('click', function (event, d) {
-				// Dispatch event when legend item is clicked
-				dispatch('chartClick', {
-					property: selectedProperty,
-					value: d.category
-				});
-			});
-
-		// Add color box
-		legendItems
-			.append('div')
-			.attr('class', 'color-box')
-			.style('width', '15px')
-			.style('height', '15px')
-			.style('margin-right', '8px')
-			.style('flex-shrink', '0')
-			.style('background-color', (d, i) => colorScale(i));
-
-		// Add text with category and count
-		const textContainer = legendItems
-			.append('div')
-			.attr('class', 'legend-text')
-			.style('display', 'flex')
-			.style('flex-direction', 'column');
-
-		textContainer
-			.append('div')
-			.attr('class', 'category-name')
-			.style('font-size', '14px')
-			.style('line-height', '1.2')
-			.text((d) => (d.category.length > 20 ? d.category.substring(0, 17) + '...' : d.category));
-
-		textContainer
-			.append('div')
-			.attr('class', 'category-count')
-			.style('font-size', '12px')
-			.style('color', '#666')
-			.text((d) => `${d.count} (${Math.round((d.count / totalCount) * 100)}%)`);
-
-		// Add legend note if we have too many categories
-		if (data.length > maxSlices) {
-			legendContainer
-				.append('div')
-				.attr('class', 'legend-note')
-				.style('font-size', '11px')
-				.style('font-style', 'italic')
-				.style('color', '#666')
-				.style('margin-top', '8px')
-				.text(`+ ${data.length - maxSlices} more categories`);
-		}
-	}
-
 	// Create pie chart using D3
 	function createPieChart(data) {
 		if (!chartElement) return;
@@ -175,12 +98,6 @@
 
 		// Remove previous tooltip if exists
 		d3.select(chartElement.parentElement).select('.tooltip').remove();
-
-		// Set up color scale globally so legend can access it
-		colorScale = d3.scaleOrdinal(d3.schemeCategory10);
-
-		// Update the distribution data for the legend
-		distributionData = data;
 
 		// Use the container's width to determine chart size
 		// Ensure chart maintains 1:1 aspect ratio
@@ -235,21 +152,14 @@
 			.on('mouseover', function (event, d) {
 				// Scale up the pie segment
 				d3.select(this).style('transform', 'scale(1.05)');
-
-				// Highlight the corresponding legend item
-				d3.selectAll(`.legend-item[data-category="${d.data.category}"]`)
-					.style('font-weight', 'bold')
-					.style('transform', 'scale(1.05)')
-					.style('transition', 'all 0.2s');
+				// Set hovered category for legend highlighting
+				hoveredCategory = d.data.category;
 			})
 			.on('mouseout', function (event, d) {
 				// Return pie segment to normal
 				d3.select(this).style('transform', 'scale(1)');
-
-				// Remove highlight from legend item
-				d3.selectAll(`.legend-item[data-category="${d.data.category}"]`)
-					.style('font-weight', 'normal')
-					.style('transform', 'scale(1)');
+				// Clear hovered category
+				hoveredCategory = null;
 			});
 
 		// Add percentage labels
@@ -273,11 +183,6 @@
 				const percent = Math.round((d.data.count / totalCount) * 100);
 				return percent > 5 ? `${percent}%` : '';
 			});
-
-		// Create separate legend
-		if (showLegend) {
-			createLegend(data);
-		}
 	}
 
 	// Create chart when data or property changes
@@ -310,108 +215,95 @@
 			}
 		};
 	});
+
+	// Icon for dropdown
+	const chartIcon = feather.icons['pie-chart'].toSvg({ width: 18, height: 18 });
+
+	// Calculate total count for percentage display
+	const totalCount = $derived(distributionData.reduce((sum, d) => sum + d.count, 0));
 </script>
 
-<details class="card-distribution-accordion w-full">
-	<summary
-		class="card-distribution-summary cursor-pointer rounded border border-gray-200 px-4 py-2 text-center select-none"
-		>Card Distribution Graph</summary
-	>
-	<div class="card-distribution">
-		<!-- Chart Title with Property Selector (replacing the title) -->
-		{#if chartProperties && chartProperties.length > 0}
-			<div class="chart-title">
-				<span class="font-bold">
-					<select
-						bind:value={selectedProperty}
-						class="cursor-pointer appearance-auto border-0 border-b-2 border-gray-200 bg-transparent font-bold focus:border-gray-400 focus:ring-0 focus:outline-none"
-					>
-						{#each chartProperties as option}
-							<option value={option.value}>{option.label}</option>
-						{/each}
-					</select>
-				</span>
-			</div>
-		{:else}
-			<div class="chart-title">
-				<span class="font-bold">{title}</span>
-			</div>
-		{/if}
-
-		<div class="chart-layout">
-			{#if showLegend}
-				<div class="legend-container" bind:this={legendElement}></div>
+<div class="collapse-arrow bg-base-200 rounded-box collapse w-full">
+	<input type="checkbox" class="peer" />
+	<div class="collapse-title flex items-center justify-center gap-2 font-medium">
+		<span class="flex items-center gap-1">
+			{@html chartIcon}
+			Card Distribution Graph
+		</span>
+	</div>
+	<div class="collapse-content">
+		<div class="card-distribution bg-base-100 w-full rounded-lg p-4 shadow">
+			<!-- Chart Title with Property Selector -->
+			{#if chartProperties && chartProperties.length > 0}
+				<div class="chart-title mb-4 text-center">
+					<div class="join items-center">
+						<span class="join-item btn btn-sm btn-ghost no-animation">View by:</span>
+						<select
+							bind:value={selectedProperty}
+							class="select select-lg join-item focus:outline-none text-base leading-normal flex items-center h-full py-0"
+						>
+							{#each chartProperties as option}
+								<option value={option.value} class="text-base">{option.label}</option>
+							{/each}
+						</select>
+					</div>
+				</div>
+			{:else}
+				<div class="chart-title mb-4 text-center">
+					<span class="font-bold">{title}</span>
+				</div>
 			{/if}
-			<div class="chart-container" bind:this={chartElement}></div>
+
+			<div class="chart-layout flex flex-col gap-6">
+				<div class="chart-wrapper flex items-center justify-center">
+					<div
+						class="chart-container min-h-[250px] w-full max-w-[300px]"
+						bind:this={chartElement}
+					></div>
+				</div>
+
+				{#if showLegend && distributionData.length > 0}
+					<div class="legend-wrapper w-full">
+						<div class="grid grid-cols-2 md:grid-cols-3 gap-2 p-2 w-full">
+							{#each distributionData as item, i}
+								{@const percentage = Math.round((item.count / totalCount) * 100)}
+								{@const isHovered = hoveredCategory === item.category}
+								<button
+									class="btn btn-ghost btn-sm h-auto overflow-hidden px-3 py-1 text-left normal-case w-full"
+									style="transition: all 0.2s; {isHovered ? 'transform: scale(1.05);' : ''}"
+									onclick={() =>
+										dispatch('chartClick', { property: selectedProperty, value: item.category })}
+									onmouseenter={() => (hoveredCategory = item.category)}
+									onmouseleave={() => (hoveredCategory = null)}
+								>
+									<div class="flex items-center w-full">
+										<div
+											class="h-3 w-3 flex-shrink-0 rounded-sm mr-2"
+											style="background-color: {colorScale(i)}"
+										></div>
+										<div class="flex flex-col items-center flex-grow">
+											<span class="text-sm font-medium max-w-full text-center">{item.category}</span>
+											<span class="text-xs opacity-75 text-center">{item.count} ({percentage}%)</span>
+										</div>
+									</div>
+								</button>
+							{/each}
+						</div>
+					</div>
+				{/if}
+			</div>
 		</div>
 	</div>
-</details>
+</div>
 
 <style>
 	.card-distribution {
 		width: 100%;
-		height: 100%;
 		display: flex;
 		flex-direction: column;
-		justify-content: center;
-		align-items: center;
-	}
-
-	.chart-layout {
-		width: 100%;
-		height: 100%;
-		display: flex;
-		flex-direction: row;
-	}
-
-	.legend-container {
-		flex: 1;
-		padding: 10px;
-		padding-top: 20px;
-		overflow-y: auto;
-		max-height: 100%;
 	}
 
 	.chart-container {
-		flex: 2;
 		position: relative;
-		max-width: 300px; /* Add maximum width constraint */
-	}
-
-	.chart-title {
-		text-align: center;
-		margin-bottom: 0.5rem;
-		font-size: 16px;
-		width: 100%;
-	}
-
-	.chart-title select {
-		-webkit-appearance: none;
-		-moz-appearance: none;
-		appearance: none;
-		background-repeat: no-repeat;
-		background-position: right 0.25rem center;
-		background-size: 1em;
-		padding-right: 1.5rem;
-	}
-
-	:global(.legend-item) {
-		transition: all 0.2s;
-	}
-
-	:global(.legend-item:hover) {
-		transform: scale(1.05);
-		font-weight: bold;
-		cursor: pointer;
-	}
-
-	.card-distribution-summary {
-		cursor: pointer;
-		padding: 10px;
-		user-select: none;
-	}
-
-	.card-distribution-accordion {
-		width: 100%;
 	}
 </style>

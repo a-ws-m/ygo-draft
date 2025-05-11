@@ -20,5 +20,29 @@
   ],
   "[typescript]": {
     "editor.defaultFormatter": "vscode.typescript-language-features"
+  },
+  "github.copilot.chat.codeGeneration.instructions": [
+    {
+      "file": "./.vscode/daisyui.md"
+    },
+    {
+      "file": "./.vscode/svelte5.md",
+    },
+    {
+      "file": "./.vscode/instructions.md"
+    }
+  ],
+  "mcp": {
+    "inputs": [],
+    "servers": {
+      "Context7": {
+        "type": "stdio",
+        "command": "npx",
+        "args": [
+          "-y",
+          "@upstash/context7-mcp@latest"
+        ]
+      }
+    }
   }
 }

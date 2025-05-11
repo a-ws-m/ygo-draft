@@ -11,13 +11,11 @@
 	import * as draftStore from '$lib/stores/draftStore.svelte';
 	import { canPlayerDeclineCurrentOption } from '$lib/utils/draftManager.svelte';
 	import { store as authStore } from '$lib/stores/authStore.svelte';
+	import feather from 'feather-icons';
 
 	$inspect('participants', draftStore.store.participants);
 
-	// Get the draft ID from URL query parameter
 	let draftId = $state('');
-
-	// Local state for loading and errors
 	let isLoading = $state(true);
 	let loadError = $state(null);
 	let isCreator = $state(false);
@@ -45,12 +43,10 @@
 		return false;
 	});
 
-	// Function to toggle the rules modal
 	function toggleRulesModal() {
 		showRulesModal = !showRulesModal;
 	}
 
-	// Function to copy the draft link to clipboard
 	function copyShareableLink() {
 		navigator.clipboard
 			.writeText(shareableUrl)
@@ -65,26 +61,20 @@
 			});
 	}
 
-	// Function to handle the window's beforeunload event
 	function handleBeforeUnload(event) {
-		// Only show warning if draft has started and is not finished
 		if (draftStore.store.draftStarted && !draftStore.store.allFinished) {
-			// Standard way of showing a confirmation dialog when leaving
 			event.preventDefault();
-			// Set a return value for older browsers
 			event.returnValue =
 				'You are in the middle of a draft. You cannot return, and the draft will break for other players. Are you sure you want to leave?';
 			return event.returnValue;
 		}
 	}
 
-	// Load draft data
 	async function loadDraftData() {
 		isLoading = true;
 		loadError = null;
 
 		try {
-			// Fetch draft information
 			const { data: draft, error: draftError } = await supabase
 				.from('drafts')
 				.select('*')
@@ -95,13 +85,11 @@
 				throw new Error('Failed to fetch draft data: ' + draftError.message);
 			}
 
-			// Check if the current user is the creator of the draft
 			const {
 				data: { user }
 			} = await supabase.auth.getUser();
 			isCreator = user && draft.created_by === user.id;
 
-			// Transform database model to app model and initialize the draft store
 			const draftInfo = {
 				id: draftId,
 				draftMethod: draft.draft_method,
@@ -113,7 +101,6 @@
 				draftStarted: draft.status === 'active'
 			};
 
-			// Initialize the draft store
 			draftStore.initializeDraft(draftInfo);
 
 			console.log('Draft initialized with data:', draftInfo);
@@ -125,18 +112,13 @@
 		}
 	}
 
-	// Function to create and set up the draft channel
 	async function createDraftChannel() {
-		// Apply workaround for Supabase Realtime auth issue #1111
-		// https://github.com/supabase/realtime/issues/1111
 		await supabase.realtime.setAuth();
 
-		// Clean up existing channel if it exists
 		if (draftStore.store.channel) {
 			draftStore.store.channel.unsubscribe();
 		}
 
-		// Join the presence channel for the draft
 		const channel = supabase.channel(`draft-room-${draftId}`, {
 			config: {
 				presence: {
@@ -150,7 +132,6 @@
 		});
 		draftStore.store.channel = channel;
 
-		// Subscribe to presence state changes
 		channel.on('presence', { event: 'sync' }, () => {
 			const state = channel.presenceState();
 			console.log('Presence state updated:', state);
@@ -160,17 +141,14 @@
 				draftStore.store.connectedUsers === draftStore.store.numberOfPlayers;
 		});
 
-		// Subscribe to presence join events
 		channel.on('presence', { event: 'join' }, ({ newPresences }) => {
 			console.log('New users joined:', newPresences);
 		});
 
-		// Subscribe to presence leave events
 		channel.on('presence', { event: 'leave' }, ({ leftPresences }) => {
 			console.log('Users left:', leftPresences);
 		});
 
-		// Subscribe to the channel
 		channel.subscribe(async (status) => {
 			if (status === 'SUBSCRIBED') {
 				console.log('Subscribed to presence channel');
@@ -182,83 +160,36 @@
 
 				if (trackResponse.error) {
 					console.error('Error tracking presence:', trackResponse.error);
-
-					// Add debug info for presence tracking errors
-					console.debug('Debug info for presence tracking error:');
-					console.debug('- Draft ID:', draftId);
-					console.debug('- User ID:', draftStore.store.userId);
-
-					// Check if user is participant using RPC
-					try {
-						const { data, error } = await supabase.rpc('is_draft_participant', {
-							draft_id: draftId
-						});
-						console.debug('- is_draft_participant result:', data);
-						if (error) console.debug('- is_draft_participant error:', error);
-					} catch (e) {
-						console.debug('- Failed to call is_draft_participant:', e);
-					}
-
-					// Check draft status
-					try {
-						const { data, error } = await supabase
-							.from('drafts')
-							.select('status, participants')
-							.eq('id', draftId)
-							.single();
-						console.debug('- Draft status:', data?.status);
-						console.debug('- Participants:', data?.participants);
-						if (error) console.debug('- Draft query error:', error);
-					} catch (e) {
-						console.debug('- Failed to query draft:', e);
-					}
 				} else {
 					console.log('User presence tracked successfully');
 				}
 			} else {
 				console.error('Failed to subscribe to presence channel:', status);
-				// Add debug info for subscription failures
-				console.debug('Debug info for subscription failure:');
-				console.debug('- Draft ID:', draftId);
-				console.debug('- User ID:', draftStore.store.userId);
-
-				try {
-					const { data, error } = await supabase.rpc('is_draft_participant', { draft_id: draftId });
-					console.debug('- is_draft_participant result:', data);
-					if (error) console.debug('- is_draft_participant error:', error);
-				} catch (e) {
-					console.debug('- Failed to call is_draft_participant:', e);
-				}
 			}
 		});
 
-		// Set up broadcast event listeners
 		setupBroadcastListeners(channel);
 
 		return channel;
 	}
 
 	function setupBroadcastListeners(channel) {
-		// Listen for the "draft started" broadcast
 		channel.on('broadcast', { event: 'draft-started' }, async (payload) => {
 			console.log('Draft started broadcast received:', payload);
 			await createDraftChannel();
 			await handleDraftBroadcast('draft-started', payload);
 		});
 
-		// Listen for the "new player" broadcast
 		channel.on('broadcast', { event: 'new-player' }, async (broadcast) => {
 			console.log('New player broadcast received:', broadcast);
 			await handleDraftBroadcast('new-player', broadcast.payload);
 		});
 
-		// Listen for the "draft finished" broadcast
 		channel.on('broadcast', { event: 'draft-finished' }, async (broadcast) => {
 			console.log('Draft finished broadcast received:', broadcast);
 			await handleDraftBroadcast('draft-finished', broadcast.payload);
 		});
 
-		// Rochester-specific broadcasts
 		channel.on('broadcast', { event: 'player-selected' }, async (broadcast) => {
 			console.log('Player selected broadcast received:', broadcast);
 			await handleDraftBroadcast('player-selected', broadcast.payload);
@@ -270,9 +201,7 @@
 		});
 	}
 
-	// Function to set up the draft after login
 	async function setupDraft() {
-		// Get draft ID from the URL query parameter
 		const newDraftId = new URLSearchParams(window.location.search).get('id') || '';
 
 		if (!newDraftId) {
@@ -281,17 +210,13 @@
 			return;
 		}
 
-		// If we're loading a different draft ID than before, reset the store
 		if (draftId !== newDraftId) {
-			// Reset draft store completely before initializing new draft
 			draftStore.resetDraftStore();
 			draftId = newDraftId;
 		}
 
-		// Set shareable URL
 		shareableUrl = `${window.location.origin}${window.location.pathname}?id=${draftId}`;
 
-		// Get the authenticated user's ID
 		draftStore.store.userId = authStore.session?.user?.id || '';
 		console.log('User ID:', draftStore.store.userId);
 
@@ -301,15 +226,11 @@
 			return;
 		}
 
-		// Now load the draft data
 		await loadDraftData();
-
-		// Create and subscribe to the draft channel
 		await createDraftChannel();
 	}
 
 	onMount(async () => {
-		// Check if user is already logged in
 		if (authStore.session) {
 			await setupDraft();
 		} else {
@@ -328,10 +249,8 @@
 		if (!draftStore.store.draftReady) return;
 
 		try {
-			// Use the updated startDraftInDB function which now uses our secure RPC function
 			await startDraftInDB(draftId, draftStore.store.participants);
 
-			// Send broadcast to all participants that the draft has started
 			const response = await draftStore.store.channel.send({
 				type: 'broadcast',
 				event: 'draft-started',
@@ -340,42 +259,9 @@
 
 			if (response.error) {
 				console.error('Error sending broadcast:', response.error);
-
-				// Add debug info for broadcast errors
-				console.debug('Debug info for broadcast error:');
-				console.debug('- Draft ID:', draftId);
-				console.debug('- User ID:', draftStore.store.userId);
-				console.debug('- Participants:', draftStore.store.participants);
-
-				// Check if user is participant using RPC
-				try {
-					const { data, error } = await supabase.rpc('is_draft_participant', { draft_id: draftId });
-					console.debug('- is_draft_participant result:', data);
-					if (error) console.debug('- is_draft_participant error:', error);
-				} catch (e) {
-					console.debug('- Failed to call is_draft_participant:', e);
-				}
-
-				// Check draft status
-				try {
-					const { data, error } = await supabase
-						.from('drafts')
-						.select('created_by, status, participants')
-						.eq('id', draftId)
-						.single();
-					console.debug('- Draft created by:', data?.created_by);
-					console.debug('- Draft status:', data?.status);
-					console.debug('- Participants:', data?.participants);
-					console.debug('- Is creator match:', data?.created_by === draftStore.store.userId);
-					if (error) console.debug('- Draft query error:', error);
-				} catch (e) {
-					console.debug('- Failed to query draft:', e);
-				}
-
 				throw response.error;
 			}
 
-			// Set draftStarted to true before initializing the draft
 			draftStore.store.draftStarted = true;
 			await initializeDraft();
 		} catch (error) {
@@ -385,7 +271,6 @@
 	}
 
 	function handleLogin() {
-		// This function is called after successful login
 		isLoading = true;
 		setupDraft();
 	}
@@ -400,155 +285,139 @@
 
 <RulesModal bind:isOpen={showRulesModal} draftMethod={draftStore.store.draftMethod} />
 
-<div class="flex min-h-screen flex-col bg-gray-100">
+<div class="bg-base-200 min-h-screen">
 	{#if isLoading}
-		<div class="flex items-center justify-center">
-			<div class="h-12 w-12 animate-spin rounded-full border-b-2 border-indigo-600"></div>
+		<div class="flex items-center justify-center p-8">
+			<span class="loading loading-spinner loading-lg text-primary"></span>
 			<p class="ml-3">Loading draft data...</p>
 		</div>
 	{:else if loadError && loadError !== 'You must be logged in to participate in a draft.'}
-		<div
-			class="relative rounded border border-red-400 bg-red-100 px-4 py-3 text-red-700"
-			role="alert"
-		>
-			<strong class="font-bold">Error:</strong>
-			<span class="block sm:inline">{loadError}</span>
-			<button class="mt-2 rounded bg-red-600 px-4 py-2 text-white" onclick={loadDraftData}>
-				Retry
-			</button>
+		<div class="alert alert-error m-4 shadow-lg" role="alert">
+			<div class="flex-none">
+				{@html feather.icons['x-circle'].toSvg({ class: 'h-6 w-6 shrink-0 stroke-current' })}
+			</div>
+			<div>
+				<span class="font-bold">Error:</span>
+				<span>{loadError}</span>
+			</div>
+			<button class="btn btn-error btn-sm" onclick={loadDraftData}> Retry </button>
 		</div>
 	{:else if !authStore.session}
-		<!-- Show login prompt if user is not logged in -->
-		<div class="mb-6 bg-white p-8 shadow-md">
-			<div class="mx-auto max-w-4xl">
-				<h1 class="mb-2 text-3xl font-bold text-gray-800">Draft Room: {draftId}</h1>
-				<p class="mb-4 text-xl text-gray-600">Please login to join this draft</p>
+		<div class="card bg-base-100 m-6 shadow-xl">
+			<div class="card-body">
+				<h1 class="card-title text-3xl">Draft Room: {draftId}</h1>
+				<p class="text-xl">Please login to join this draft</p>
 				<LoginPrompt on:login={handleLogin} />
 			</div>
 		</div>
 	{:else if !draftStore.store.draftStarted}
-		<!-- Jumbotron for draft details before start -->
-		<div class="mb-6 bg-white p-8 shadow-md">
-			<div class="mx-auto max-w-4xl">
-				<h1 class="mb-2 text-3xl font-bold text-gray-800">Draft Room: {draftId}</h1>
-				<p class="mb-4 text-xl text-gray-600">Waiting for players to join...</p>
+		<div class="hero">
+			<div class="hero-content text-center">
+				<div class="max-w-3xl">
+					<h1 class="text-primary mb-4 text-5xl font-bold">Draft Waiting Room</h1>
+					<p class="text-base-content mb-8 text-xl">Waiting for draft to start...</p>
 
-				<!-- Shareable link section -->
-				<div class="mb-4 rounded-lg border border-blue-100 bg-blue-50 p-4">
-					<p class="mb-2 text-blue-800">Share this link to invite other players:</p>
-					<div class="flex items-center">
-						<input
-							type="text"
-							readonly
-							value={shareableUrl}
-							class="mr-2 w-full rounded-md border border-blue-300 bg-white p-2 text-gray-800 focus:outline-none"
-						/>
-						<button
-							class="flex items-center rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
-							onclick={copyShareableLink}
-						>
-							<span>{linkCopied ? 'Copied!' : 'Copy'}</span>
-							<svg
-								xmlns="http://www.w3.org/2000/svg"
-								width="24"
-								height="24"
-								viewBox="0 0 24 24"
-								fill="none"
-								stroke="currentColor"
-								stroke-width="2"
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								class="feather feather-clipboard ml-1"
-								><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"
-								></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg
-							>
-						</button>
+					<div class="alert alert-info mx-auto mb-8 max-w-xl">
+						<div class="flex-none">
+							{@html feather.icons.info.toSvg()}
+						</div>
+						<div class="w-full flex-col">
+							<span class="font-medium">Share this link to invite other players:</span>
+							<div class="mt-2 flex w-full items-center">
+								<div class="join w-full">
+									<input
+										readonly
+										type="text"
+										value={shareableUrl}
+										class="join-item w-full flex-1 truncate px-4 py-2 font-mono text-sm"
+									/>
+									<button
+										class="btn join-item btn-primary whitespace-nowrap"
+										onclick={copyShareableLink}
+									>
+										{linkCopied ? 'Copied!' : 'Copy'}
+										<span class="ml-1">
+											{@html feather.icons.clipboard.toSvg({ width: 16, height: 16 })}
+										</span>
+									</button>
+								</div>
+							</div>
+						</div>
 					</div>
-				</div>
 
-				<div class="flex items-center gap-2 rounded-lg border border-indigo-100 bg-indigo-50 p-3">
-					<span class="text-lg font-medium text-indigo-700">
-						{draftStore.store.connectedUsers}/{draftStore.store.numberOfPlayers} Players Connected
-					</span>
-					<div class="flex-1"></div>
-					{#if isCreator}
-						<button
-							class="rounded bg-indigo-600 px-6 py-2 text-sm font-medium text-white shadow hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-400"
-							disabled={!draftStore.store.draftReady}
-							onclick={startDraft}
-						>
-							Start Draft
-						</button>
-					{:else}
-						<span class="font-medium text-indigo-700">Waiting for host to start the draft...</span>
-					{/if}
+					<div class="flex w-full flex-col items-center justify-center gap-4">
+						<div class="badge badge-lg badge-secondary text-lg font-medium">
+							{draftStore.store.connectedUsers}/{draftStore.store.numberOfPlayers} Players Connected
+						</div>
+
+						{#if !draftStore.store.draftReady}
+							<div class="alert alert-warning w-full max-w-xl text-center">
+								<div class="flex-none">
+									{@html feather.icons['alert-circle'].toSvg()}
+								</div>
+								<span>Waiting for more players to join...</span>
+							</div>
+						{:else if isCreator}
+							<button class="btn btn-primary btn-lg mt-2 w-64" onclick={startDraft}>
+								<span class="flex items-center justify-center">
+									Start Draft
+									<span class="ml-2">
+										{@html feather.icons['play-circle'].toSvg({ width: 20, height: 20 })}
+									</span>
+								</span>
+							</button>
+						{:else}
+							<div class="alert alert-success w-full max-w-xl text-center">
+								<div class="flex-none">
+									{@html feather.icons['check-circle'].toSvg()}
+								</div>
+								<span>All players have joined! Waiting for host to start the draft...</span>
+							</div>
+						{/if}
+					</div>
 				</div>
 			</div>
 		</div>
 	{:else}
-		<!-- Standard Navbar for active draft -->
-		<div
-			class="flex w-full items-center justify-between border-b border-gray-300 bg-white px-6 py-4"
-		>
-			<p class="text-lg text-gray-600">Draft ID: {draftId}</p>
-			<div class="flex items-center space-x-4">
-				<button
-					class="flex items-center space-x-1 rounded-md bg-gray-100 px-3 py-1 text-sm text-gray-700 hover:bg-gray-200"
-					onclick={toggleRulesModal}
-				>
-					<span>Rules</span>
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						class="h-4 w-4"
-						viewBox="0 0 20 20"
-						fill="currentColor"
-					>
-						<path
-							fill-rule="evenodd"
-							d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z"
-							clip-rule="evenodd"
-						/>
-					</svg>
+		<div class="navbar bg-base-100 shadow-md">
+			<div class="navbar-start">
+				<p class="text-lg">Draft ID: {draftId}</p>
+			</div>
+			<div class="navbar-end">
+				<button class="btn btn-ghost btn-sm" onclick={toggleRulesModal}>
+					Rules
+					<span class="ml-1">
+						{@html feather.icons['help-circle'].toSvg({ width: 16, height: 16 })}
+					</span>
 				</button>
-				<p class="text-lg font-medium text-gray-700">
-					Connected Users: {draftStore.store.connectedUsers}/{draftStore.store.numberOfPlayers}
-				</p>
+				<div class="badge badge-lg badge-neutral ml-2">
+					{draftStore.store.connectedUsers}/{draftStore.store.numberOfPlayers} Connected
+				</div>
 			</div>
 		</div>
 	{/if}
 
 	{#if authStore.session && !isLoading && !loadError}
 		{#if !draftStore.store.draftStarted}
-			<div class="flex flex-1 items-center justify-center">
-				<div class="max-w-md rounded-lg bg-white p-8 text-center shadow-md">
-					<h2 class="mb-4 text-2xl font-bold text-gray-700">Waiting for Draft to Start</h2>
-					<p class="mb-4 text-gray-600">
-						Once all players have joined, the host can start the draft.
-					</p>
-					{#if !draftStore.store.draftReady}
-						<p class="font-medium text-amber-600">Waiting for more players to join...</p>
-					{:else if isCreator}
-						<p class="font-medium text-green-600">All players have joined! Ready to start.</p>
-					{:else}
-						<p class="font-medium text-green-600">
-							All players have joined! Waiting for host to start draft.
-						</p>
-					{/if}
-				</div>
-			</div>
+			<!-- The "Waiting for Draft to Start" card has been removed -->
 		{:else if draftStore.store.allFinished || (draftStore.store.draftMethod === 'rochester' && draftStore.store.playerFinished)}
-			<div class="flex w-full flex-col items-center">
-				<h2 class="mb-4 text-2xl font-bold text-green-600">Draft Finished!</h2>
-				<div class="w-1/3 rounded bg-gray-100 p-4 shadow">
-					<h2 class="mb-4 text-xl font-bold">Your Drafted Deck</h2>
-					<CardList cube={draftStore.store.draftedDeck} showYdkDownload={true} showChart={true} />
+			<div class="flex w-full flex-col items-center p-6">
+				<div class="alert alert-success mb-4">
+					<div class="flex-none">
+						{@html feather.icons['check-circle'].toSvg()}
+					</div>
+					<span>Draft Finished!</span>
+				</div>
+				<div class="card bg-base-100 w-full shadow-xl md:w-2/3 lg:w-1/3">
+					<div class="card-body">
+						<h2 class="card-title">Your Drafted Deck</h2>
+						<CardList cube={draftStore.store.draftedDeck} showYdkDownload={true} showChart={true} />
+					</div>
 				</div>
 			</div>
 		{:else if draftStore.store.draftMethod === 'winston'}
-			<!-- Main Section: Split View for Winston Draft -->
-			<div class="flex flex-1 gap-4 p-6">
-				<!-- Left: Current Pile -->
-				<div class="flex-1 overflow-y-auto border-r border-gray-300 pr-4">
+			<div class="flex flex-col gap-4 p-6 lg:flex-row">
+				<div class="border-base-300 flex-1 overflow-y-auto lg:border-r lg:pr-4">
 					{#if isActivePlayer}
 						<div class="mb-4">
 							<div class="flex items-center space-x-3 p-0.5">
@@ -557,8 +426,8 @@
 										<div
 											class={`flex h-10 w-10 items-center justify-center rounded-md text-sm font-medium ${
 												index === draftStore.store.currentPileIndex
-													? 'bg-indigo-600 text-white ring-1 ring-indigo-500 ring-offset-1'
-													: 'bg-gray-200 text-gray-700'
+													? 'bg-primary text-primary-content'
+													: 'bg-base-300 text-base-content'
 											} overflow-visible`}
 											title={`Pile ${index + 1}: ${pile.length} cards${draftStore.store.lastAcceptedPile === index ? ' (Last Accepted)' : ''}`}
 										>
@@ -566,16 +435,12 @@
 										</div>
 									</div>
 								{/each}
-								<div
-									class="flex h-10 items-center justify-center rounded-md border border-gray-300 bg-gray-100 px-3 text-sm font-medium text-gray-700"
-								>
+								<div class="badge badge-lg">
 									<span class="mr-1">Deck:</span>
 									{draftStore.store.deck?.length || 0}
 								</div>
 								{#if draftStore.store.lastAcceptedPile !== null}
-									<div
-										class="flex h-10 items-center justify-center rounded-md border border-gray-300 bg-gray-100 px-3 text-sm font-medium text-gray-700"
-									>
+									<div class="badge badge-lg">
 										<span class="mr-1">Last Accepted:</span>
 										{draftStore.store.lastAcceptedPile == draftStore.store.numberOfPiles
 											? 'Deck'
@@ -593,54 +458,53 @@
 								showDescription={true}
 							/>
 							<div class="mt-2 flex justify-between">
-								<button
-									class="rounded bg-green-500 px-4 py-2 text-white"
-									onclick={handleAcceptPile}
-								>
-									Accept
-								</button>
+								<button class="btn btn-success" onclick={handleAcceptPile}> Accept </button>
 								{#if canDecline}
-									<button
-										class="rounded bg-red-500 px-4 py-2 text-white"
-										onclick={handleDeclineCurrentPile}
-									>
+									<button class="btn btn-error" onclick={handleDeclineCurrentPile}>
 										Decline
 									</button>
 								{/if}
 							</div>
 						{:else}
-							<p class="text-gray-500">Loading pile data...</p>
+							<p class="text-base-content opacity-70">Loading pile data...</p>
 						{/if}
 					{:else}
-						<p class="text-gray-500">Waiting for the current player...</p>
+						<div class="alert">
+							<div class="flex-none">
+								{@html feather.icons.clock.toSvg()}
+							</div>
+							<span>Waiting for the current player...</span>
+						</div>
 					{/if}
 				</div>
 
-				<!-- Right: Drafted Deck -->
-				<div class="w-1/4 overflow-y-auto pl-4">
-					<h2 class="mb-4 text-xl font-bold text-gray-700">Your Drafted Deck</h2>
-					<CardList
-						cube={draftStore.store.draftedDeck}
-						border={true}
-						showYdkDownload={true}
-						showChart={true}
-					/>
+				<div class="mt-4 w-full lg:mt-0 lg:w-1/4 lg:pl-4">
+					<div class="card bg-base-100 shadow-lg">
+						<div class="card-body">
+							<h2 class="card-title">Your Drafted Deck</h2>
+							<CardList
+								cube={draftStore.store.draftedDeck}
+								border={true}
+								showYdkDownload={true}
+								showChart={true}
+							/>
+						</div>
+					</div>
 				</div>
 			</div>
 		{:else if draftStore.store.draftMethod === 'rochester'}
-			<!-- Rochester Draft View -->
 			<div class="flex-1 p-6">
 				<RochesterDraftView />
 			</div>
 		{:else}
-			<div class="flex w-full flex-row">
-				<!-- Card Selection UI -->
-				<div class="flex-1 rounded bg-white p-4 shadow">
-					<h2 class="mb-4 text-xl font-bold">Unsupported Draft Type</h2>
-					<p>The draft type "{draftStore.store.draftMethod}" is not currently supported.</p>
+			<div class="flex w-full flex-row p-4">
+				<div class="card bg-base-100 flex-1 shadow-xl">
+					<div class="card-body">
+						<h2 class="card-title">Unsupported Draft Type</h2>
+						<p>The draft type "{draftStore.store.draftMethod}" is not currently supported.</p>
+					</div>
 				</div>
 
-				<!-- Drafted Card List -->
 				<CardList cube={draftStore.store.draftedDeck} />
 			</div>
 		{/if}

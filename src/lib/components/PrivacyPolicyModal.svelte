@@ -1,10 +1,14 @@
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
+	import feather from 'feather-icons';
 
-	const dispatch = createEventDispatcher();
+	// Define the onClose prop
+	let { onClose } = $props<{ onClose: () => void }>();
+
+	// Create SVG strings for the icons we need
+	const crossIcon = feather.icons['x'].toSvg({ width: 16, height: 16 });
 
 	function closeModal() {
-		dispatch('close');
+		onClose();
 	}
 
 	// Close modal when clicking outside or pressing escape
@@ -24,41 +28,26 @@
 <svelte:window on:keydown={handleKeydown} />
 
 <div
-	class="bg-opacity-50 fixed inset-0 z-50 flex items-center justify-center bg-black"
+	class="modal modal-open modal-bottom sm:modal-middle"
 	onclick={handleBackdropClick}
 	onkeydown={(e) => e.key === 'Enter' && handleBackdropClick(e)}
 	role="dialog"
 	aria-modal="true"
 	tabindex="-1"
 >
-	<div
-		class="relative mx-auto max-h-[90vh] max-w-3xl overflow-y-auto rounded-lg bg-white p-6 shadow-lg"
-	>
+	<div class="modal-box relative max-h-[90vh] max-w-3xl overflow-y-auto">
 		<button
-			class="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
+			class="btn btn-sm btn-circle btn-ghost absolute top-2 right-2"
 			onclick={closeModal}
 			aria-label="Close"
 		>
-			<svg
-				xmlns="http://www.w3.org/2000/svg"
-				class="h-6 w-6"
-				fill="none"
-				viewBox="0 0 24 24"
-				stroke="currentColor"
-			>
-				<path
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					stroke-width="2"
-					d="M6 18L18 6M6 6l12 12"
-				/>
-			</svg>
+			{@html crossIcon}
 		</button>
 
-		<div class="pr-8">
+		<div class="pr-6">
 			<h2 class="mb-4 text-2xl font-bold">Privacy Policy</h2>
 
-			<div class="prose prose-sm max-w-none text-gray-700">
+			<div class="prose prose-sm text-base-content max-w-none">
 				<p>
 					Your privacy is important to us. This policy outlines what information we collect and how
 					we use it.
@@ -74,10 +63,25 @@
 				<p>
 					We only use your email address for account identification. We do <strong>not:</strong>
 				</p>
-					<ul>
-					<li>Send marketing emails</li>
-					<li>Share your information with third parties</li>
-					<li>Use your data for analytics beyond basic usage metrics</li>
+				<ul class="list-none space-y-2 pl-0">
+					<li class="text-error flex items-center">
+						<span class="text-error mr-2 flex-shrink-0" aria-hidden="true">
+							{@html crossIcon}
+						</span>
+						<span>Send marketing emails</span>
+					</li>
+					<li class="text-error flex items-center">
+						<span class="text-error mr-2 flex-shrink-0" aria-hidden="true">
+							{@html crossIcon}
+						</span>
+						<span>Share your information with third parties</span>
+					</li>
+					<li class="text-error flex items-center">
+						<span class="text-error mr-2 flex-shrink-0" aria-hidden="true">
+							{@html crossIcon}
+						</span>
+						<span>Use your data for analytics beyond basic usage metrics</span>
+					</li>
 				</ul>
 
 				<h3>Data Deletion</h3>
@@ -95,8 +99,11 @@
 					<a
 						href="https://www.hcaptcha.com/privacy"
 						target="_blank"
-						rel="noopener noreferrer">here</a
-					>.
+						rel="noopener noreferrer"
+						class="link link-primary"
+					>
+						here
+					</a>.
 				</p>
 
 				<h3>Changes to This Policy</h3>
@@ -111,8 +118,11 @@
 					<a
 						href="https://github.com/a-ws-m/ygo-draft/issues"
 						target="_blank"
-						rel="noopener noreferrer">GitHub repository</a
-					>.
+						rel="noopener noreferrer"
+						class="link link-primary"
+					>
+						GitHub repository
+					</a>.
 				</p>
 			</div>
 		</div>
