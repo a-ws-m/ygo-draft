@@ -236,14 +236,14 @@
 			<!-- Chart Title with Property Selector -->
 			{#if chartProperties && chartProperties.length > 0}
 				<div class="chart-title mb-4 text-center">
-					<div class="join">
+					<div class="join items-center">
 						<span class="join-item btn btn-sm btn-ghost no-animation">View by:</span>
 						<select
 							bind:value={selectedProperty}
-							class="select select-sm select-bordered join-item focus:outline-none"
+							class="select select-lg join-item focus:outline-none text-base leading-normal flex items-center h-full py-0"
 						>
 							{#each chartProperties as option}
-								<option value={option.value}>{option.label}</option>
+								<option value={option.value} class="text-base">{option.label}</option>
 							{/each}
 						</select>
 					</div>
