@@ -471,21 +471,17 @@
 							>
 								<!-- Card Image -->
 								<div class="relative aspect-[813/1185] w-full max-w-[271px]">
-									{#await getCardImage(card)}
-										<div
-											class="bg-base-200 absolute inset-0 flex items-center justify-center rounded"
-										>
-											<span class="loading loading-ring loading-lg"></span>
-										</div>
-									{:then imageUrl}
+									{#await getCardImage(card, true)}
+										<div class="skeleton absolute inset-0"></div>
+									{:then smallImageUrl}
 										<picture>
-											{#await getCardImage(card, true) then smallImageUrl}
-												<source media="(max-width: 296px)" srcset={smallImageUrl} />
+											<source media="(max-width: 296px)" srcset={smallImageUrl} />
+											{#await getCardImage(card) then imageUrl}
+												<source media="(min-width: 297px)" srcset={imageUrl} />
 											{/await}
-											<source media="(min-width: 297px)" srcset={imageUrl} />
 											<img
 												loading="lazy"
-												src={imageUrl}
+												src={smallImageUrl}
 												alt={card.name}
 												class="h-full w-full rounded object-cover shadow"
 											/>
