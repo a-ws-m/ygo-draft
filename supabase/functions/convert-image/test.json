@@ -1,0 +1,14 @@
+{
+    "cards": [
+        {
+            "id": "14878871",
+            "card_images": [
+                {
+                    "image_url": "https://images.ygoprodeck.com/images/cards/14878871.jpg",
+                    "image_url_small": "https://images.ygoprodeck.com/images/cards_small/14878871.jpg"
+                }
+            ]
+        }
+    ],
+    "batchSize": 1
+}

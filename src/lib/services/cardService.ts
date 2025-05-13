@@ -16,8 +16,8 @@ const signedUrlCache = new Map<string, SignedUrlCache>();
  * @returns The storage path for the image
  */
 export function getCardImagePath(cardId: number, isSmall: boolean = false): string {
-    const bucketName = isSmall ? 'card_images_small' : 'card_images';
-    const fileName = `${cardId}${isSmall ? '_small' : ''}.jpg`;
+    const bucketName = isSmall ? 'card-images-small-webp' : 'card-images-webp';
+    const fileName = `${cardId}${isSmall ? '_small' : ''}.webp`;
     return fileName;
 }
 
@@ -124,7 +124,7 @@ export async function fetchCardData(cardIds: number[]) {
  * @returns Promise with the signed URL string
  */
 export async function getSignedImageUrl(cardId: number, isSmall: boolean = false): Promise<string> {
-    const bucketName = isSmall ? 'card_images_small' : 'card_images';
+    const bucketName = isSmall ? 'card-images-small-webp' : 'card-images-webp';
     const fileName = getCardImagePath(cardId, isSmall);
     const cacheKey = `${cardId}_${isSmall ? 'small' : 'full'}`;
 
@@ -172,7 +172,7 @@ export async function getSignedImageUrl(cardId: number, isSmall: boolean = false
  * @returns Map of card IDs to their signed URLs
  */
 export async function getMultipleSignedImageUrls(cardIds: number[], isSmall: boolean = false): Promise<Map<number, string>> {
-    const bucketName = isSmall ? 'card_images_small' : 'card_images';
+    const bucketName = isSmall ? 'card-images-small-webp' : 'card-images-webp';
     const result = new Map<number, string>();
     const now = Date.now();
     const tenDaysInSeconds = 10 * 24 * 60 * 60; // 10 days in seconds
@@ -250,6 +250,29 @@ export async function getMultipleSignedImageUrls(cardIds: number[], isSmall: boo
 }
 
 /**
+ * Gets public URLs for card images stored in the public storage bucket
+ * @param cardIds Array of card IDs
+ * @param isSmall Whether to get small images
+ * @returns Map of card IDs to their public URLs
+ */
+export function getPublicImageUrls(cardIds: number[], isSmall: boolean = false): Map<number, string> {
+    const bucketName = isSmall ? 'card-images-small-webp' : 'card-images-webp';
+    const result = new Map<number, string>();
+
+    for (const cardId of cardIds) {
+        const fileName = getCardImagePath(cardId, isSmall);
+        const { data } = supabase
+            .storage
+            .from(bucketName)
+            .getPublicUrl(fileName);
+
+        result.set(cardId, data.publicUrl);
+    }
+
+    return result;
+}
+
+/**
  * Maps data from the cards table format to the format required by the components
  * Processes multiple cards in a batch for efficiency
  * @param cards Array of card data from the database
@@ -270,16 +293,15 @@ export async function formatCardsFromDatabase(cards: Array<{
     // Get all card IDs for image URLs
     const cardIds = cards.map(card => card.id);
 
-    // Start the image URL fetching but don't await them yet
-    const fullSizeUrlsPromise = getMultipleSignedImageUrls(cardIds, false);
-    const smallSizeUrlsPromise = getMultipleSignedImageUrls(cardIds, true);
+    // Get public URLs for all cards
+    const fullSizeUrls = getPublicImageUrls(cardIds, false);
+    const smallSizeUrls = getPublicImageUrls(cardIds, true);
 
-    // Format each card with the image URL promises
+    // Format each card with the image URLs
     return cards.map(card => ({
         id: card.id,
-        // Create promises that will resolve when the URLs are available
-        imageUrl: fullSizeUrlsPromise.then(urls => urls.get(card.id) || ''),
-        smallImageUrl: smallSizeUrlsPromise.then(urls => urls.get(card.id) || ''),
+        imageUrl: fullSizeUrls.get(card.id) || '',
+        smallImageUrl: smallSizeUrls.get(card.id) || '',
         name: card.name,
         type: card.type,
         apiData: {

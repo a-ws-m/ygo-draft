@@ -31,20 +31,64 @@ async function fetchCardImage(imageUrl: string, cardId: string, isSmall = false)
   }
 }
 
+// Function to convert image to WebP using the convert-image function
+async function convertToWebP(imageBlob: Blob): Promise<Blob | null> {
+  try {
+    // Call the convert-image function
+    const functionUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/convert-image`;
+    const webpResponse = await fetch(functionUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''}`,
+        'Content-Type': imageBlob.type
+      },
+      body: imageBlob
+    });
+
+    if (!webpResponse.ok) {
+      console.error(`Failed to convert image: ${webpResponse.statusText}`);
+      return null;
+    }
+
+    return await webpResponse.blob();
+  } catch (error) {
+    console.error(`Error converting image to WebP:`, error);
+    return null;
+  }
+}
+
 // Function to store a blob in Supabase Storage
-async function uploadImageToSupabase(supabase, imageBlob: Blob | null, cardId: string, isSmall = false): Promise<boolean> {
+async function uploadImageToSupabase(
+  supabase,
+  imageBlob: Blob | null,
+  cardId: string,
+  isSmall = false,
+  isWebP = false
+): Promise<boolean> {
   try {
     if (!imageBlob) return false;
 
-    const bucketName = isSmall ? 'card_images_small' : 'card_images';
-    const fileName = `${cardId}${isSmall ? '_small' : ''}.jpg`;
+    // Determine bucket name based on image size and format
+    let bucketName: string;
+    if (isWebP) {
+      bucketName = isSmall ? 'card-images-small-webp' : 'card-images-webp';
+    } else {
+      bucketName = isSmall ? 'card_images_small' : 'card_images';
+    }
+
+    // Determine file extension based on format
+    const extension = isWebP ? '.webp' : '.jpg';
+    const fileName = `${cardId}${isSmall ? '_small' : ''}${extension}`;
+
+    // Determine content type
+    const contentType = isWebP ? 'image/webp' : 'image/jpeg';
 
     // Upload to Supabase Storage
     const { data, error } = await supabase
       .storage
       .from(bucketName)
       .upload(fileName, imageBlob, {
-        contentType: 'image/jpeg',
+        contentType: contentType,
         upsert: true
       });
 
@@ -61,46 +105,152 @@ async function uploadImageToSupabase(supabase, imageBlob: Blob | null, cardId: s
   }
 }
 
+// Function to check if an image already exists in a bucket
+async function checkImageExists(
+  supabase,
+  cardId: string,
+  isSmall = false,
+  isWebP = false
+): Promise<boolean> {
+  try {
+    // Determine bucket name based on image size and format
+    let bucketName: string;
+    if (isWebP) {
+      bucketName = isSmall ? 'card-images-small-webp' : 'card-images-webp';
+    } else {
+      bucketName = isSmall ? 'card_images_small' : 'card_images';
+    }
+
+    // Determine file extension based on format
+    const extension = isWebP ? '.webp' : '.jpg';
+    const fileName = `${cardId}${isSmall ? '_small' : ''}${extension}`;
+
+    // Check if the file exists
+    const { data, error } = await supabase
+      .storage
+      .from(bucketName)
+      .getPublicUrl(fileName);
+
+    if (error) {
+      console.error(`Error checking if image exists in ${bucketName}:`, error);
+      return false;
+    }
+
+    // Verify the file actually exists by making a HEAD request
+    try {
+      const response = await fetch(data.publicUrl, { method: 'HEAD' });
+      return response.ok;
+    } catch (fetchError) {
+      console.error(`Error verifying file existence:`, fetchError);
+      return false;
+    }
+  } catch (error) {
+    console.error(`Error checking if image exists for card ${cardId}:`, error);
+    return false;
+  }
+}
+
 // Function to process a batch of cards
 async function processBatch(supabase, cards) {
-  // Download all images in parallel first
+  // Download all images in parallel first, but only if they don't already exist
   const fetchPromises = [];
+  const existingCheckPromises = [];
 
   for (const card of cards) {
     const cardId = card.id;
     const imageUrl = card.card_images?.[0]?.image_url || null;
     const smallImageUrl = card.card_images?.[0]?.image_url_small || null;
 
-    // Queue up all the fetch operations
-    if (imageUrl) fetchPromises.push(fetchCardImage(imageUrl, cardId, false));
-    if (smallImageUrl) fetchPromises.push(fetchCardImage(smallImageUrl, cardId, true));
+    // Check if images already exist
+    if (imageUrl) {
+      existingCheckPromises.push(
+        Promise.all([
+          checkImageExists(supabase, cardId, false, false),
+          checkImageExists(supabase, cardId, false, true)
+        ]).then(([jpgExists, webpExists]) => {
+          if (!jpgExists || !webpExists) {
+            return fetchCardImage(imageUrl, cardId, false);
+          }
+          console.log(`Skipping large image for card ${cardId} - already exists`);
+          return { blob: null, cardId, isSmall: false, skipped: true };
+        })
+      );
+    }
+
+    if (smallImageUrl) {
+      existingCheckPromises.push(
+        Promise.all([
+          checkImageExists(supabase, cardId, true, false),
+          checkImageExists(supabase, cardId, true, true)
+        ]).then(([jpgExists, webpExists]) => {
+          if (!jpgExists || !webpExists) {
+            return fetchCardImage(smallImageUrl, cardId, true);
+          }
+          console.log(`Skipping small image for card ${cardId} - already exists`);
+          return { blob: null, cardId, isSmall: true, skipped: true };
+        })
+      );
+    }
   }
 
-  // Wait for all downloads to complete
-  const downloadedImages = await Promise.all(fetchPromises);
+  // Wait for all existence checks and potential downloads to complete
+  const downloadedImages = await Promise.all(existingCheckPromises);
 
   // Now upload the images sequentially
   const results = {};
 
   for (const imageData of downloadedImages) {
-    const { blob, cardId, isSmall } = imageData;
+    const { blob, cardId, isSmall, skipped } = imageData;
 
     // Initialize card result if not present
     if (!results[cardId]) {
       results[cardId] = {
         cardId,
         largeImageSuccess: false,
-        smallImageSuccess: false
+        smallImageSuccess: false,
+        largeWebPSuccess: false,
+        smallWebPSuccess: false,
+        largeImageSkipped: false,
+        smallImageSkipped: false
       };
     }
 
-    // Upload the image and store the result
-    const success = await uploadImageToSupabase(supabase, blob, cardId, isSmall);
+    // If the image was skipped because it already exists, mark it as successful but skipped
+    if (skipped) {
+      if (isSmall) {
+        results[cardId].smallImageSuccess = true;
+        results[cardId].smallWebPSuccess = true;
+        results[cardId].smallImageSkipped = true;
+      } else {
+        results[cardId].largeImageSuccess = true;
+        results[cardId].largeWebPSuccess = true;
+        results[cardId].largeImageSkipped = true;
+      }
+      continue;
+    }
+
+    // Skip if no blob
+    if (!blob) continue;
+
+    // Upload the original JPG image
+    const jpgSuccess = await uploadImageToSupabase(supabase, blob, cardId, isSmall, false);
 
     if (isSmall) {
-      results[cardId].smallImageSuccess = success;
+      results[cardId].smallImageSuccess = jpgSuccess;
     } else {
-      results[cardId].largeImageSuccess = success;
+      results[cardId].largeImageSuccess = jpgSuccess;
+    }
+
+    // Convert to WebP and upload
+    const webpBlob = await convertToWebP(blob);
+    if (webpBlob) {
+      const webpSuccess = await uploadImageToSupabase(supabase, webpBlob, cardId, isSmall, true);
+
+      if (isSmall) {
+        results[cardId].smallWebPSuccess = webpSuccess;
+      } else {
+        results[cardId].largeWebPSuccess = webpSuccess;
+      }
     }
   }
 
@@ -108,15 +258,25 @@ async function processBatch(supabase, cards) {
   const totalCards = Object.keys(results).length;
   const successfulLargeUploads = Object.values(results).filter(r => r.largeImageSuccess).length;
   const successfulSmallUploads = Object.values(results).filter(r => r.smallImageSuccess).length;
+  const successfulLargeWebPUploads = Object.values(results).filter(r => r.largeWebPSuccess).length;
+  const successfulSmallWebPUploads = Object.values(results).filter(r => r.smallWebPSuccess).length;
+  const skippedLargeImages = Object.values(results).filter(r => r.largeImageSkipped).length;
+  const skippedSmallImages = Object.values(results).filter(r => r.smallImageSkipped).length;
 
   console.log(`Batch completed: ${totalCards} cards processed`);
-  console.log(`Large images: ${successfulLargeUploads} uploaded successfully`);
-  console.log(`Small images: ${successfulSmallUploads} uploaded successfully`);
+  console.log(`Large JPG images: ${successfulLargeUploads} uploaded successfully (${skippedLargeImages} skipped)`);
+  console.log(`Small JPG images: ${successfulSmallUploads} uploaded successfully (${skippedSmallImages} skipped)`);
+  console.log(`Large WebP images: ${successfulLargeWebPUploads} uploaded successfully`);
+  console.log(`Small WebP images: ${successfulSmallWebPUploads} uploaded successfully`);
 
   return {
     totalCards,
     successfulLargeUploads,
     successfulSmallUploads,
+    successfulLargeWebPUploads,
+    successfulSmallWebPUploads,
+    skippedLargeImages,
+    skippedSmallImages,
     results: Object.values(results)
   };
 }
