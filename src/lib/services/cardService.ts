@@ -33,7 +33,7 @@ export function getCardImagePath(cardId: number, isSmall: boolean = false): stri
 export function getDirectS3Url(cardId: number, isSmall: boolean = false): string {
     // Generate the filename
     const fileName = `${cardId}${isSmall ? '_small' : ''}.avif`;
-    
+
     // Construct and return the S3 URL
     return `https://${S3_BUCKET_AVIF}.s3.${S3_BUCKET_REGION}.amazonaws.com/${fileName}`;
 }
@@ -138,42 +138,28 @@ export async function fetchCardData(cardIds: number[]) {
  * Gets a direct URL for a card image from S3
  * @param cardId The ID of the card
  * @param isSmall Whether to get the small image
- * @returns Promise with the URL string
+ * @returns The URL string
  */
-export async function getImageUrl(cardId: number, isSmall: boolean = false): Promise<string> {
+export function getImageUrl(cardId: number, isSmall: boolean = false): string {
     const cacheKey = `${cardId}_${isSmall ? 'small' : 'full'}`;
     const now = Date.now();
-    
+
     // Use cache if available and not too old (1 day cache validity)
     const cached = imageUrlCache.get(cacheKey);
     if (cached && (now - cached.lastChecked) < 24 * 60 * 60 * 1000) {
         return cached.url;
     }
-    
-    try {
-        // Get a direct S3 URL for the AVIF image
-        const imageUrl = getDirectS3Url(cardId, isSmall);
-        
-        // Verify the image exists with a HEAD request
-        const response = await fetch(imageUrl, { method: 'HEAD' });
-        
-        if (response.ok) {
-            // Update cache with the AVIF URL
-            imageUrlCache.set(cacheKey, {
-                url: imageUrl,
-                lastChecked: now
-            });
-            
-            return imageUrl;
-        }
-        
-        // If the image doesn't exist in S3, use placeholder
-        console.warn(`Image not found for card ${cardId} (small: ${isSmall})`);
-        return `https://via.placeholder.com/400x586?text=Image+Not+Found`;
-    } catch (error) {
-        console.error("Error getting image URL:", error);
-        return `https://via.placeholder.com/400x586?text=Image+Not+Found`;
-    }
+
+    // Get a direct S3 URL for the AVIF image
+    const imageUrl = getDirectS3Url(cardId, isSmall);
+
+    // Update cache with the URL
+    imageUrlCache.set(cacheKey, {
+        url: imageUrl,
+        lastChecked: now
+    });
+
+    return imageUrl;
 }
 
 /**
@@ -182,75 +168,33 @@ export async function getImageUrl(cardId: number, isSmall: boolean = false): Pro
  * @param isSmall Whether to get small images
  * @returns Map of card IDs to their URLs
  */
-export async function getMultipleImageUrls(cardIds: number[], isSmall: boolean = false): Promise<Map<number, string>> {
+export function getMultipleImageUrls(cardIds: number[], isSmall: boolean = false): Map<number, string> {
     const result = new Map<number, string>();
     const now = Date.now();
-    
-    // Check cache first and prepare uncached IDs
-    const uncachedIds: number[] = [];
-    
+
     for (const cardId of cardIds) {
         const cacheKey = `${cardId}_${isSmall ? 'small' : 'full'}`;
         const cached = imageUrlCache.get(cacheKey);
-        
+
         if (cached && (now - cached.lastChecked) < 24 * 60 * 60 * 1000) {
             // Use cached URL if it's not too old
             result.set(cardId, cached.url);
         } else {
-            uncachedIds.push(cardId);
+            // Generate S3 URL for AVIF
+            const imageUrl = getDirectS3Url(cardId, isSmall);
+
+            // Store the URL in the result map
+            result.set(cardId, imageUrl);
+
+            // Update cache
+            imageUrlCache.set(cacheKey, {
+                url: imageUrl,
+                lastChecked: now
+            });
         }
     }
-    
-    // If all URLs were in cache, return early
-    if (uncachedIds.length === 0) {
-        return result;
-    }
-    
-    try {
-        // Get direct S3 URLs for all uncached IDs
-        const promises = uncachedIds.map(async (cardId) => {
-            try {
-                // Generate S3 URL for AVIF
-                const imageUrl = getDirectS3Url(cardId, isSmall);
-                
-                // Verify the image exists with a HEAD request
-                const response = await fetch(imageUrl, { method: 'HEAD' });
-                
-                if (response.ok) {
-                    // Store the URL in the result map
-                    result.set(cardId, imageUrl);
-                    
-                    // Update cache
-                    const cacheKey = `${cardId}_${isSmall ? 'small' : 'full'}`;
-                    imageUrlCache.set(cacheKey, {
-                        url: imageUrl,
-                        lastChecked: now
-                    });
-                } else {
-                    // If image doesn't exist, use placeholder
-                    console.warn(`Image not found for card ${cardId} (small: ${isSmall})`);
-                    result.set(cardId, `https://via.placeholder.com/400x586?text=Image+Not+Found`);
-                }
-            } catch (error) {
-                console.error(`Error getting image URL for card ${cardId}:`, error);
-                result.set(cardId, `https://via.placeholder.com/400x586?text=Image+Not+Found`);
-            }
-        });
-        
-        // Wait for all promises to resolve
-        await Promise.all(promises);
-        
-        return result;
-    } catch (error) {
-        console.error("Error getting batch image URLs:", error);
-        
-        // Set fallback URLs for the uncached IDs
-        for (const cardId of uncachedIds) {
-            result.set(cardId, `https://via.placeholder.com/400x586?text=Image+Not+Found`);
-        }
-        
-        return result;
-    }
+
+    return result;
 }
 
 /**
@@ -277,14 +221,14 @@ export function getPublicImageUrls(cardIds: number[], isSmall: boolean = false):
  * @param cards Array of card data from the database
  * @returns Array of formatted card objects for components
  */
-export async function formatCardsFromDatabase(cards: Array<{
+export function formatCardsFromDatabase(cards: Array<{
     id: number;
     name: string;
     type: string;
     api_data: any;
     quantity?: number;
     custom_rarity?: string;
-}>): Promise<any[]> {
+}>): any[] {
     if (cards.length === 0) {
         return [];
     }
@@ -292,13 +236,13 @@ export async function formatCardsFromDatabase(cards: Array<{
     // Get all card IDs for image URLs
     const cardIds = cards.map(card => card.id);
 
-    // Get direct S3 URLs for all cards
-    const fullSizeUrls = USE_DIRECT_S3 
-        ? await getMultipleImageUrls(cardIds, false) 
+    // Get direct S3 URLs for all cards without awaiting
+    const fullSizeUrls = USE_DIRECT_S3
+        ? getMultipleImageUrls(cardIds, false)
         : getPublicImageUrls(cardIds, false);
-    
+
     const smallSizeUrls = USE_DIRECT_S3
-        ? await getMultipleImageUrls(cardIds, true)
+        ? getMultipleImageUrls(cardIds, true)
         : getPublicImageUrls(cardIds, true);
 
     // Format each card with the image URLs
@@ -366,7 +310,7 @@ export async function fetchCubeWithCardData(draftId: string) {
             .filter(Boolean); // Remove any undefined entries
 
         // Format all cards in a single batch operation
-        const formattedCards = await formatCardsFromDatabase(cardsToFormat);
+        const formattedCards = formatCardsFromDatabase(cardsToFormat);
 
         // Create a map of formatted cards for quick lookup
         const formattedCardMap = new Map(formattedCards.map(card => [card.id, card]));
