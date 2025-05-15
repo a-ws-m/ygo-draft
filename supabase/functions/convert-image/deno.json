@@ -1,8 +1,0 @@
-{
-  "imports": {
-    "imagemagick_deno": "https://deno.land/x/imagemagick_deno/mod.ts"
-  },
-  "tasks": {
-    "start": "deno run --allow-net --allow-env --allow-read index.ts"
-  }
-}

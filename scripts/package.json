@@ -1,0 +1,18 @@
+{
+  "name": "ygo-card-image-processor",
+  "version": "1.0.0",
+  "description": "Script to locally process YuGiOh card images and upload them to S3",
+  "main": "process-card-images.js",
+  "scripts": {
+    "start": "node process-card-images.js"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.145.0",
+    "axios": "^1.6.2",
+    "cli-progress": "^3.12.0",
+    "sharp": "^0.33.0",
+    "ygo-card-image-processor": "link:"
+  },
+  "author": "",
+  "license": "MIT"
+}

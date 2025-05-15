@@ -5,8 +5,39 @@
 // Setup type definitions for built-in Supabase Runtime APIs
 import "jsr:@supabase/functions-js/edge-runtime.d.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2/dist/module/index";
 
 console.log("Update Card Data Function Initialized")
+
+// Types for YuGiOh cards and API responses
+interface YuGiOhCard {
+  id: number;
+  name: string;
+  type: string;
+  desc: string;
+  atk?: number;
+  def?: number;
+  level?: number;
+  race: string;
+  attribute?: string;
+  card_sets?: Array<{
+    set_name: string;
+    set_code: string;
+    set_rarity: string;
+    set_rarity_code: string;
+    set_price: string;
+  }>;
+  card_images: Array<{
+    id: number;
+    image_url: string;
+    image_url_small: string;
+  }>;
+  [key: string]: unknown;  // Allow for additional properties
+}
+
+interface RequestOptions {
+  forceUpdate?: boolean;
+}
 
 // Rate limiting for YGOPro API - 20 requests per second
 const API_RATE_LIMIT = 20;
@@ -14,12 +45,12 @@ const API_TIME_WINDOW = 1000; // 1 second in ms
 const API_NAME = 'ygoprodeck';
 
 // Check if we should throttle API requests
-async function shouldThrottleApiRequest(supabase): Promise<boolean> {
+async function shouldThrottleApiRequest(supabase: SupabaseClient): Promise<boolean> {
   const now = new Date();
   const windowStart = new Date(now.getTime() - API_TIME_WINDOW);
 
   // Count requests in the last time window
-  const { data, error, count } = await supabase
+  const { data: _data, error, count } = await supabase
     .from('api_calls')
     .select('*', { count: 'exact', head: true })
     .eq('api_name', API_NAME)
@@ -30,11 +61,11 @@ async function shouldThrottleApiRequest(supabase): Promise<boolean> {
     return false; // Proceed with caution if we can't check
   }
 
-  return count >= API_RATE_LIMIT;
+  return count !== null && count >= API_RATE_LIMIT;
 }
 
 // Record an API request
-async function recordApiRequest(supabase): Promise<void> {
+async function recordApiRequest(supabase: SupabaseClient): Promise<void> {
   const { error } = await supabase
     .from('api_calls')
     .insert({ api_name: API_NAME });
@@ -45,7 +76,7 @@ async function recordApiRequest(supabase): Promise<void> {
 }
 
 // Wait until we can make an API request
-async function waitForApiAvailability(supabase): Promise<void> {
+async function waitForApiAvailability(supabase: SupabaseClient): Promise<void> {
   const maxWaitTime = 5000; // Maximum wait time: 5 seconds
   const startTime = Date.now();
 
@@ -57,40 +88,75 @@ async function waitForApiAvailability(supabase): Promise<void> {
   }
 }
 
-// Process images for cards
-async function processCardImages(supabase, cards, BATCH_SIZE = 500) {
+// Process images for cards with throttling to prevent Lambda overload
+async function processCardImages(supabase, cards: any[], BATCH_SIZE = 50) {
   try {
-    // Split cards into batches of 100
+    // Split cards into smaller batches to prevent Lambda throttling
     const batches = [];
     for (let i = 0; i < cards.length; i += BATCH_SIZE) {
       batches.push(cards.slice(i, i + BATCH_SIZE));
     }
 
-    // Call fetch-card-images function for each batch in parallel
+    console.log(`Processing ${cards.length} card images in ${batches.length} batches of ${BATCH_SIZE}`);
+
+    // Define throttling parameters for Lambda
+    const MAX_CONCURRENT_BATCHES = 3; // Maximum number of batches to process in parallel
+    const DELAY_BETWEEN_BATCHES = 2000; // 2 seconds delay between batches
+
+    // Process batches with controlled concurrency
     const imageServiceUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/fetch-card-images`;
     const imageServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 
-    const batchPromises = batches.map(async (batch) => {
-      const response = await fetch(imageServiceUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${imageServiceKey}`
-        },
-        body: JSON.stringify({ cards: batch })
+    // Process batches in groups to limit concurrency
+    for (let i = 0; i < batches.length; i += MAX_CONCURRENT_BATCHES) {
+      const batchGroup = batches.slice(i, i + MAX_CONCURRENT_BATCHES);
+      console.log(`Processing batch group ${Math.floor(i / MAX_CONCURRENT_BATCHES) + 1} of ${Math.ceil(batches.length / MAX_CONCURRENT_BATCHES)}`);
+
+      const batchPromises = batchGroup.map(async (batch, index) => {
+        // Add staggered delay to prevent all batches hitting Lambda at the exact same time
+        if (index > 0) {
+          await new Promise(resolve => setTimeout(resolve, index * 500));
+        }
+
+        try {
+          const response = await fetch(imageServiceUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${imageServiceKey}`
+            },
+            body: JSON.stringify({ cards: batch })
+          });
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`Error from image service: ${errorText}`);
+            return { success: false, error: errorText };
+          }
+
+          const result = await response.json();
+          console.log(`Batch ${i + index + 1}/${batches.length} completed: processed ${result.message || 'unknown count'}`);
+          return { success: true, result };
+        } catch (error) {
+          console.error(`Exception processing batch ${i + index + 1}/${batches.length}:`, error);
+          return { success: false, error };
+        }
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`Error from image service: ${errorText}`);
-        return false;
+      // Wait for current batch group to complete
+      const results = await Promise.all(batchPromises);
+      const successCount = results.filter(r => r.success).length;
+      const failCount = results.filter(r => !r.success).length;
+
+      console.log(`Batch group completed: ${successCount} succeeded, ${failCount} failed`);
+
+      // Add delay between batch groups to prevent overloading Lambda
+      if (i + MAX_CONCURRENT_BATCHES < batches.length) {
+        console.log(`Waiting ${DELAY_BETWEEN_BATCHES}ms before processing next batch group...`);
+        await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_BATCHES));
       }
+    }
 
-      return true;
-    });
-
-    // Wait for all batches to complete
-    await Promise.all(batchPromises);
     return true;
   } catch (error) {
     console.error("Error processing card images:", error);
@@ -172,6 +238,10 @@ async function updateStoredDbVersion(supabase, version: string): Promise<void> {
 
 Deno.serve(async (req) => {
   try {
+    // Parse request options
+    const requestOptions = req.method === 'POST' ? await req.json().catch(() => ({})) : {};
+    const forceUpdate = requestOptions.forceUpdate === true;
+
     // Create a Supabase client with the project URL and service role key
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
     const supabaseAdminKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
@@ -195,17 +265,24 @@ Deno.serve(async (req) => {
     const currentVersion = await getCurrentDbVersion();
     const storedVersion = await getStoredDbVersion(supabase);
 
-    if (currentVersion === storedVersion) {
+    // Skip version check if forceUpdate is true
+    if (!forceUpdate && currentVersion === storedVersion) {
       return new Response(
         JSON.stringify({
           message: "Database is up to date",
-          version: currentVersion
+          version: currentVersion,
+          forceUpdate: false
         }),
         { status: 200, headers: { "Content-Type": "application/json" } }
       );
     }
 
-    console.log(`Database update needed. Current: ${currentVersion}, Stored: ${storedVersion}`);
+    // Log whether this is a normal update or a forced update
+    if (forceUpdate) {
+      console.log(`Forced update requested. Current version: ${currentVersion}, Stored version: ${storedVersion}`);
+    } else {
+      console.log(`Database update needed. Current: ${currentVersion}, Stored: ${storedVersion}`);
+    }
 
     // Fetch all cards from API
     await waitForApiAvailability(supabase);
@@ -267,8 +344,9 @@ Deno.serve(async (req) => {
       try {
         await updateStoredDbVersion(supabase, currentVersion);
 
-        // Process images in background
-        processCardImages(supabase, cards, 500)
+        // Process images in background with smaller batches
+        // Use only 50 cards per batch to avoid Lambda throttling
+        processCardImages(supabase, cards, 50)
           .catch(error => console.error("Background image processing error:", error));
 
         return new Response(

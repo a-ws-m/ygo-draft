@@ -4,307 +4,268 @@
 
 // Setup type definitions for built-in Supabase Runtime APIs
 import "jsr:@supabase/functions-js/edge-runtime.d.ts"
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+// Import the image processor
+import { checkImageExistsInS3, processBatchOfImages } from "../_shared/image-processor.ts";
 
 console.log("Card Image Fetcher Function Initialized")
 
-// Function to download image and return as blob
-async function fetchCardImage(imageUrl: string, cardId: string, isSmall = false): Promise<{ blob: Blob | null, cardId: string, isSmall: boolean }> {
-  try {
-    if (!imageUrl) return { blob: null, cardId, isSmall };
+// Define card types
+interface Card {
+  id: string;
+  card_images?: Array<{
+    image_url?: string;
+    image_url_small?: string;
+  }>;
+}
 
-    // Download the image
-    const imageResponse = await fetch(imageUrl);
-    if (!imageResponse.ok) {
-      console.error(`Failed to download image from ${imageUrl}: ${imageResponse.statusText}`);
-      return { blob: null, cardId, isSmall };
+// Define processing result type
+interface ProcessingResult {
+  cardId: string;
+  isSmall: boolean;
+  processed: boolean;
+  skipped?: boolean;
+  url?: string;
+  error?: string;
+}
+
+// Maximum number of images to send in a single batch to Lambda
+// Reduced from 50 to prevent timeouts
+const MAX_LAMBDA_BATCH_SIZE = 15;
+
+// Add delay between Lambda calls to prevent throttling
+const LAMBDA_CALL_DELAY_MS = 1000;
+
+// Function to process a batch of cards with automatic batch size reduction on failure
+async function processBatch(cards: Card[], attemptReduction: boolean = true): Promise<{
+  totalCards: number;
+  processedLargeImages: number;
+  processedSmallImages: number;
+  skippedLargeImages: number;
+  skippedSmallImages: number;
+  results: ProcessingResult[];
+}> {
+  try {
+    // First, check which images need to be processed by checking if they exist in S3
+    const existenceCheckPromises: Promise<{
+      cardId: string;
+      isSmall: boolean;
+      imageUrl: string;
+      needsProcessing: boolean;
+    }>[] = [];
+
+    // Queue up existence checks for all images
+    for (const card of cards) {
+      const cardId = card.id;
+      const imageUrl = card.card_images?.[0]?.image_url;
+      const smallImageUrl = card.card_images?.[0]?.image_url_small;
+
+      if (imageUrl) {
+        existenceCheckPromises.push(
+          checkImageExistsInS3(cardId, false).then((exists) => ({
+            cardId,
+            isSmall: false,
+            imageUrl,
+            needsProcessing: !exists
+          }))
+        );
+      }
+
+      if (smallImageUrl) {
+        existenceCheckPromises.push(
+          checkImageExistsInS3(cardId, true).then((exists) => ({
+            cardId,
+            isSmall: true,
+            imageUrl: smallImageUrl,
+            needsProcessing: !exists
+          }))
+        );
+      }
     }
+
+    // Wait for all existence checks to complete
+    const existenceResults = await Promise.all(existenceCheckPromises);
+
+    // Filter to only the images that need processing
+    const imagesToProcess = existenceResults.filter(result => result.needsProcessing);
+
+    // Create skipped results for images that don't need processing
+    const skippedResults: ProcessingResult[] = existenceResults
+      .filter(result => !result.needsProcessing)
+      .map(result => ({
+        cardId: result.cardId,
+        isSmall: result.isSmall,
+        processed: false,
+        skipped: true
+      }));
+
+    console.log(`Found ${imagesToProcess.length} images that need processing`);
+    console.log(`Skipping ${skippedResults.length} images that already exist in S3`);
+
+    // Process the images in batches to avoid overwhelming Lambda
+    const processedResults: ProcessingResult[] = [];
+
+    // Split the images into batches for Lambda
+    for (let i = 0; i < imagesToProcess.length; i += MAX_LAMBDA_BATCH_SIZE) {
+      const batch = imagesToProcess.slice(i, i + MAX_LAMBDA_BATCH_SIZE);
+      console.log(`Processing batch ${Math.floor(i / MAX_LAMBDA_BATCH_SIZE) + 1} of ${Math.ceil(imagesToProcess.length / MAX_LAMBDA_BATCH_SIZE)} (${batch.length} images)`);
+
+      // Add a delay between Lambda calls to prevent throttling, except for the first batch
+      if (i > 0) {
+        console.log(`Waiting ${LAMBDA_CALL_DELAY_MS}ms before processing next batch to prevent throttling...`);
+        await new Promise(resolve => setTimeout(resolve, LAMBDA_CALL_DELAY_MS));
+      }
+
+      // Format the batch for Lambda
+      const lambdaBatch = batch.map(item => ({
+        imageUrl: item.imageUrl,
+        cardId: item.cardId,
+        isSmall: item.isSmall
+      }));
+
+      try {
+        // Add retry mechanism for Lambda processing
+        const MAX_RETRIES = 2;
+        let retryCount = 0;
+        let lambdaResults = null;
+        
+        while (retryCount <= MAX_RETRIES) {
+          try {
+            // Process the batch with Lambda, with a timeout to prevent hanging forever
+            const LAMBDA_TIMEOUT_MS = 25000; // 25 seconds timeout (Lambda has 30s limit)
+            
+            const timeoutPromise = new Promise<Array<{
+              success: boolean,
+              cardId: string,
+              isSmall: boolean,
+              url?: string,
+              error?: string
+            }>>((_, reject) => {
+              setTimeout(() => {
+                reject(new Error(`Lambda processing timed out after ${LAMBDA_TIMEOUT_MS}ms`));
+              }, LAMBDA_TIMEOUT_MS);
+            });
+            
+            // Race between the Lambda call and the timeout
+            const lambdaPromise = processBatchOfImages(lambdaBatch);
+            lambdaResults = await Promise.race([lambdaPromise, timeoutPromise]);
+            
+            // If we get here, it means the batch was processed successfully
+            break;
+          } catch (error) {
+            retryCount++;
+            if (retryCount <= MAX_RETRIES) {
+              console.log(`Attempt ${retryCount} failed, retrying after delay... Error: ${error instanceof Error ? error.message : String(error)}`);
+              // Exponential backoff for retries
+              await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, retryCount)));
+            } else {
+              // All retries failed, propagate the error
+              throw error;
+            }
+          }
+        }
+        
+        // If all retries failed and lambdaResults is still null, throw an error
+        if (lambdaResults === null) {
+          throw new Error("Failed to process images after all retry attempts");
+        }
+
+        // Map the Lambda results to our result format
+        const formattedResults = lambdaResults.map(result => ({
+          cardId: result.cardId,
+          isSmall: result.isSmall,
+          processed: result.success,
+          url: result.url,
+          error: result.error
+        }));
+
+        processedResults.push(...formattedResults);
+      } catch (error) {
+        console.error(`Error processing batch ${i / MAX_LAMBDA_BATCH_SIZE + 1}:`, error);
+
+        // Add error results for each image in this batch
+        const errorResults = batch.map(item => ({
+          cardId: item.cardId,
+          isSmall: item.isSmall,
+          processed: false,
+          error: `Batch processing error: ${error instanceof Error ? error.message : String(error)}`
+        }));
+
+        processedResults.push(...errorResults);
+      }
+    }
+
+    // Combine the processed and skipped results
+    const allResults = [...processedResults, ...skippedResults];
+
+    // Calculate statistics
+    const processedCards = new Set(allResults.map(img => img.cardId));
+    const totalCards = processedCards.size;
+    const skippedLargeImages = allResults.filter(img => img.isSmall === false && img.skipped).length;
+    const skippedSmallImages = allResults.filter(img => img.isSmall === true && img.skipped).length;
+    const processedLargeImages = allResults.filter(img => img.isSmall === false && img.processed).length;
+    const processedSmallImages = allResults.filter(img => img.isSmall === true && img.processed).length;
+
+    console.log(`Batch completed: ${totalCards} cards processed`);
+    console.log(`Large images: ${processedLargeImages} processed (${skippedLargeImages} skipped)`);
+    console.log(`Small images: ${processedSmallImages} processed (${skippedSmallImages} skipped)`);
 
     return {
-      blob: await imageResponse.blob(),
-      cardId,
-      isSmall
+      totalCards,
+      processedLargeImages,
+      processedSmallImages,
+      skippedLargeImages,
+      skippedSmallImages,
+      results: allResults
     };
   } catch (error) {
-    console.error(`Error fetching image for card ${cardId}:`, error);
-    return { blob: null, cardId, isSmall };
-  }
-}
-
-// Function to convert image to WebP using the convert-image function
-async function convertToWebP(imageBlob: Blob): Promise<Blob | null> {
-  try {
-    // Call the convert-image function
-    const functionUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/convert-image`;
-    const webpResponse = await fetch(functionUrl, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''}`,
-        'Content-Type': imageBlob.type
-      },
-      body: imageBlob
-    });
-
-    if (!webpResponse.ok) {
-      console.error(`Failed to convert image: ${webpResponse.statusText}`);
-      return null;
+    console.error(`Error processing batch: ${error instanceof Error ? error.message : String(error)}`);
+    
+    // If this was already a retry with reduced batch size or reduction is disabled, just propagate the error
+    if (!attemptReduction || cards.length <= 5) {
+      throw error;
     }
-
-    return await webpResponse.blob();
-  } catch (error) {
-    console.error(`Error converting image to WebP:`, error);
-    return null;
-  }
-}
-
-// Function to store a blob in Supabase Storage
-async function uploadImageToSupabase(
-  supabase,
-  imageBlob: Blob | null,
-  cardId: string,
-  isSmall = false,
-  isWebP = false
-): Promise<boolean> {
-  try {
-    if (!imageBlob) return false;
-
-    // Determine bucket name based on image size and format
-    let bucketName: string;
-    if (isWebP) {
-      bucketName = isSmall ? 'card-images-small-webp' : 'card-images-webp';
-    } else {
-      bucketName = isSmall ? 'card_images_small' : 'card_images';
-    }
-
-    // Determine file extension based on format
-    const extension = isWebP ? '.webp' : '.jpg';
-    const fileName = `${cardId}${isSmall ? '_small' : ''}${extension}`;
-
-    // Determine content type
-    const contentType = isWebP ? 'image/webp' : 'image/jpeg';
-
-    // Upload to Supabase Storage
-    const { data, error } = await supabase
-      .storage
-      .from(bucketName)
-      .upload(fileName, imageBlob, {
-        contentType: contentType,
-        upsert: true
-      });
-
-    if (error) {
-      console.error(`Error uploading image to ${bucketName}:`, error);
-      return false;
-    }
-
-    // Successfully stored the image
-    return true;
-  } catch (error) {
-    console.error(`Error storing image for card ${cardId}:`, error);
-    return false;
-  }
-}
-
-// Function to check if an image already exists in a bucket
-async function checkImageExists(
-  supabase,
-  cardId: string,
-  isSmall = false,
-  isWebP = false
-): Promise<boolean> {
-  try {
-    // Determine bucket name based on image size and format
-    let bucketName: string;
-    if (isWebP) {
-      bucketName = isSmall ? 'card-images-small-webp' : 'card-images-webp';
-    } else {
-      bucketName = isSmall ? 'card_images_small' : 'card_images';
-    }
-
-    // Determine file extension based on format
-    const extension = isWebP ? '.webp' : '.jpg';
-    const fileName = `${cardId}${isSmall ? '_small' : ''}${extension}`;
-
-    // Check if the file exists
-    const { data, error } = await supabase
-      .storage
-      .from(bucketName)
-      .getPublicUrl(fileName);
-
-    if (error) {
-      console.error(`Error checking if image exists in ${bucketName}:`, error);
-      return false;
-    }
-
-    // Verify the file actually exists by making a HEAD request
+    
+    // Split the batch in half and try each half separately
+    console.log(`Splitting batch of ${cards.length} cards into smaller batches due to processing failure`);
+    const midpoint = Math.floor(cards.length / 2);
+    const firstHalf = cards.slice(0, midpoint);
+    const secondHalf = cards.slice(midpoint);
+    
+    // Process each half with attemptReduction=false to prevent infinite recursion
     try {
-      const response = await fetch(data.publicUrl, { method: 'HEAD' });
-      return response.ok;
-    } catch (fetchError) {
-      console.error(`Error verifying file existence:`, fetchError);
-      return false;
+      console.log(`Processing first half (${firstHalf.length} cards)`);
+      const firstResults = await processBatch(firstHalf, false);
+      
+      console.log(`Processing second half (${secondHalf.length} cards)`);
+      const secondResults = await processBatch(secondHalf, false);
+      
+      // Combine the results
+      return {
+        totalCards: firstResults.totalCards + secondResults.totalCards,
+        processedLargeImages: firstResults.processedLargeImages + secondResults.processedLargeImages,
+        processedSmallImages: firstResults.processedSmallImages + secondResults.processedSmallImages,
+        skippedLargeImages: firstResults.skippedLargeImages + secondResults.skippedLargeImages,
+        skippedSmallImages: firstResults.skippedSmallImages + secondResults.skippedSmallImages,
+        results: [...firstResults.results, ...secondResults.results]
+      };
+    } catch (splitError) {
+      console.error(`Error processing split batches: ${splitError instanceof Error ? splitError.message : String(splitError)}`);
+      throw splitError;
     }
-  } catch (error) {
-    console.error(`Error checking if image exists for card ${cardId}:`, error);
-    return false;
   }
 }
 
-// Function to process a batch of cards
-async function processBatch(supabase, cards) {
-  // Download all images in parallel first, but only if they don't already exist
-  const fetchPromises = [];
-  const existingCheckPromises = [];
-
-  for (const card of cards) {
-    const cardId = card.id;
-    const imageUrl = card.card_images?.[0]?.image_url || null;
-    const smallImageUrl = card.card_images?.[0]?.image_url_small || null;
-
-    // Check if images already exist
-    if (imageUrl) {
-      existingCheckPromises.push(
-        Promise.all([
-          checkImageExists(supabase, cardId, false, false),
-          checkImageExists(supabase, cardId, false, true)
-        ]).then(([jpgExists, webpExists]) => {
-          if (!jpgExists || !webpExists) {
-            return fetchCardImage(imageUrl, cardId, false);
-          }
-          console.log(`Skipping large image for card ${cardId} - already exists`);
-          return { blob: null, cardId, isSmall: false, skipped: true };
-        })
-      );
-    }
-
-    if (smallImageUrl) {
-      existingCheckPromises.push(
-        Promise.all([
-          checkImageExists(supabase, cardId, true, false),
-          checkImageExists(supabase, cardId, true, true)
-        ]).then(([jpgExists, webpExists]) => {
-          if (!jpgExists || !webpExists) {
-            return fetchCardImage(smallImageUrl, cardId, true);
-          }
-          console.log(`Skipping small image for card ${cardId} - already exists`);
-          return { blob: null, cardId, isSmall: true, skipped: true };
-        })
-      );
-    }
-  }
-
-  // Wait for all existence checks and potential downloads to complete
-  const downloadedImages = await Promise.all(existingCheckPromises);
-
-  // Now upload the images sequentially
-  const results = {};
-
-  for (const imageData of downloadedImages) {
-    const { blob, cardId, isSmall, skipped } = imageData;
-
-    // Initialize card result if not present
-    if (!results[cardId]) {
-      results[cardId] = {
-        cardId,
-        largeImageSuccess: false,
-        smallImageSuccess: false,
-        largeWebPSuccess: false,
-        smallWebPSuccess: false,
-        largeImageSkipped: false,
-        smallImageSkipped: false
-      };
-    }
-
-    // If the image was skipped because it already exists, mark it as successful but skipped
-    if (skipped) {
-      if (isSmall) {
-        results[cardId].smallImageSuccess = true;
-        results[cardId].smallWebPSuccess = true;
-        results[cardId].smallImageSkipped = true;
-      } else {
-        results[cardId].largeImageSuccess = true;
-        results[cardId].largeWebPSuccess = true;
-        results[cardId].largeImageSkipped = true;
-      }
-      continue;
-    }
-
-    // Skip if no blob
-    if (!blob) continue;
-
-    // Upload the original JPG image
-    const jpgSuccess = await uploadImageToSupabase(supabase, blob, cardId, isSmall, false);
-
-    if (isSmall) {
-      results[cardId].smallImageSuccess = jpgSuccess;
-    } else {
-      results[cardId].largeImageSuccess = jpgSuccess;
-    }
-
-    // Convert to WebP and upload
-    const webpBlob = await convertToWebP(blob);
-    if (webpBlob) {
-      const webpSuccess = await uploadImageToSupabase(supabase, webpBlob, cardId, isSmall, true);
-
-      if (isSmall) {
-        results[cardId].smallWebPSuccess = webpSuccess;
-      } else {
-        results[cardId].largeWebPSuccess = webpSuccess;
-      }
-    }
-  }
-
-  // Calculate upload statistics
-  const totalCards = Object.keys(results).length;
-  const successfulLargeUploads = Object.values(results).filter(r => r.largeImageSuccess).length;
-  const successfulSmallUploads = Object.values(results).filter(r => r.smallImageSuccess).length;
-  const successfulLargeWebPUploads = Object.values(results).filter(r => r.largeWebPSuccess).length;
-  const successfulSmallWebPUploads = Object.values(results).filter(r => r.smallWebPSuccess).length;
-  const skippedLargeImages = Object.values(results).filter(r => r.largeImageSkipped).length;
-  const skippedSmallImages = Object.values(results).filter(r => r.smallImageSkipped).length;
-
-  console.log(`Batch completed: ${totalCards} cards processed`);
-  console.log(`Large JPG images: ${successfulLargeUploads} uploaded successfully (${skippedLargeImages} skipped)`);
-  console.log(`Small JPG images: ${successfulSmallUploads} uploaded successfully (${skippedSmallImages} skipped)`);
-  console.log(`Large WebP images: ${successfulLargeWebPUploads} uploaded successfully`);
-  console.log(`Small WebP images: ${successfulSmallWebPUploads} uploaded successfully`);
-
-  return {
-    totalCards,
-    successfulLargeUploads,
-    successfulSmallUploads,
-    successfulLargeWebPUploads,
-    successfulSmallWebPUploads,
-    skippedLargeImages,
-    skippedSmallImages,
-    results: Object.values(results)
-  };
+// Interface for the request body
+interface RequestBody {
+  cards: Card[];
+  batchSize?: number;
+  isRecursiveCall?: boolean;
 }
 
 Deno.serve(async (req) => {
   try {
-    // Create a Supabase client with the project URL and ANON key
-    const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') || '';
-    const supabaseAdminKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
-
-    // Use the service role key for admin privileges
-    const supabase = createClient(supabaseUrl, supabaseAdminKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-        detectSessionInUrl: false
-      },
-      global: {
-        headers: {
-          'Authorization': `Bearer ${supabaseAdminKey}`,
-          'X-Client-Info': 'fetch-card-images-function'
-        },
-      },
-    });
-
     // Parse the request body
-    const { cards, batchSize = 100, isRecursiveCall = false } = await req.json();
+    const { cards, batchSize = 50, isRecursiveCall = false } = await req.json() as RequestBody;
 
     if (!cards || !Array.isArray(cards) || cards.length === 0) {
       return new Response(
@@ -320,11 +281,20 @@ Deno.serve(async (req) => {
     console.log(`Processing batch of ${currentBatch.length} cards (${remainingCards.length} remaining)`);
 
     // Process the current batch
-    const batchResult = await processBatch(supabase, currentBatch);
+    const batchResult = await processBatch(currentBatch);
 
     // If there are remaining cards, call the function again with the remaining cards
-    if (remainingCards.length > 0) {
+    // but only if this is not already a recursive call (to prevent deep recursion)
+    if (remainingCards.length > 0 && !isRecursiveCall) {
       try {
+        // Add a delay before making a recursive call to prevent overwhelming the server
+        console.log(`Waiting 2 seconds before processing the next batch of ${remainingCards.length} cards...`);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // Split remaining cards into smaller sub-batches to ensure timely processing
+        // This prevents too many cards from being processed at once in recursive calls
+        const subBatchSize = Math.min(batchSize, 30); // Further limit sub-batch size
+        
         const functionUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/fetch-card-images`;
         const recursiveResponse = await fetch(functionUrl, {
           method: 'POST',
@@ -334,40 +304,73 @@ Deno.serve(async (req) => {
           },
           body: JSON.stringify({
             cards: remainingCards,
-            batchSize,
+            batchSize: subBatchSize,
             isRecursiveCall: true
           })
         });
 
         if (!recursiveResponse.ok) {
-          console.error('Failed to call recursive function:', await recursiveResponse.text());
+          const errorText = await recursiveResponse.text();
+          console.error('Failed to call recursive function:', errorText);
+          
+          // Continue with current batch results even if recursive call failed
+          return new Response(
+            JSON.stringify({
+              success: true,
+              message: `Processed ${batchResult.totalCards} card images. Warning: Failed to process remaining ${remainingCards.length} cards.`,
+              results: batchResult.results,
+              hasMoreCards: remainingCards.length > 0,
+              remainingCards: remainingCards.length,
+              recursiveError: errorText
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } }
+          );
         } else {
           const recursiveResult = await recursiveResponse.json();
           console.log(`Recursive call processed ${recursiveResult.message || 'additional cards'}`);
 
           // Combine results if this was the initial call
-          if (!isRecursiveCall) {
-            return new Response(
-              JSON.stringify({
-                success: true,
-                message: `Processed all ${cards.length} card images in batches`,
-                currentBatchResults: batchResult.results,
-                totalProcessed: cards.length
-              }),
-              { status: 200, headers: { "Content-Type": "application/json" } }
-            );
-          }
+          return new Response(
+            JSON.stringify({
+              success: true,
+              message: `Processed all ${cards.length} card images in batches`,
+              currentBatchResults: batchResult.results,
+              totalProcessed: cards.length,
+              recursiveResults: recursiveResult
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } }
+          );
         }
       } catch (error) {
         console.error('Error during recursive function call:', error);
+        
+        // Return current batch results even if recursive call failed
+        return new Response(
+          JSON.stringify({
+            success: true,
+            message: `Processed ${batchResult.totalCards} card images. Failed to process remaining ${remainingCards.length} cards due to error.`,
+            results: batchResult.results,
+            hasMoreCards: remainingCards.length > 0,
+            remainingCards: remainingCards.length,
+            recursiveError: error instanceof Error ? error.message : String(error)
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        );
       }
     }
 
-    // Return results for this batch
+    // Return results for this batch (for recursive calls or when there are no more cards)
     return new Response(
       JSON.stringify({
         success: true,
         message: `Processed ${batchResult.totalCards} card images`,
+        stats: {
+          totalCards: batchResult.totalCards,
+          processedLargeImages: batchResult.processedLargeImages,
+          processedSmallImages: batchResult.processedSmallImages,
+          skippedLargeImages: batchResult.skippedLargeImages,
+          skippedSmallImages: batchResult.skippedSmallImages,
+        },
         results: batchResult.results,
         hasMoreCards: remainingCards.length > 0,
         remainingCards: remainingCards.length
@@ -375,10 +378,33 @@ Deno.serve(async (req) => {
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Error in fetch-card-images function:", error);
+    
+    // For timeout or connection errors, return a 503 (Service Unavailable) to suggest retrying
+    if (error instanceof Error && 
+        (error.message.includes('timeout') || 
+         error.message.includes('network') || 
+         error.message.includes('connection'))) {
+      return new Response(
+        JSON.stringify({ 
+          error: "Service temporarily unavailable. The Lambda function may have timed out.", 
+          message: error instanceof Error ? error.message : "An unexpected timeout occurred",
+          retryAfter: 30 // Suggest client retry after 30 seconds
+        }),
+        { 
+          status: 503, 
+          headers: { 
+            "Content-Type": "application/json",
+            "Retry-After": "30" 
+          } 
+        }
+      );
+    }
+    
+    // For other errors, return a 500 Internal Server Error
     return new Response(
-      JSON.stringify({ error: error.message || "An unexpected error occurred" }),
+      JSON.stringify({ error: error instanceof Error ? error.message : "An unexpected error occurred" }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }
