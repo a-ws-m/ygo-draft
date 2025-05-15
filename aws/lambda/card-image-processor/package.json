@@ -1,0 +1,17 @@
+{
+  "name": "card-image-processor",
+  "version": "1.0.0",
+  "description": "AWS Lambda function to process card images and store them in S3",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "rm -rf dist && mkdir -p dist && npm install --production && cp -r node_modules index.js package.json dist/",
+    "package": "cd dist && zip -r ../card-image-processor.zip ."
+  },
+  "dependencies": {
+    "sharp": "^0.33.0",
+    "@aws-sdk/client-s3": "^3.145.0"
+  },
+  "author": "",
+  "license": "MIT"
+}

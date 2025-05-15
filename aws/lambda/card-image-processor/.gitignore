@@ -1,0 +1,36 @@
+# Node.js dependencies
+node_modules/
+
+# Build artifacts
+dist/
+*.zip
+convert-to-avif.zip
+
+# Environment and local configuration
+.env
+.env.local
+config.local.js
+
+# Test artifacts
+test-payload.json
+test-image-result.avif
+
+# Terraform state files
+*.tfstate
+*.tfstate.backup
+.terraform/
+.terraform.lock.hcl
+
+# Logs
+*.log
+npm-debug.log*
+
+# IDE and editor folders
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS generated files
+.DS_Store
+Thumbs.db

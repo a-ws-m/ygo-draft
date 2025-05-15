@@ -1,13 +1,18 @@
 import { supabase } from "$lib/supabaseClient";
 
-// Cache for storing signed URLs with their expiration timestamps
-interface SignedUrlCache {
+// Cache for storing S3 URLs to reduce redundant calls
+interface UrlCache {
     url: string;
-    expiresAt: number; // Unix timestamp in milliseconds
+    lastChecked: number; // Unix timestamp in milliseconds
 }
 
-// URL cache: cardId_size -> {url, expiresAt}
-const signedUrlCache = new Map<string, SignedUrlCache>();
+// URL cache: cardId_size -> {url, lastChecked}
+const imageUrlCache = new Map<string, UrlCache>();
+
+// S3 bucket configuration for images
+const S3_BUCKET_REGION = import.meta.env.VITE_AWS_REGION || 'us-east-1';
+const S3_BUCKET_AVIF = import.meta.env.VITE_S3_BUCKET_AVIF || 'ygo-card-images-avif';
+const USE_DIRECT_S3 = true; // Flag to toggle between direct S3 URLs and Supabase Storage
 
 /**
  * Constructs the storage path for a card image
@@ -16,9 +21,21 @@ const signedUrlCache = new Map<string, SignedUrlCache>();
  * @returns The storage path for the image
  */
 export function getCardImagePath(cardId: number, isSmall: boolean = false): string {
-    const bucketName = isSmall ? 'card_images_small' : 'card_images';
-    const fileName = `${cardId}${isSmall ? '_small' : ''}.jpg`;
-    return fileName;
+    return `${cardId}${isSmall ? '_small' : ''}.avif`;
+}
+
+/**
+ * Generates a direct S3 URL for a card image
+ * @param cardId The ID of the card
+ * @param isSmall Whether to get the small image
+ * @returns URL string pointing to the S3 object
+ */
+export function getDirectS3Url(cardId: number, isSmall: boolean = false): string {
+    // Generate the filename
+    const fileName = `${cardId}${isSmall ? '_small' : ''}.avif`;
+
+    // Construct and return the S3 URL
+    return `https://${S3_BUCKET_AVIF}.s3.${S3_BUCKET_REGION}.amazonaws.com/${fileName}`;
 }
 
 /**
@@ -118,135 +135,84 @@ export async function fetchCardData(cardIds: number[]) {
 }
 
 /**
- * Gets a signed URL for a card image stored in the private storage bucket
+ * Gets a direct URL for a card image from S3
  * @param cardId The ID of the card
  * @param isSmall Whether to get the small image
- * @returns Promise with the signed URL string
+ * @returns The URL string
  */
-export async function getSignedImageUrl(cardId: number, isSmall: boolean = false): Promise<string> {
-    const bucketName = isSmall ? 'card_images_small' : 'card_images';
-    const fileName = getCardImagePath(cardId, isSmall);
+export function getImageUrl(cardId: number, isSmall: boolean = false): string {
     const cacheKey = `${cardId}_${isSmall ? 'small' : 'full'}`;
-
-    // Check if we have a valid cached URL
-    const cached = signedUrlCache.get(cacheKey);
     const now = Date.now();
 
-    if (cached && cached.expiresAt > now) {
-        // Use cached URL if it's still valid
+    // Use cache if available and not too old (1 day cache validity)
+    const cached = imageUrlCache.get(cacheKey);
+    if (cached && (now - cached.lastChecked) < 24 * 60 * 60 * 1000) {
         return cached.url;
     }
 
-    try {
-        const tenDaysInSeconds = 10 * 24 * 60 * 60; // 10 days in seconds
-        const { data, error } = await supabase
-            .storage
-            .from(bucketName)
-            .createSignedUrl(fileName, tenDaysInSeconds);
+    // Get a direct S3 URL for the AVIF image
+    const imageUrl = getDirectS3Url(cardId, isSmall);
 
-        if (error) {
-            console.error("Error creating signed URL:", error);
-            // Return a fallback URL or placeholder
-            return `https://via.placeholder.com/400x586?text=Image+Not+Found`;
-        }
+    // Update cache with the URL
+    imageUrlCache.set(cacheKey, {
+        url: imageUrl,
+        lastChecked: now
+    });
 
-        // Cache the URL with its expiration time
-        // Set expiration a bit earlier than the actual expiry to be safe
-        const expiresAt = now + (tenDaysInSeconds * 1000) - (60 * 1000); // 1 minute buffer
-        signedUrlCache.set(cacheKey, {
-            url: data.signedUrl,
-            expiresAt
-        });
-
-        return data.signedUrl;
-    } catch (error) {
-        console.error("Error getting signed image URL:", error);
-        return `https://via.placeholder.com/400x586?text=Image+Not+Found`;
-    }
+    return imageUrl;
 }
 
 /**
- * Gets multiple signed URLs for card images in a single batch request
+ * Gets multiple image URLs for card images in a single batch
  * @param cardIds Array of card IDs
  * @param isSmall Whether to get small images
- * @returns Map of card IDs to their signed URLs
+ * @returns Map of card IDs to their URLs
  */
-export async function getMultipleSignedImageUrls(cardIds: number[], isSmall: boolean = false): Promise<Map<number, string>> {
-    const bucketName = isSmall ? 'card_images_small' : 'card_images';
+export function getMultipleImageUrls(cardIds: number[], isSmall: boolean = false): Map<number, string> {
     const result = new Map<number, string>();
     const now = Date.now();
-    const tenDaysInSeconds = 10 * 24 * 60 * 60; // 10 days in seconds
 
-    // Filter out IDs that we already have cached URLs for
-    const uncachedIds: number[] = [];
-    const paths: string[] = [];
-
-    // Check cache first and prepare uncached IDs
     for (const cardId of cardIds) {
         const cacheKey = `${cardId}_${isSmall ? 'small' : 'full'}`;
-        const cached = signedUrlCache.get(cacheKey);
+        const cached = imageUrlCache.get(cacheKey);
 
-        if (cached && cached.expiresAt > now) {
-            // Use cached URL if it's still valid
+        if (cached && (now - cached.lastChecked) < 24 * 60 * 60 * 1000) {
+            // Use cached URL if it's not too old
             result.set(cardId, cached.url);
         } else {
-            uncachedIds.push(cardId);
-            paths.push(getCardImagePath(cardId, isSmall));
+            // Generate S3 URL for AVIF
+            const imageUrl = getDirectS3Url(cardId, isSmall);
+
+            // Store the URL in the result map
+            result.set(cardId, imageUrl);
+
+            // Update cache
+            imageUrlCache.set(cacheKey, {
+                url: imageUrl,
+                lastChecked: now
+            });
         }
     }
 
-    // If all URLs were in cache, return early
-    if (uncachedIds.length === 0) {
-        return result;
+    return result;
+}
+
+/**
+ * Gets public URLs for card images stored in the public storage bucket
+ * @param cardIds Array of card IDs
+ * @param isSmall Whether to get small images
+ * @returns Map of card IDs to their public URLs
+ */
+export function getPublicImageUrls(cardIds: number[], isSmall: boolean = false): Map<number, string> {
+    const result = new Map<number, string>();
+
+    for (const cardId of cardIds) {
+        // Always use direct S3 URLs for AVIF images
+        const imageUrl = getDirectS3Url(cardId, isSmall);
+        result.set(cardId, imageUrl);
     }
 
-    try {
-        // Batch request for all uncached URLs
-        const { data, error } = await supabase
-            .storage
-            .from(bucketName)
-            .createSignedUrls(paths, tenDaysInSeconds);
-
-        if (error) {
-            console.error("Error creating batch signed URLs:", error);
-            // Set fallback URLs for the uncached IDs
-            for (const cardId of uncachedIds) {
-                result.set(cardId, `https://via.placeholder.com/400x586?text=Image+Not+Found`);
-            }
-            return result;
-        }
-
-        // Process and cache the results
-        for (let i = 0; i < uncachedIds.length; i++) {
-            const cardId = uncachedIds[i];
-            const signedData = data[i];
-
-            // Handle case where a specific URL might have failed
-            if (signedData && signedData.signedUrl) {
-                const cacheKey = `${cardId}_${isSmall ? 'small' : 'full'}`;
-                const expiresAt = now + (tenDaysInSeconds * 1000) - (60 * 1000); // 1 minute buffer
-
-                // Cache the URL
-                signedUrlCache.set(cacheKey, {
-                    url: signedData.signedUrl,
-                    expiresAt
-                });
-
-                result.set(cardId, signedData.signedUrl);
-            } else {
-                result.set(cardId, `https://via.placeholder.com/400x586?text=Image+Not+Found`);
-            }
-        }
-
-        return result;
-    } catch (error) {
-        console.error("Error getting batch signed image URLs:", error);
-        // Set fallback URLs for the uncached IDs
-        for (const cardId of uncachedIds) {
-            result.set(cardId, `https://via.placeholder.com/400x586?text=Image+Not+Found`);
-        }
-        return result;
-    }
+    return result;
 }
 
 /**
@@ -255,14 +221,14 @@ export async function getMultipleSignedImageUrls(cardIds: number[], isSmall: boo
  * @param cards Array of card data from the database
  * @returns Array of formatted card objects for components
  */
-export async function formatCardsFromDatabase(cards: Array<{
+export function formatCardsFromDatabase(cards: Array<{
     id: number;
     name: string;
     type: string;
     api_data: any;
     quantity?: number;
     custom_rarity?: string;
-}>): Promise<any[]> {
+}>): any[] {
     if (cards.length === 0) {
         return [];
     }
@@ -270,16 +236,20 @@ export async function formatCardsFromDatabase(cards: Array<{
     // Get all card IDs for image URLs
     const cardIds = cards.map(card => card.id);
 
-    // Start the image URL fetching but don't await them yet
-    const fullSizeUrlsPromise = getMultipleSignedImageUrls(cardIds, false);
-    const smallSizeUrlsPromise = getMultipleSignedImageUrls(cardIds, true);
+    // Get direct S3 URLs for all cards without awaiting
+    const fullSizeUrls = USE_DIRECT_S3
+        ? getMultipleImageUrls(cardIds, false)
+        : getPublicImageUrls(cardIds, false);
 
-    // Format each card with the image URL promises
+    const smallSizeUrls = USE_DIRECT_S3
+        ? getMultipleImageUrls(cardIds, true)
+        : getPublicImageUrls(cardIds, true);
+
+    // Format each card with the image URLs
     return cards.map(card => ({
         id: card.id,
-        // Create promises that will resolve when the URLs are available
-        imageUrl: fullSizeUrlsPromise.then(urls => urls.get(card.id) || ''),
-        smallImageUrl: smallSizeUrlsPromise.then(urls => urls.get(card.id) || ''),
+        imageUrl: fullSizeUrls.get(card.id) || '',
+        smallImageUrl: smallSizeUrls.get(card.id) || '',
         name: card.name,
         type: card.type,
         apiData: {
@@ -291,7 +261,7 @@ export async function formatCardsFromDatabase(cards: Array<{
             race: card.api_data.race,
             attribute: card.api_data.attribute,
             archetype: card.api_data.archetype,
-            rarity: card.api_data.misc_info[0]?.md_rarity,
+            rarity: card.api_data.misc_info?.[0]?.md_rarity,
         },
         quantity: card.quantity || 1,
         custom_rarity: card.custom_rarity || null
@@ -340,7 +310,7 @@ export async function fetchCubeWithCardData(draftId: string) {
             .filter(Boolean); // Remove any undefined entries
 
         // Format all cards in a single batch operation
-        const formattedCards = await formatCardsFromDatabase(cardsToFormat);
+        const formattedCards = formatCardsFromDatabase(cardsToFormat);
 
         // Create a map of formatted cards for quick lookup
         const formattedCardMap = new Map(formattedCards.map(card => [card.id, card]));
@@ -365,6 +335,6 @@ export async function fetchCubeWithCardData(draftId: string) {
         return { cube, error: null };
     } catch (error) {
         console.error("Error in fetchCubeWithCardData:", error);
-        return { cube: [], error: error.message };
+        return { cube: [], error: error instanceof Error ? error.message : String(error) };
     }
 }
