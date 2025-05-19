@@ -104,7 +104,6 @@
 						<CardList
 							cube={currentPack}
 							border={false}
-							startListView={false}
 							showDescription={true}
 							clickable={!draftStore.store.hasSelected}
 							onCardClick={selectCard}

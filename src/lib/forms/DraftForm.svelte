@@ -4,6 +4,7 @@
 	import { createDraft } from '$lib/utils/supabaseDraftManager';
 	import { store as authStore } from '$lib/stores/authStore.svelte';
 	import LoginPrompt from '$lib/components/LoginPrompt.svelte';
+	import feather from 'feather-icons';
 
 	// Define a callback prop for handling cube uploads
 	let { onCubeUploaded }: { onCubeUploaded: (cube: any[]) => void } = $props();
@@ -38,6 +39,31 @@
 	let hasCustomRarities = $state(false); // Track if the cube has custom rarities
 	let cardsWithoutCustomRarity = $state([]);
 	let cardsMissingBothRarities = $state([]); // Track cards missing both custom and Master Duel rarities
+
+	// New state for pre-made cube modal and selection
+	let showPremadeCubesModal = $state(false);
+	let selectedPremadeCube = $state('');
+
+	// Info about pre-made cubes
+	const premadeCubes = [
+		{
+			id: 'generic-cube-magnum-opus',
+			name: 'Generic Cube: Magnum Opus',
+			description:
+				'A huge cube of cards that all function somewhat generically, varying from trash to somewhat overpowered. This cube may slow down the site during loading!',
+			credits: 'By Retrorage',
+			filename: 'generic-cube-magnum-opus.csv',
+			cardCount: '3060 cards'
+		},
+		{
+			id: 'goat-cube',
+			name: 'Goat Format Cube',
+			description: 'A cube featuring cards from the classic 2005 "Goat Format" era of Yu-Gi-Oh!',
+			credits: 'By Skully from the GoatFormat.com Discord.',
+			filename: 'goat-cube.csv',
+			cardCount: '600 cards'
+		}
+	];
 
 	// Fade-out states and timers for tooltips
 	let methodTooltipTimer = $state(null);
@@ -154,6 +180,52 @@
 		} else {
 			isCubeValid = false;
 			errorMessage = 'No file uploaded. Please select a valid cube file.';
+		}
+	}
+
+	async function selectPremadeCube(cubeId: string) {
+		isProcessing = true;
+		errorMessage = '';
+		selectedPremadeCube = cubeId;
+
+		try {
+			const selectedCube = premadeCubes.find((cube) => cube.id === cubeId);
+			if (!selectedCube) throw new Error('Selected cube not found');
+
+			// Fetch the cube file from the static directory
+			const response = await fetch(`${base}/${selectedCube.filename}`);
+			if (!response.ok) throw new Error('Failed to fetch the selected cube file');
+
+			// Convert to a File object that our existing processor can handle
+			const csvText = await response.text();
+			const cubeFile = new File([csvText], selectedCube.filename, { type: 'text/csv' });
+
+			// Use the existing processCubeFile function
+			const { processCubeFile } = await import('$lib/utils/cubeProcessor');
+			const uploadedCube = await processCubeFile(cubeFile);
+
+			console.log('Pre-made cube processed successfully.');
+			isCubeValid = true;
+			cube = uploadedCube;
+			totalCards = cube.reduce((sum, card) => sum + card.quantity, 0);
+
+			// Call the callback prop
+			onCubeUploaded(cube);
+
+			// Check if the cube has custom rarities
+			if (uploadedCube.hasCustomRarities) {
+				hasCustomRarities = true;
+				cardsWithoutCustomRarity = uploadedCube.cardsWithoutCustomRarity || [];
+			}
+
+			validateOptions();
+			showPremadeCubesModal = false;
+		} catch (error) {
+			console.error('Error processing pre-made cube:', error);
+			isCubeValid = false;
+			errorMessage = error.message;
+		} finally {
+			isProcessing = false;
 		}
 	}
 
@@ -322,8 +394,8 @@
 
 <div class="space-y-6">
 	{#if isAuthenticated}
-		<!-- Cube File Upload -->
-		<div>
+		<!-- Cube File Upload with Pre-made Cube Option -->
+		<div class="relative">
 			<div class="mb-1 flex items-center">
 				<label for="cube-file" class="text-base-content block text-sm font-medium">
 					Upload Cube File (.csv)
@@ -372,23 +444,46 @@
 					{/if}
 				</div>
 			</div>
-			<div class="relative">
-				<input
-					type="file"
-					id="cube-file"
-					accept=".csv"
-					onchange={handleFileUpload}
-					class="file-input file-input-bordered w-full max-w-xs"
-					disabled={isProcessing}
-				/>
-				{#if isProcessing}
-					<!-- Spinner with loading message -->
-					<div class="bg-opacity-75 bg-base-100 absolute inset-0 flex items-center justify-center">
-						<span class="loading loading-spinner loading-lg text-primary mr-3"></span>
-						<span class="text-primary text-sm">Fetching card data (this may take a while)</span>
-					</div>
-				{/if}
+
+			<div class="join join-vertical w-full">
+				<div class="join-item flex-1">
+					<input
+						type="file"
+						id="cube-file"
+						accept=".csv"
+						onchange={handleFileUpload}
+						class="file-input file-input-bordered w-full"
+						disabled={isProcessing}
+					/>
+				</div>
+
+				<div class="divider text-base-content/50 my-3">OR</div>
+
+				<div class="join-item">
+					<button
+						type="button"
+						class="btn btn-secondary flex w-full items-center justify-center"
+						onclick={() => (showPremadeCubesModal = true)}
+						disabled={isProcessing}
+					>
+						<span class="mr-1 flex items-center">
+							{@html feather.icons.list.toSvg({ width: 18, height: 18 })}
+						</span>
+						<span>Select Pre-made Cube</span>
+					</button>
+				</div>
 			</div>
+
+			{#if isProcessing}
+				<!-- Spinner with loading message - properly positioned over upload section -->
+				<div
+					class="bg-opacity-75 bg-base-100 absolute inset-0 z-10 flex items-center justify-center rounded"
+				>
+					<span class="loading loading-spinner loading-lg text-primary mr-3"></span>
+					<span class="text-primary text-sm">Fetching card data (this may take a while)</span>
+				</div>
+			{/if}
+
 			{#if errorMessage}
 				<p class="text-error mt-2 text-sm">{errorMessage}</p>
 			{/if}
@@ -773,6 +868,57 @@
 		/>
 	{/if}
 </div>
+
+<!-- Pre-made Cubes Modal -->
+{#if showPremadeCubesModal}
+	<div class="modal modal-open">
+		<div class="modal-box max-w-3xl">
+			<h3 class="text-base-content text-lg font-bold">Select a Pre-made Cube</h3>
+			<p class="text-base-content/70 mt-2 mb-4 text-sm">
+				Choose from one of our pre-made cubes to get started quickly.
+			</p>
+
+			<div class="grid gap-4 md:grid-cols-2">
+				{#each premadeCubes as cube}
+					<div class="card bg-base-200 shadow-sm transition-shadow duration-200 hover:shadow-md">
+						<div class="card-body">
+							<h2 class="card-title">{cube.name}</h2>
+							<p class="text-sm">{cube.description}</p>
+							<div class="text-base-content/60 mt-1 text-xs">
+								<p>{cube.cardCount}</p>
+								<p class="mt-1">{cube.credits}</p>
+							</div>
+							<div class="card-actions mt-4 justify-end">
+								<button
+									type="button"
+									class="btn btn-primary btn-sm"
+									onclick={() => selectPremadeCube(cube.id)}
+									disabled={isProcessing}
+								>
+									{#if isProcessing && selectedPremadeCube === cube.id}
+										<span class="loading loading-spinner loading-xs"></span>
+									{/if}
+									Select
+								</button>
+							</div>
+						</div>
+					</div>
+				{/each}
+			</div>
+
+			<div class="modal-action">
+				<button
+					type="button"
+					class="btn"
+					onclick={() => (showPremadeCubesModal = false)}
+					disabled={isProcessing}
+				>
+					Cancel
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}
 
 <!-- Warning Modal for Cards Without Rarity -->
 {#if showRarityWarning && cardsWithoutRarity.length > 0}
