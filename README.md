@@ -103,6 +103,11 @@ We welcome contributions to YGO Draft! Please check out our contributing guideli
 
 For bug reports and feature requests, please [open an issue](https://github.com/a-ws-m/ygo-draft/issues) on GitHub.
 
+
+## Changelog
+
+* [19/05/2025] I have disabled sign in with OAuth for now as there is no advantage to doing this compared to signing in anonymously. I want to avoid storing any user data until it becomes necessary to do that for some functionality (e.g. saving your own cubes). If you previously signed in with your Discord/GitHub account, your data has been deleted from Supabase.
+
 ## License
 
 This project is licensed under the AGPLv3 License - see the LICENSE file for details.

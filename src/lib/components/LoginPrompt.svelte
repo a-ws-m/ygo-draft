@@ -131,7 +131,7 @@
 	></script>
 </svelte:head>
 
-<div class="card bg-base-100 w-full max-w-md mx-auto shadow-xl">
+<div class="card bg-base-100 mx-auto w-full max-w-md shadow-xl">
 	<div class="card-body items-center text-center">
 		<h2 class="card-title text-xl">Login to Start Drafting</h2>
 		<p class="text-base-content/70">
@@ -139,8 +139,8 @@
 			to get started.
 		</p>
 
-		<div class="w-full space-y-4 mt-4">
-			<button
+		<div class="mt-4 w-full space-y-4">
+			<!-- <button
 				type="button"
 				onclick={handleGitHubLogin}
 				disabled={isProcessing}
@@ -171,8 +171,8 @@
 				Sign in with Discord
 			</button>
 
-			<!-- Divider with text -->
-			<div class="divider">Or</div>
+			Divider with text
+			<div class="divider">Or</div> -->
 
 			<!-- hCaptcha container with loading/error states -->
 			<div class="my-4">
