@@ -11,7 +11,6 @@
 	const {
 		cube = [],
 		border = true,
-		startListView = true,
 		showYdkDownload = false,
 		showDescription = false,
 		showChart = false,
@@ -20,7 +19,6 @@
 	} = $props<{
 		cube: any[];
 		border?: boolean;
-		startListView?: boolean;
 		showYdkDownload?: boolean;
 		showDescription?: boolean;
 		showChart?: boolean;
@@ -29,7 +27,7 @@
 	}>();
 
 	// Reactive state
-	let isListView = $state(startListView);
+	let isListView = $state(false); // Default value will be updated in onMount
 	let hoveredCard = $state(null);
 	let matchDescription = $state(true); // New state for controlling description search
 
@@ -55,11 +53,25 @@
 	let searcher = $state(null);
 
 	onMount(() => {
+		// Initialize view mode based on screen width
+		isListView = window.innerWidth < 768; // Use list view on mobile (<768px)
+
 		// Initialize the fuzzy searcher with the cube data
 		searcher = new FuzzySearch(cube, matchDescription ? ['name', 'apiData.desc'] : ['name'], {
 			caseSensitive: false,
 			sort: true
 		});
+
+		// Add resize listener to update view mode when screen size changes
+		const handleResize = () => {
+			isListView = window.innerWidth < 768;
+		};
+
+		window.addEventListener('resize', handleResize);
+
+		return () => {
+			window.removeEventListener('resize', handleResize);
+		};
 	});
 
 	// Get all unique values for a given property in the cube

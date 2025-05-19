@@ -454,7 +454,6 @@
 							<CardList
 								cube={draftStore.store.piles[draftStore.store.currentPileIndex]}
 								border={false}
-								startListView={false}
 								showDescription={true}
 							/>
 							<div class="mt-2 flex justify-between">
