@@ -361,7 +361,9 @@
 
 	// Carousel navigation
 	function carouselNext() {
-		if (carouselIndex < filteredCube.length - 1) {
+		// Calculate the max index based on visible center cards
+		const maxPossibleIndex = Math.max(0, filteredCube.length - visibleCenterCards.length);
+		if (carouselIndex < maxPossibleIndex) {
 			carouselIndex++;
 		}
 	}
@@ -433,17 +435,11 @@
 		downloadYdkFile(ydkContent, 'ygo_draft_deck.ydk');
 	}
 
-	// Carousel derived values
-	const currentCard = $derived(filteredCube[carouselIndex] || null);
-	// Modify leftStack and rightStack calculations
-	const leftStack = $derived(filteredCube.slice(0, carouselIndex).reverse());
-	const rightStack = $derived(filteredCube.slice(carouselIndex + 1));
-
 	// Calculate center cards for carousel
 	const visibleCenterCards = $derived.by(() => {
 		if (!centerSectionElement || filteredCube.length === 0) return [];
 
-		const centerSectionWidth = centerSectionElement.clientWidth || 400;
+		const centerSectionWidth = centerSectionElement?.clientWidth || 400;
 		const cardWidth = Math.min(271, centerSectionWidth - 32);
 		const cardSpacing = 16;
 		const cardsPerRow = Math.max(1, Math.floor(centerSectionWidth / (cardWidth + cardSpacing)));
@@ -453,6 +449,16 @@
 
 		return filteredCube.slice(carouselIndex, endIndex);
 	});
+
+	// Carousel derived values
+	const currentCard = $derived(visibleCenterCards[0] || null);
+
+	// Modified leftStack and rightStack calculations
+	const leftStack = $derived(filteredCube.slice(0, carouselIndex).reverse());
+	const rightStack = $derived(filteredCube.slice(carouselIndex + visibleCenterCards.length));
+
+	// Calculate the last index in the center view for the counter
+	const lastVisibleCardIndex = $derived(carouselIndex + visibleCenterCards.length - 1);
 </script>
 
 <div class="relative space-y-4">
@@ -734,11 +740,11 @@
 														>
 													</button>
 													<span class="flex items-center">
-														{carouselIndex + 1}/{filteredCube.length}
+														{carouselIndex + 1}-{lastVisibleCardIndex + 1}/{filteredCube.length}
 													</span>
 													<button
 														class="btn btn-circle btn-sm"
-														disabled={carouselIndex === filteredCube.length - 1}
+														disabled={rightStack.length === 0}
 														onclick={carouselNext}
 													>
 														<span
