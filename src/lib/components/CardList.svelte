@@ -694,79 +694,84 @@
 								{@const centerSectionWidth = centerSectionElement?.clientWidth || 400}
 								{@const cardWidth = Math.min(271, centerSectionWidth - 32)}
 
-								<div class="flex justify-center gap-4">
-									{#each visibleCenterCards as card, idx}
-										<div class="relative flex flex-col items-center" style="width: {cardWidth}px;">
-											<button
-												class="card relative w-full transition-shadow hover:shadow-lg {clickable
-													? 'hover:ring-primary ring-opacity-50 cursor-pointer hover:ring'
-													: ''}"
-												type="button"
-												onmouseenter={(e) => handleMouseEnter(card, e)}
-												onmouseleave={handleMouseLeave}
-												onclick={() => handleCardClick(card)}
+								<div class="flex flex-col">
+									<div class="flex justify-center gap-4">
+										{#each visibleCenterCards as card, idx}
+											<div
+												class="relative flex flex-col items-center"
+												style="width: {cardWidth}px;"
 											>
-												<div class="relative aspect-[813/1185] w-full">
-													{#await getCardImage(card, false)}
-														<div class="skeleton absolute inset-0"></div>
-													{:then imageUrl}
-														<img
-															loading="lazy"
-															src={imageUrl}
-															alt={card.name}
-															class="h-full w-full rounded object-cover shadow"
-														/>
-													{:catch error}
-														<div
-															class="bg-base-200 flex h-full items-center justify-center rounded"
-														>
-															<span
-																>{@html feather.icons['image-off'].toSvg({
-																	width: 24,
-																	height: 24
-																})}</span
+												<button
+													class="card relative w-full transition-shadow hover:shadow-lg {clickable
+														? 'hover:ring-primary ring-opacity-50 cursor-pointer hover:ring'
+														: ''}"
+													type="button"
+													onmouseenter={(e) => handleMouseEnter(card, e)}
+													onmouseleave={handleMouseLeave}
+													onclick={() => handleCardClick(card)}
+												>
+													<div class="relative aspect-[813/1185] w-full">
+														{#await getCardImage(card, false)}
+															<div class="skeleton absolute inset-0"></div>
+														{:then imageUrl}
+															<img
+																loading="lazy"
+																src={imageUrl}
+																alt={card.name}
+																class="h-full w-full rounded object-cover shadow"
+															/>
+														{:catch error}
+															<div
+																class="bg-base-200 flex h-full items-center justify-center rounded"
 															>
-														</div>
-													{/await}
-												</div>
-											</button>
-											<p class="mt-2 w-full truncate text-center font-medium">{card.name}</p>
-											{#if card.quantity && card.quantity > 1}
-												<p class="badge badge-neutral text-xs">x{card.quantity}</p>
-											{/if}
-											{#if idx === 0}
-												<div class="mt-2 flex gap-2">
-													<button
-														class="btn btn-circle btn-sm"
-														disabled={carouselIndex === 0}
-														onclick={carouselPrev}
-													>
-														<span
-															>{@html feather.icons['chevron-up'].toSvg({
-																width: 18,
-																height: 18
-															})}</span
-														>
-													</button>
-													<span class="flex items-center">
-														{carouselIndex + 1}-{lastVisibleCardIndex + 1}/{filteredCube.length}
-													</span>
-													<button
-														class="btn btn-circle btn-sm"
-														disabled={rightStack.length === 0}
-														onclick={carouselNext}
-													>
-														<span
-															>{@html feather.icons['chevron-down'].toSvg({
-																width: 18,
-																height: 18
-															})}</span
-														>
-													</button>
-												</div>
-											{/if}
-										</div>
-									{/each}
+																<span
+																	>{@html feather.icons['image-off'].toSvg({
+																		width: 24,
+																		height: 24
+																	})}</span
+																>
+															</div>
+														{/await}
+													</div>
+												</button>
+												<p class="mt-2 w-full truncate text-center font-medium">{card.name}</p>
+												{#if card.quantity && card.quantity > 1}
+													<p class="badge badge-neutral text-xs">x{card.quantity}</p>
+												{/if}
+											</div>
+										{/each}
+									</div>
+
+									<!-- Moved pagination controls below card names and quantity badges -->
+									<div class="mt-6 flex w-full justify-center gap-2">
+										<button
+											class="btn btn-circle btn-sm"
+											disabled={carouselIndex === 0}
+											onclick={carouselPrev}
+										>
+											<span
+												>{@html feather.icons['chevron-up'].toSvg({
+													width: 18,
+													height: 18
+												})}</span
+											>
+										</button>
+										<span class="flex items-center">
+											{carouselIndex + 1}-{lastVisibleCardIndex + 1}/{filteredCube.length}
+										</span>
+										<button
+											class="btn btn-circle btn-sm"
+											disabled={rightStack.length === 0}
+											onclick={carouselNext}
+										>
+											<span
+												>{@html feather.icons['chevron-down'].toSvg({
+													width: 18,
+													height: 18
+												})}</span
+											>
+										</button>
+									</div>
 								</div>
 							{/if}
 						</div>
