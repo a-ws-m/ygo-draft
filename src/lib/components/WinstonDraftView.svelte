@@ -26,6 +26,7 @@
 					cube={draftStore.store.piles[draftStore.store.currentPileIndex]}
 					border={false}
 					showDescription={true}
+					preferredViewMode="carousel"
 				/>
 				<div class="mt-2 flex justify-between">
 					<button class="btn btn-success" onclick={handleAcceptPile}>Accept</button>

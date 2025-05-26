@@ -435,8 +435,24 @@
 
 	// Carousel derived values
 	const currentCard = $derived(filteredCube[carouselIndex] || null);
+	// Modify leftStack and rightStack calculations
 	const leftStack = $derived(filteredCube.slice(0, carouselIndex).reverse());
 	const rightStack = $derived(filteredCube.slice(carouselIndex + 1));
+
+	// Calculate center cards for carousel
+	const visibleCenterCards = $derived.by(() => {
+		if (!centerSectionElement || filteredCube.length === 0) return [];
+
+		const centerSectionWidth = centerSectionElement.clientWidth || 400;
+		const cardWidth = Math.min(271, centerSectionWidth - 32);
+		const cardSpacing = 16;
+		const cardsPerRow = Math.max(1, Math.floor(centerSectionWidth / (cardWidth + cardSpacing)));
+
+		// Always start from the current carousel index
+		const endIndex = Math.min(carouselIndex + cardsPerRow, filteredCube.length);
+
+		return filteredCube.slice(carouselIndex, endIndex);
+	});
 </script>
 
 <div class="relative space-y-4">
@@ -607,7 +623,7 @@
 				</div>
 			{:else if viewMode === 'carousel'}
 				<div class="flex h-full items-center justify-center">
-					<div class="flex w-full max-w-6xl items-center justify-between px-4">
+					<div class="flex w-full items-center justify-between px-4">
 						<!-- Left stack (viewed cards) -->
 						<div class="relative flex w-1/4 justify-center">
 							{#if leftStack.length > 0}
@@ -659,23 +675,12 @@
 						<!-- Center card (current focus) -->
 						<div class="relative flex w-2/4 justify-center" bind:this={centerSectionElement}>
 							{#if filteredCube.length > 0}
-								<!-- Calculate number of cards to display based on container width -->
+								<!-- Calculate card width based on container width -->
 								{@const centerSectionWidth = centerSectionElement?.clientWidth || 400}
 								{@const cardWidth = Math.min(271, centerSectionWidth - 32)}
-								<!-- Ensure card fits within available width -->
-								{@const cardSpacing = 16}
-								{@const cardsPerRow = Math.max(
-									1,
-									Math.floor(centerSectionWidth / (cardWidth + cardSpacing))
-								)}
-								{@const startIndex = Math.max(
-									0,
-									Math.min(carouselIndex, filteredCube.length - cardsPerRow)
-								)}
-								{@const visibleCards = filteredCube.slice(startIndex, startIndex + cardsPerRow)}
 
 								<div class="flex justify-center gap-4">
-									{#each visibleCards as card, idx}
+									{#each visibleCenterCards as card, idx}
 										<div class="relative flex flex-col items-center" style="width: {cardWidth}px;">
 											<button
 												class="card relative w-full transition-shadow hover:shadow-lg {clickable
