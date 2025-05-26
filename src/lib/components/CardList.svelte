@@ -6,6 +6,7 @@
 	import { onMount } from 'svelte';
 	import FuzzySearch from 'fuzzy-search';
 	import feather from 'feather-icons';
+	import { calculatePopupPosition } from '$lib/utils/cardPopupPositioning';
 
 	// Props using $props rune
 	const {
@@ -246,7 +247,13 @@
 	function handleMouseEnter(card, event) {
 		hoveredCard = card;
 
-		// Check if this is one of the visible cards in carousel view
+		// Use the shared positioning utility
+		const popupData = calculatePopupPosition(event);
+		popupPosition = popupData.position;
+		popupX = popupData.x;
+		popupY = popupData.y;
+
+		// Track hover state for carousel view
 		if (viewMode === 'carousel' && visibleCenterCards.includes(card)) {
 			isMiddleCardHovered = true;
 			lastHoverEvent = event;
@@ -255,83 +262,6 @@
 			hoveredCardPositionIndex = visibleCenterCards.indexOf(card);
 		} else {
 			isMiddleCardHovered = false;
-		}
-
-		const rect = event.target.getBoundingClientRect();
-
-		// Calculate available space in all directions
-		const spaceAbove = rect.top;
-		const spaceBelow = window.innerHeight - rect.bottom;
-		const spaceLeft = rect.left;
-		const spaceRight = window.innerWidth - rect.right;
-
-		// Estimated heights for different positions
-		// Vertical positions need more space (400px) than horizontal positions (200px)
-		const neededVerticalSpace = 400; // Approximate height needed for details in above/below positions
-		const neededHorizontalSpace = 200; // Approximate height needed for details in left/right positions
-
-		// Determine available positions based on space requirements
-		const availablePositions = [];
-
-		if (spaceAbove >= neededVerticalSpace)
-			availablePositions.push({ direction: 'above', space: spaceAbove });
-		if (spaceBelow >= neededVerticalSpace)
-			availablePositions.push({ direction: 'below', space: spaceBelow });
-
-		// For left/right positions, also check if we have enough vertical space (bottom of screen)
-		// We need to ensure the card details won't extend beyond bottom of viewport
-		const verticalCenterSpace = Math.min(
-			spaceBelow,
-			window.innerHeight - rect.top - rect.height / 2
-		);
-
-		if (spaceLeft >= 300 && verticalCenterSpace >= neededHorizontalSpace / 2) {
-			availablePositions.push({ direction: 'left', space: spaceLeft });
-		}
-		if (spaceRight >= 300 && verticalCenterSpace >= neededHorizontalSpace / 2) {
-			availablePositions.push({ direction: 'right', space: spaceRight });
-		}
-
-		// If no positions have enough space, get all possible positions with their available space
-		if (availablePositions.length === 0) {
-			// Add all directions with their available space
-			availablePositions.push({ direction: 'above', space: spaceAbove });
-			availablePositions.push({ direction: 'below', space: spaceBelow });
-			availablePositions.push({ direction: 'left', space: spaceLeft });
-			availablePositions.push({ direction: 'right', space: spaceRight });
-		}
-
-		// Sort by available space (descending) and select the best direction
-		popupPosition = availablePositions.sort((a, b) => b.space - a.space)[0].direction;
-
-		// Position based on selected direction
-		if (popupPosition === 'above') {
-			popupX = rect.left + rect.width / 2;
-			popupY = rect.top - 10;
-		} else if (popupPosition === 'below') {
-			popupX = rect.left + rect.width / 2;
-			popupY = rect.bottom + 10;
-		} else if (popupPosition === 'left') {
-			popupX = rect.left - 10;
-			popupY = rect.top + rect.height / 2;
-
-			// Ensure it doesn't go beyond bottom of screen by adjusting Y position if needed
-			const cardDetailsHeight = neededHorizontalSpace;
-			const bottomOverflow = popupY + cardDetailsHeight / 2 - window.innerHeight;
-			if (bottomOverflow > 0) {
-				popupY = Math.max(cardDetailsHeight / 2, popupY - bottomOverflow);
-			}
-		} else {
-			// right
-			popupX = rect.right + 10;
-			popupY = rect.top + rect.height / 2;
-
-			// Ensure it doesn't go beyond bottom of screen by adjusting Y position if needed
-			const cardDetailsHeight = neededHorizontalSpace;
-			const bottomOverflow = popupY + cardDetailsHeight / 2 - window.innerHeight;
-			if (bottomOverflow > 0) {
-				popupY = Math.max(cardDetailsHeight / 2, popupY - bottomOverflow);
-			}
 		}
 	}
 

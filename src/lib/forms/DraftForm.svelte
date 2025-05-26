@@ -15,6 +15,7 @@
 	let draftedDeckSize = $state(60); // New variable for drafted deck size
 	let numberOfPlayers = $state(2);
 	let numberOfPiles = $state(3);
+	let gridSize = $state(3); // New variable for grid draft
 	let packsPerRound = $state(1);
 	let packSize = $state(15);
 	let extraDeckAtEnd = $state(false); // Changed default to false
@@ -72,11 +73,22 @@
 	// Constants for limits
 	const MAX_POOL_SIZE = 1000;
 	const MAX_PLAYERS = 10;
+	const MAX_GRID_SIZE = 5; // Maximum grid size
+	const MIN_GRID_SIZE = 2; // Minimum grid size
 	const DAILY_DRAFT_LIMIT = 100; // Not used directly in UI but useful for reference
 	const TOOLTIP_FADE_DELAY = 100; // 500ms delay for tooltip fade-out
 
 	// Derived value for max drafted deck size
 	let maxDraftedDeckSize = $derived(Math.floor(MAX_POOL_SIZE / numberOfPlayers));
+
+	// Derived value for cards needed per grid draft round
+	let cardsPerGridRound = $derived(gridSize * gridSize);
+
+	// Derived value for total number of rounds in grid draft
+	let totalGridRounds = $derived(Math.floor(draftedDeckSize / gridSize));
+
+	// Derived value for total pool size needed for grid draft
+	let gridTotalPoolSize = $derived(totalGridRounds * cardsPerGridRound * numberOfPlayers);
 
 	// Functions to handle tooltip visibility with fade effect
 	function startTooltipFadeOut(tooltipType) {
@@ -140,7 +152,8 @@
 	// Draft method descriptions
 	const draftMethodDescriptions = {
 		winston: `In Winston Draft, players take turns choosing from a number of piles. If you accept a pile, you take all cards in it. If you decline, add another card to the pile from the deck and move to the next one. If you decline the final pile, you take the top card of the deck.`,
-		rochester: `In Rochester Draft, players pass a pack of cards in a circle, taking one card at a time, until no cards remain in the packs. Then, another pack is opened for each player, and the process continues until there are no cards left in the pool.`
+		rochester: `In Rochester Draft, players pass a pack of cards in a circle, taking one card at a time, until no cards remain in the packs. Then, another pack is opened for each player, and the process continues until there are no cards left in the pool.`,
+		grid: `In Grid Draft, cards are laid out in a square grid (default 3x3). On your turn, you choose to take either a row or a column of cards from the grid. The selected cards are added to your deck, and the row/column is replaced with new cards from the pool.`
 	};
 
 	function handleFileUpload(event: Event) {
@@ -258,14 +271,21 @@
 		}
 	}
 
+	// Modified validateOptions function to handle grid draft validation properly
 	function validateOptions() {
 		optionErrorMessage = '';
 		showUnevenPoolWarning = false; // Reset the warning flag
 
 		// First check database limits
-		if (draftMethod === 'rochester') {
+		if (draftMethod === 'rochester' || draftMethod === 'grid') {
 			// For Rochester, calculate pool size from drafted deck size
-			poolSize = draftedDeckSize * numberOfPlayers;
+			if (draftMethod === 'rochester') {
+				poolSize = draftedDeckSize * numberOfPlayers;
+			}
+			// For Grid, calculate pool size based on rounds needed
+			else if (draftMethod === 'grid') {
+				poolSize = gridTotalPoolSize;
+			}
 		}
 
 		if (poolSize > MAX_POOL_SIZE) {
@@ -315,6 +335,33 @@
 			if (poolSize < numberOfPiles) {
 				optionErrorMessage = 'Pool size must be at least equal to the number of piles.';
 			}
+		} else if (draftMethod === 'grid') {
+			// Grid draft specific validations
+			if (gridSize < MIN_GRID_SIZE || gridSize > MAX_GRID_SIZE) {
+				optionErrorMessage = `Grid size must be between ${MIN_GRID_SIZE} and ${MAX_GRID_SIZE}.`;
+				return;
+			}
+
+			// Check if drafted deck size is divisible by grid size (each player gets grid-size cards per turn)
+			if (draftedDeckSize % gridSize !== 0) {
+				optionErrorMessage = `Drafted deck size (${draftedDeckSize}) must be divisible by grid size (${gridSize}).`;
+				return;
+			}
+
+			// Calculate total cards needed for all grid rounds
+			const totalCardsNeeded = gridTotalPoolSize;
+
+			// Check if total pool has enough cards for all rounds
+			if (poolSize < totalCardsNeeded) {
+				optionErrorMessage = `Pool needs at least ${totalCardsNeeded} cards for all players to draft ${draftedDeckSize} cards each using ${gridSize}×${gridSize} grids.`;
+				return;
+			}
+
+			// Check if the cube has enough cards
+			if (totalCards < totalCardsNeeded) {
+				optionErrorMessage = `Not enough cards in the cube. Need at least ${totalCardsNeeded} cards for all players to draft ${draftedDeckSize} cards each.`;
+				return;
+			}
 		}
 	}
 
@@ -324,9 +371,11 @@
 		isProcessing = true;
 
 		try {
-			// For Rochester draft, ensure pool size is calculated from drafted deck size
+			// For Rochester and Grid drafts, ensure pool size is correctly calculated
 			if (draftMethod === 'rochester') {
 				poolSize = draftedDeckSize * numberOfPlayers;
+			} else if (draftMethod === 'grid') {
+				poolSize = gridTotalPoolSize;
 			}
 
 			// Ensure all necessary data is included in the draft creation
@@ -335,18 +384,18 @@
 				poolSize,
 				numberOfPlayers,
 				cube.map((card) => ({
-					id: card.id, // Add the id field which is required for card_id
+					id: card.id,
 					name: card.name,
 					quantity: card.quantity,
 					type: card.type,
 					apiData: card.apiData,
 					imageUrl: card.imageUrl,
 					smallImageUrl: card.smallImageUrl,
-					custom_rarity: card?.custom_rarity // Include custom rarity if available
+					custom_rarity: card?.custom_rarity
 				})),
-				draftMethod === 'winston' ? numberOfPiles : 3,
+				draftMethod === 'winston' ? numberOfPiles : draftMethod === 'grid' ? gridSize : 3,
 				draftMethod === 'rochester' ? packSize : 5,
-				extraDeckAtEnd, // Pass the extra deck option to createDraft
+				extraDeckAtEnd, // Grid draft can also use the extra deck at end option
 				draftMethod === 'rochester' && useRarityDistribution
 					? {
 							commonPerPack,
@@ -363,13 +412,15 @@
 				JSON.stringify({
 					draftMethod,
 					poolSize,
-					draftedDeckSize: draftMethod === 'rochester' ? draftedDeckSize : undefined,
+					draftedDeckSize:
+						draftMethod === 'rochester' || draftMethod === 'grid' ? draftedDeckSize : undefined,
 					numberOfPlayers,
 					numberOfPiles: draftMethod === 'winston' ? numberOfPiles : undefined,
+					gridSize: draftMethod === 'grid' ? gridSize : undefined,
 					packsPerRound: draftMethod === 'rochester' ? packsPerRound : undefined,
 					packSize: draftMethod === 'rochester' ? packSize : undefined,
-					extraDeckAtEnd, // Include in saved settings
-					useRarityDistribution, // Include rarity distribution settings
+					extraDeckAtEnd,
+					useRarityDistribution,
 					raritySettings: useRarityDistribution
 						? {
 								commonPerPack,
@@ -524,9 +575,13 @@
 								<strong>Rochester Draft:</strong>
 								{draftMethodDescriptions.rochester}
 							</p>
-							<p class="text-base-content/70 mb-2 text-xs">
+							<p class="text-base-content/70 text-xs">
 								<strong>Winston Draft:</strong>
 								{draftMethodDescriptions.winston}
+							</p>
+							<p class="text-base-content/70 mb-2 text-xs">
+								<strong>Grid Draft:</strong>
+								{draftMethodDescriptions.grid}
 							</p>
 						</div>
 					{/if}
@@ -540,11 +595,12 @@
 			>
 				<option value="rochester">Rochester Draft</option>
 				<option value="winston">Winston Draft</option>
+				<option value="grid">Grid Draft</option>
 			</select>
 		</div>
 
 		<!-- Pool Size -->
-		{#if draftMethod === 'rochester'}
+		{#if draftMethod === 'rochester' || draftMethod === 'grid'}
 			<div>
 				<label for="drafted-deck-size" class="text-base-content mb-1 block text-sm font-medium">
 					Drafted deck size <span class="text-base-content/60 text-xs"
@@ -560,9 +616,16 @@
 					oninput={validateOptions}
 					class="input input-bordered w-full"
 				/>
-				<p class="text-base-content/60 mt-1 text-sm">
-					Total pool size: {draftedDeckSize * numberOfPlayers} cards
-				</p>
+				{#if draftMethod === 'rochester'}
+					<p class="text-base-content/60 mt-1 text-sm">
+						Total pool size: {draftedDeckSize * numberOfPlayers} cards
+					</p>
+				{:else if draftMethod === 'grid'}
+					<p class="text-base-content/60 mt-1 text-sm">
+						Total pool size: {gridTotalPoolSize} cards ({cardsPerGridRound} cards per grid × {totalGridRounds}
+						rounds × {numberOfPlayers} players)
+					</p>
+				{/if}
 			</div>
 		{:else}
 			<div>
@@ -718,6 +781,29 @@
 					oninput={validateOptions}
 					class="input input-bordered w-full"
 				/>
+			</div>
+		{:else if draftMethod === 'grid'}
+			<div>
+				<label for="grid-size" class="text-base-content mb-1 block text-sm font-medium">
+					Grid Size <span class="text-base-content/60 text-xs"
+						>({MIN_GRID_SIZE}-{MAX_GRID_SIZE})</span
+					>
+				</label>
+				<input
+					type="number"
+					id="grid-size"
+					bind:value={gridSize}
+					min={MIN_GRID_SIZE}
+					max={MAX_GRID_SIZE}
+					oninput={validateOptions}
+					class="input input-bordered w-full"
+				/>
+				<p class="text-base-content/60 mt-1 text-sm">
+					{gridSize}×{gridSize} grid ({cardsPerGridRound} cards per grid)
+				</p>
+				<p class="text-base-content/60 mt-1 text-sm">
+					Each player will get {gridSize} cards per turn, for {totalGridRounds} turns
+				</p>
 			</div>
 		{/if}
 

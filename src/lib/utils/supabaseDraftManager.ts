@@ -127,8 +127,8 @@ export async function createDraft(
         // Limit to the specified pool size
         let limitedCube = processedCube.slice(0, poolSize);
 
-        // Handle extra deck cards
-        if (extraDeckAtEnd) {
+        // Handle extra deck cards for both Rochester and Grid draft
+        if (extraDeckAtEnd && (draftMethod === 'rochester' || draftMethod === 'grid')) {
             // Separate main deck and extra deck cards
             const mainDeckCards = [];
             const extraDeckCards = [];
@@ -143,6 +143,7 @@ export async function createDraft(
 
             // Combine them with extra deck at the end
             limitedCube = [...mainDeckCards, ...extraDeckCards];
+            console.log(`Rearranged ${extraDeckCards.length} extra deck cards to end of pool for ${draftMethod} draft.`);
         }
 
         // Assign shuffled indexes to the cards
@@ -157,7 +158,7 @@ export async function createDraft(
         const { error: cubeError } = await supabase.from("cubes").insert(cubeWithIndexes);
         if (cubeError) throw cubeError;
 
-        console.log("Draft and cube successfully created in the database.");
+        console.log(`Draft and cube successfully created in the database for ${draftMethod} draft with ${poolSize} cards.`);
         return draft.id;
     } catch (error) {
         console.error("Error creating draft:", error);

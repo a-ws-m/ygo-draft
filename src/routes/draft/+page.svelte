@@ -6,6 +6,7 @@
 	import CardList from '$lib/components/CardList.svelte';
 	import RochesterDraftView from '$lib/components/RochesterDraftView.svelte';
 	import WinstonDraftView from '$lib/components/WinstonDraftView.svelte';
+	import GridDraftView from '$lib/components/GridDraftView.svelte';
 	import RulesModal from '$lib/components/RulesModal.svelte';
 	import LoginPrompt from '$lib/components/LoginPrompt.svelte';
 	import * as draftStore from '$lib/stores/draftStore.svelte';
@@ -177,6 +178,11 @@
 		channel.on('broadcast', { event: 'packs-rotated' }, async (broadcast) => {
 			console.log('Packs rotated broadcast received:', broadcast);
 			await handleDraftBroadcast('packs-rotated', broadcast.payload);
+		});
+
+		channel.on('broadcast', { event: 'grid-selection' }, async (broadcast) => {
+			console.log('Grid selection broadcast received:', broadcast);
+			await handleDraftBroadcast('grid-selection', broadcast.payload);
 		});
 	}
 
@@ -399,6 +405,10 @@
 		{:else if draftStore.store.draftMethod === 'rochester'}
 			<div class="flex-1 p-6">
 				<RochesterDraftView />
+			</div>
+		{:else if draftStore.store.draftMethod === 'grid'}
+			<div class="flex-1 p-6">
+				<GridDraftView />
 			</div>
 		{:else}
 			<div class="flex w-full flex-row p-4">

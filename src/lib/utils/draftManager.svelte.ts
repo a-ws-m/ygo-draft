@@ -13,7 +13,8 @@ export async function initializeDraft() {
     return await strategy.initialize();
 }
 
-export async function handleCardSelection(cardIndex: number) {
+// Update the parameter type to be more flexible - accept either a number or a selection object
+export async function handleCardSelection(cardIndex: number | { selectionType: 'row' | 'column', index: number }) {
     const { store } = draftStore;
 
     if (!store.draftStrategy) {
@@ -114,6 +115,24 @@ export async function handleDraftBroadcast(event: string, payload: any) {
                         // Player has an empty pack in the final round - they are finished
                         store.playerFinished = true;
                     }
+                }
+            }
+            break;
+
+        case 'grid-selection':
+            // Grid-specific event
+            if (store.draftMethod === 'grid') {
+                const { player, selectionType, index, grid, isDraftFinished } = payload;
+                
+                // Update the grid
+                store.grid = grid;
+                
+                // Update the current player
+                store.currentPlayer = player;
+                
+                // Check if the draft is finished
+                if (isDraftFinished) {
+                    store.allFinished = true;
                 }
             }
             break;

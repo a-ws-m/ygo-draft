@@ -1,10 +1,10 @@
 import * as draftStore from '$lib/stores/draftStore.svelte';
-import { handleAcceptPile, handleDeclineCurrentPile } from './winstonDraftLogic';
+import { handleAcceptPile, handleDeclineCurrentPile, finishDraft } from './winstonDraftLogic';
 import { fetchCubeWithCardData } from '$lib/services/cardService';
 
 export interface DraftStrategy {
     initialize(): Promise<boolean>;
-    handlePickCard(cardIndex: number): Promise<void>;
+    handlePickCard(cardIndex: number | any): Promise<void>;
     handleDeclineOption?(): Promise<void>; // Optional method for Winston
     canDecline?(): boolean; // Optional check for Winston
 }
@@ -285,6 +285,146 @@ export class RochesterDraftStrategy implements DraftStrategy {
     }
 }
 
+// Grid Draft Implementation
+export class GridDraftStrategy implements DraftStrategy {
+    async initialize(): Promise<boolean> {
+        const { store } = draftStore;
+
+        try {
+            // Fetch cards using the cardService
+            const { cube, error } = await fetchCubeWithCardData(store.draftId);
+
+            if (error) {
+                console.error('Error fetching cards for Grid draft:', error);
+                return false;
+            }
+
+            // Filter cards that don't have an owner
+            const availableCards = cube.filter(card => !card.owner);
+
+            // Initialize the deck with the fetched cards
+            store.deck = availableCards;
+
+            // Calculate the grid size (stored in numberOfPiles)
+            const gridSize = store.numberOfPiles || 3;
+
+            // Initialize the grid with cards
+            await this.initializeGrid(gridSize);
+
+            // Initialize round and turn tracking
+            store.currentRound = 0;
+            store.currentPlayer = 0; // First player starts
+
+            return true;
+        } catch (error) {
+            console.error('Error initializing Grid draft:', error);
+            return false;
+        }
+    }
+
+    private async initializeGrid(gridSize: number): Promise<void> {
+        const { store } = draftStore;
+        
+        // Create a 2D array for the grid
+        const grid = Array.from({ length: gridSize }, () => 
+            Array.from({ length: gridSize }, () => null)
+        );
+        
+        // Fill the grid with cards from the deck
+        for (let row = 0; row < gridSize; row++) {
+            for (let col = 0; col < gridSize; col++) {
+                if (store.deck.length > 0) {
+                    grid[row][col] = store.deck.shift();
+                }
+            }
+        }
+        
+        // Store the grid in the store
+        store.grid = grid;
+    }
+
+    async handlePickCard(selection: { selectionType: 'row' | 'column', index: number }): Promise<void> {
+        const { store } = draftStore;
+        const { selectionType, index } = selection;
+        const gridSize = store.numberOfPiles || 3;
+        
+        // Get the selected cards
+        const selectedCards = [];
+        
+        if (selectionType === 'row') {
+            // Get all cards from the selected row
+            selectedCards.push(...store.grid[index].filter(card => card));
+            
+            // Clear the selected row
+            for (let col = 0; col < gridSize; col++) {
+                store.grid[index][col] = null;
+            }
+        } else if (selectionType === 'column') {
+            // Get all cards from the selected column
+            for (let row = 0; row < gridSize; row++) {
+                if (store.grid[row][index]) {
+                    selectedCards.push(store.grid[row][index]);
+                    store.grid[row][index] = null;
+                }
+            }
+        }
+        
+        // Add the selected cards to the player's drafted deck
+        draftStore.addToDraftedDeck(selectedCards);
+        
+        // Refill the grid if possible
+        await this.refillGrid();
+        
+        // Move to the next player
+        await this.moveToNextPlayer(selectionType, index);
+    }
+    
+    private async refillGrid(): Promise<void> {
+        const { store } = draftStore;
+        const gridSize = store.numberOfPiles || 3;
+        
+        // Fill empty spots with cards from the deck
+        for (let row = 0; row < gridSize; row++) {
+            for (let col = 0; col < gridSize; col++) {
+                if (!store.grid[row][col] && store.deck.length > 0) {
+                    store.grid[row][col] = store.deck.shift();
+                }
+            }
+        }
+    }
+    
+    private async moveToNextPlayer(selectionType: 'row' | 'column', index: number): Promise<void> {
+        const { store } = draftStore;
+        
+        // Check if the grid is empty or if we've run out of cards
+        const isGridEmpty = store.grid.every(row => row.every(cell => cell === null));
+        const isDeckEmpty = store.deck.length === 0;
+        
+        if (isGridEmpty && isDeckEmpty) {
+            // Draft is finished
+            await finishDraft();
+            return;
+        }
+        
+        // Move to the next player
+        const nextPlayer = (store.currentPlayer + 1) % store.numberOfPlayers;
+        store.currentPlayer = nextPlayer;
+        
+        // Broadcast the selection and next player
+        await store.channel.send({
+            type: 'broadcast',
+            event: 'grid-selection',
+            payload: {
+                player: store.currentPlayer,
+                selectionType,
+                index,
+                grid: store.grid,
+                isDraftFinished: isGridEmpty && isDeckEmpty
+            }
+        });
+    }
+}
+
 // Factory function to create the appropriate strategy
 export function createDraftStrategy(draftMethod: string): DraftStrategy {
     switch (draftMethod.toLowerCase()) {
@@ -292,6 +432,8 @@ export function createDraftStrategy(draftMethod: string): DraftStrategy {
             return new WinstonDraftStrategy();
         case 'rochester':
             return new RochesterDraftStrategy();
+        case 'grid':
+            return new GridDraftStrategy();
         default:
             throw new Error(`Unsupported draft method: ${draftMethod}`);
     }
