@@ -591,7 +591,12 @@
 							{#if leftStack.length > 0}
 								<div class="stack stack-start max-w-[180px]">
 									{#each leftStack.slice(0, 3) as card, idx}
-										<div class="card bg-base-100 cursor-pointer" onclick={carouselPrev}>
+										<button
+											type="button"
+											class="card bg-base-100 cursor-pointer"
+											onclick={carouselPrev}
+											onkeydown={(e) => e.key === 'Enter' && carouselPrev()}
+										>
 											<div class="aspect-[813/1185] w-full max-w-[180px]">
 												{#await getCardImage(card, true)}
 													<div class="skeleton absolute inset-0"></div>
@@ -613,7 +618,7 @@
 													</div>
 												{/await}
 											</div>
-										</div>
+										</button>
 									{/each}
 								</div>
 								{#if leftStack.length > 3}
@@ -703,7 +708,12 @@
 							{#if rightStack.length > 0}
 								<div class="stack stack-end max-w-[180px]">
 									{#each rightStack.slice(0, 3) as card, idx}
-										<div class="card bg-base-100 cursor-pointer" onclick={carouselNext}>
+										<button
+											type="button"
+											class="card bg-base-100 cursor-pointer"
+											onclick={carouselNext}
+											onkeydown={(e) => e.key === 'Enter' && carouselNext()}
+										>
 											<div class="aspect-[813/1185] w-full max-w-[180px]">
 												{#await getCardImage(card, true)}
 													<div class="skeleton absolute inset-0"></div>
@@ -725,7 +735,7 @@
 													</div>
 												{/await}
 											</div>
-										</div>
+										</button>
 									{/each}
 								</div>
 								{#if rightStack.length > 3}
