@@ -63,6 +63,8 @@
 	// Add a state variable to track if middle card is being hovered
 	let isMiddleCardHovered = $state(false);
 	let lastHoverEvent = $state(null);
+	// Track the index of the hovered card in the visibleCenterCards array
+	let hoveredCardPositionIndex = $state(-1);
 
 	let centerSectionElement = $state(null);
 
@@ -189,10 +191,14 @@
 	$effect(() => {
 		// If we're hovering the middle card and the carousel index changes,
 		// we need to update the hoveredCard
-		if (isMiddleCardHovered && currentCard && lastHoverEvent) {
-			hoveredCard = currentCard;
-			// Recalculate popup position with the last hover event
-			handleMouseEnter(currentCard, lastHoverEvent);
+		if (isMiddleCardHovered && visibleCenterCards.length > 0 && lastHoverEvent) {
+			// Update the hovered card to the card at the same position in the new visibleCenterCards array
+			if (hoveredCardPositionIndex >= 0 && hoveredCardPositionIndex < visibleCenterCards.length) {
+				// Update to the card that's now at the same position
+				hoveredCard = visibleCenterCards[hoveredCardPositionIndex];
+				// Recalculate popup position with the last hover event
+				handleMouseEnter(hoveredCard, lastHoverEvent);
+			}
 		}
 	});
 
@@ -240,10 +246,13 @@
 	function handleMouseEnter(card, event) {
 		hoveredCard = card;
 
-		// Check if this is the middle card in carousel view
-		if (viewMode === 'carousel' && card === currentCard) {
+		// Check if this is one of the visible cards in carousel view
+		if (viewMode === 'carousel' && visibleCenterCards.includes(card)) {
 			isMiddleCardHovered = true;
 			lastHoverEvent = event;
+
+			// Store the index position within visibleCenterCards for tracking
+			hoveredCardPositionIndex = visibleCenterCards.indexOf(card);
 		} else {
 			isMiddleCardHovered = false;
 		}
