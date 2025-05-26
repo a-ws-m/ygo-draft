@@ -324,12 +324,12 @@ export class GridDraftStrategy implements DraftStrategy {
 
     private async initializeGrid(gridSize: number): Promise<void> {
         const { store } = draftStore;
-        
+
         // Create a 2D array for the grid
-        const grid = Array.from({ length: gridSize }, () => 
+        const grid = Array.from({ length: gridSize }, () =>
             Array.from({ length: gridSize }, () => null)
         );
-        
+
         // Fill the grid with cards from the deck
         for (let row = 0; row < gridSize; row++) {
             for (let col = 0; col < gridSize; col++) {
@@ -338,7 +338,7 @@ export class GridDraftStrategy implements DraftStrategy {
                 }
             }
         }
-        
+
         // Store the grid in the store
         store.grid = grid;
     }
@@ -347,14 +347,14 @@ export class GridDraftStrategy implements DraftStrategy {
         const { store } = draftStore;
         const { selectionType, index } = selection;
         const gridSize = store.numberOfPiles || 3;
-        
+
         // Get the selected cards
         const selectedCards = [];
-        
+
         if (selectionType === 'row') {
             // Get all cards from the selected row
             selectedCards.push(...store.grid[index].filter(card => card));
-            
+
             // Clear the selected row
             for (let col = 0; col < gridSize; col++) {
                 store.grid[index][col] = null;
@@ -368,21 +368,21 @@ export class GridDraftStrategy implements DraftStrategy {
                 }
             }
         }
-        
+
         // Add the selected cards to the player's drafted deck
         draftStore.addToDraftedDeck(selectedCards);
-        
+
         // Refill the grid if possible
         await this.refillGrid();
-        
+
         // Move to the next player
         await this.moveToNextPlayer(selectionType, index);
     }
-    
+
     private async refillGrid(): Promise<void> {
         const { store } = draftStore;
         const gridSize = store.numberOfPiles || 3;
-        
+
         // Fill empty spots with cards from the deck
         for (let row = 0; row < gridSize; row++) {
             for (let col = 0; col < gridSize; col++) {
@@ -392,25 +392,54 @@ export class GridDraftStrategy implements DraftStrategy {
             }
         }
     }
-    
+
     private async moveToNextPlayer(selectionType: 'row' | 'column', index: number): Promise<void> {
         const { store } = draftStore;
-        
-        // Check if the grid is empty or if we've run out of cards
-        const isGridEmpty = store.grid.every(row => row.every(cell => cell === null));
-        const isDeckEmpty = store.deck.length === 0;
-        
-        if (isGridEmpty && isDeckEmpty) {
-            // Draft is finished
+
+        // Check if the current player has completed their draft (reached their target deck size)
+        const currentPlayerIndex = store.participants.indexOf(store.userId);
+        const playerDraftedCards = store.draftedDeck.length;
+
+        // Use the stored draftedDeckSize value instead of hardcoded value
+        const targetDeckSize = store.draftedDeckSize || 60; // Default to 60 if not specified
+
+        // Check if current player has completed their draft
+        const hasCompletedDraft = playerDraftedCards >= targetDeckSize;
+
+        // Track completed players in an array if it doesn't exist
+        if (!store.completedPlayers) {
+            store.completedPlayers = [];
+        }
+
+        // Add current player to completed list if they've reached target size
+        if (hasCompletedDraft && !store.completedPlayers.includes(currentPlayerIndex)) {
+            store.completedPlayers.push(currentPlayerIndex);
+        }
+
+        // Check if all players have completed their draft
+        const allPlayersCompleted = store.completedPlayers.length === store.numberOfPlayers;
+
+        if (allPlayersCompleted) {
+            // All players have reached their target deck size - draft is finished
             await finishDraft();
             return;
         }
-        
-        // Move to the next player
-        const nextPlayer = (store.currentPlayer + 1) % store.numberOfPlayers;
+
+        // Move to the next player (skip completed players)
+        let nextPlayer = (store.currentPlayer + 1) % store.numberOfPlayers;
+
+        // Skip players who have already completed their draft
+        // Fix: directly check if nextPlayer is in completedPlayers
+        while (store.completedPlayers.includes(nextPlayer) && !allPlayersCompleted) {
+            nextPlayer = (nextPlayer + 1) % store.numberOfPlayers;
+        }
+
         store.currentPlayer = nextPlayer;
-        
-        // Broadcast the selection and next player
+
+        // Set flag to indicate if current player has finished
+        store.playerFinished = hasCompletedDraft;
+
+        // Broadcast only the selection information, not the grid
         await store.channel.send({
             type: 'broadcast',
             event: 'grid-selection',
@@ -418,8 +447,8 @@ export class GridDraftStrategy implements DraftStrategy {
                 player: store.currentPlayer,
                 selectionType,
                 index,
-                grid: store.grid,
-                isDraftFinished: isGridEmpty && isDeckEmpty
+                isDraftFinished: allPlayersCompleted,
+                completedPlayers: store.completedPlayers
             }
         });
     }

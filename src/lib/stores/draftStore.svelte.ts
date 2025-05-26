@@ -21,6 +21,11 @@ export const store = $state({
     allFinished: false,
     lastAcceptedPile: null,
     playerFinished: false, // Added flag for individual player completion
+    draftedDeckSize: 0, // Add this field to track target deck size per player
+
+    // Grid draft specific fields
+    grid: [],            // Grid for the grid draft method
+    completedPlayers: [], // Track players who have completed their drafts
 
     // Rochester draft specific fields
     rounds: [],            // Array of rounds, each containing packs
@@ -39,7 +44,7 @@ export function initializeDraft(data) {
     store.numberOfPlayers = data.numberOfPlayers;
     store.numberOfPiles = data.numberOfPiles || 3;
     store.packSize = data.packSize || 15;
-    
+
     // Set optional properties if provided
     if (data.participants) store.participants = data.participants;
     if (data.connectedUsers !== undefined) store.connectedUsers = data.connectedUsers;
@@ -51,13 +56,14 @@ export function initializeDraft(data) {
     if (data.draftedDeck) store.draftedDeck = data.draftedDeck;
     if (data.allFinished !== undefined) store.allFinished = data.allFinished;
     if (data.playerFinished !== undefined) store.playerFinished = data.playerFinished;
-    
+    if (data.draftedDeckSize) store.draftedDeckSize = data.draftedDeckSize;
+
     // Rochester specific fields
     if (data.rounds) store.rounds = data.rounds;
     if (data.currentRound !== undefined) store.currentRound = data.currentRound;
     if (data.currentPackIndex) store.currentPackIndex = data.currentPackIndex;
     if (data.draftStrategy) store.draftStrategy = data.draftStrategy;
-    
+
     console.log('Draft store initialized with data:', data);
     return store;
 }
@@ -75,7 +81,7 @@ export function resetDraftStore() {
         store.channel.unsubscribe();
         store.channel = null;
     }
-    
+
     // Reset all store properties
     store.draftId = '';
     store.connectedUsers = 0;
@@ -101,7 +107,12 @@ export function resetDraftStore() {
     store.selectedPlayers = [];
     store.draftStrategy = null;
     store.hasSelected = false;
-    
+    store.draftedDeckSize = 0;
+
+    // Grid draft specific properties
+    store.grid = [];
+    store.completedPlayers = [];
+
     // Keep userId as it's related to the logged-in user, not the draft
     // store.userId = '';
 }

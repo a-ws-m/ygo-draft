@@ -6,6 +6,7 @@
 	import CardList from '$lib/components/CardList.svelte';
 	import feather from 'feather-icons';
 	import { calculatePopupPosition } from '$lib/utils/cardPopupPositioning';
+	import { store } from '$lib/stores/authStore.svelte';
 
 	// Track whether the current player's turn is active
 	let isMyTurn = $derived(
@@ -131,6 +132,8 @@
 			(selectionType === 'column' && colIndex === selectedCol)
 		);
 	}
+
+	$inspect(draftStore.store.deck, 'draftStore.store.deck');
 </script>
 
 <div class="flex flex-col gap-6 md:flex-row">

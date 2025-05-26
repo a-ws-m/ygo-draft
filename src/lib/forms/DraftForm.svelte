@@ -82,13 +82,16 @@
 	let maxDraftedDeckSize = $derived(Math.floor(MAX_POOL_SIZE / numberOfPlayers));
 
 	// Derived value for cards needed per grid draft round
-	let cardsPerGridRound = $derived(gridSize * gridSize);
+	let cardsPerGridRound = $derived(gridSize);
+	let initialGridCards = $derived(gridSize * gridSize);
 
 	// Derived value for total number of rounds in grid draft
 	let totalGridRounds = $derived(Math.floor(draftedDeckSize / gridSize));
 
 	// Derived value for total pool size needed for grid draft
-	let gridTotalPoolSize = $derived(totalGridRounds * cardsPerGridRound * numberOfPlayers);
+	let gridTotalPoolSize = $derived(
+		initialGridCards + totalGridRounds * cardsPerGridRound * numberOfPlayers
+	);
 
 	// Functions to handle tooltip visibility with fade effect
 	function startTooltipFadeOut(tooltipType) {
@@ -403,7 +406,8 @@
 							superRarePerPack,
 							ultraRarePerPack
 						}
-					: null
+					: null,
+				draftMethod === 'grid' || draftMethod === 'rochester' ? draftedDeckSize : undefined
 			);
 
 			// Store draft settings in sessionStorage for additional backup
@@ -622,7 +626,8 @@
 					</p>
 				{:else if draftMethod === 'grid'}
 					<p class="text-base-content/60 mt-1 text-sm">
-						Total pool size: {gridTotalPoolSize} cards ({cardsPerGridRound} cards per grid × {totalGridRounds}
+						Total pool size: {gridTotalPoolSize} cards ({initialGridCards} initial grid cards + {cardsPerGridRound}
+						cards × {totalGridRounds}
 						rounds × {numberOfPlayers} players)
 					</p>
 				{/if}

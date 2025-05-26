@@ -78,7 +78,9 @@
 				connectedUsers: draft.connected_users,
 				numberOfPiles: draft.number_of_piles || 3,
 				packSize: draft.pack_size || 15,
-				draftStarted: draft.status === 'active'
+				draftStarted: draft.status === 'active',
+				draftedDeckSize:
+					draft.drafted_deck_size || Math.floor(draft.pool_size / draft.number_of_players) // Use drafted_deck_size or calculate it
 			};
 
 			draftStore.initializeDraft(draftInfo);
