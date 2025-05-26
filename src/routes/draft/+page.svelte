@@ -1,15 +1,14 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { supabase } from '$lib/supabaseClient';
-	import { handleAcceptPile, handleDeclineCurrentPile } from '$lib/utils/winstonDraftLogic';
 	import { initializeDraft, handleDraftBroadcast } from '$lib/utils/draftManager.svelte';
 	import { startDraftInDB } from '$lib/utils/supabaseDraftManager';
 	import CardList from '$lib/components/CardList.svelte';
 	import RochesterDraftView from '$lib/components/RochesterDraftView.svelte';
+	import WinstonDraftView from '$lib/components/WinstonDraftView.svelte';
 	import RulesModal from '$lib/components/RulesModal.svelte';
 	import LoginPrompt from '$lib/components/LoginPrompt.svelte';
 	import * as draftStore from '$lib/stores/draftStore.svelte';
-	import { canPlayerDeclineCurrentOption } from '$lib/utils/draftManager.svelte';
 	import { store as authStore } from '$lib/stores/authStore.svelte';
 	import feather from 'feather-icons';
 
@@ -22,26 +21,6 @@
 	let showRulesModal = $state(false);
 	let linkCopied = $state(false);
 	let shareableUrl = $state('');
-
-	let isActivePlayer = $derived.by(() => {
-		if (
-			!draftStore.store.participants ||
-			!draftStore.store.userId ||
-			!draftStore.store.draftStarted
-		)
-			return false;
-		return (
-			draftStore.store.currentPlayer ===
-			draftStore.store.participants.indexOf(draftStore.store.userId)
-		);
-	});
-
-	let canDecline = $derived.by(() => {
-		if (draftStore.store.draftMethod === 'winston') {
-			return canPlayerDeclineCurrentOption();
-		}
-		return false;
-	});
 
 	function toggleRulesModal() {
 		showRulesModal = !showRulesModal;
@@ -416,81 +395,7 @@
 				</div>
 			</div>
 		{:else if draftStore.store.draftMethod === 'winston'}
-			<div class="flex flex-col gap-4 p-6 lg:flex-row">
-				<div class="border-base-300 flex-1 overflow-y-auto lg:border-r lg:pr-4">
-					{#if isActivePlayer}
-						<div class="mb-4">
-							<div class="flex items-center space-x-3 p-0.5">
-								{#each draftStore.store.piles as pile, index}
-									<div class="relative">
-										<div
-											class={`flex h-10 w-10 items-center justify-center rounded-md text-sm font-medium ${
-												index === draftStore.store.currentPileIndex
-													? 'bg-primary text-primary-content'
-													: 'bg-base-300 text-base-content'
-											} overflow-visible`}
-											title={`Pile ${index + 1}: ${pile.length} cards${draftStore.store.lastAcceptedPile === index ? ' (Last Accepted)' : ''}`}
-										>
-											{pile.length}
-										</div>
-									</div>
-								{/each}
-								<div class="badge badge-lg">
-									<span class="mr-1">Deck:</span>
-									{draftStore.store.deck?.length || 0}
-								</div>
-								{#if draftStore.store.lastAcceptedPile !== null}
-									<div class="badge badge-lg">
-										<span class="mr-1">Last Accepted:</span>
-										{draftStore.store.lastAcceptedPile == draftStore.store.numberOfPiles
-											? 'Deck'
-											: draftStore.store.lastAcceptedPile + 1}
-									</div>
-								{/if}
-							</div>
-						</div>
-
-						{#if draftStore.store.piles.length > draftStore.store.currentPileIndex}
-							<CardList
-								cube={draftStore.store.piles[draftStore.store.currentPileIndex]}
-								border={false}
-								showDescription={true}
-							/>
-							<div class="mt-2 flex justify-between">
-								<button class="btn btn-success" onclick={handleAcceptPile}> Accept </button>
-								{#if canDecline}
-									<button class="btn btn-error" onclick={handleDeclineCurrentPile}>
-										Decline
-									</button>
-								{/if}
-							</div>
-						{:else}
-							<p class="text-base-content opacity-70">Loading pile data...</p>
-						{/if}
-					{:else}
-						<div class="alert">
-							<div class="flex-none">
-								{@html feather.icons.clock.toSvg()}
-							</div>
-							<span>Waiting for the current player...</span>
-						</div>
-					{/if}
-				</div>
-
-				<div class="mt-4 w-full lg:mt-0 lg:w-1/4 lg:pl-4">
-					<div class="card bg-base-100 shadow-lg">
-						<div class="card-body">
-							<h2 class="card-title">Your Drafted Deck</h2>
-							<CardList
-								cube={draftStore.store.draftedDeck}
-								border={true}
-								showYdkDownload={true}
-								showChart={true}
-							/>
-						</div>
-					</div>
-				</div>
-			</div>
+			<WinstonDraftView />
 		{:else if draftStore.store.draftMethod === 'rochester'}
 			<div class="flex-1 p-6">
 				<RochesterDraftView />
