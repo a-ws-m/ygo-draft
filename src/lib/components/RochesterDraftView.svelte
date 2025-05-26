@@ -107,6 +107,7 @@
 							showDescription={true}
 							clickable={!draftStore.store.hasSelected}
 							onCardClick={selectCard}
+							preferredViewMode="carousel"
 						/>
 					</div>
 				{:else if !draftStore.store.allFinished}

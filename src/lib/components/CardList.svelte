@@ -15,7 +15,8 @@
 		showDescription = false,
 		showChart = false,
 		clickable = false,
-		onCardClick = undefined
+		onCardClick = undefined,
+		preferredViewMode = 'tile'
 	} = $props<{
 		cube: any[];
 		border?: boolean;
@@ -24,10 +25,11 @@
 		showChart?: boolean;
 		clickable?: boolean;
 		onCardClick?: (index: number) => void;
+		preferredViewMode?: 'list' | 'tile' | 'carousel';
 	}>();
 
 	// Reactive state
-	let viewMode = $state<'list' | 'tile' | 'carousel'>('tile'); // Changed from isListView to viewMode
+	let viewMode = $state<'list' | 'tile' | 'carousel'>(preferredViewMode); // Initialize with preferred mode
 	let hoveredCard = $state(null);
 	let matchDescription = $state(true);
 
@@ -62,9 +64,17 @@
 	let isMiddleCardHovered = $state(false);
 	let lastHoverEvent = $state(null);
 
+	let centerSectionElement = $state(null);
+
 	onMount(() => {
-		// Initialize view mode based on screen width
-		viewMode = window.innerWidth < 768 ? 'list' : 'tile';
+		// Initialize view mode based on screen width and preferred mode
+		// If preferredViewMode is 'list', always respect it regardless of screen size
+		// Otherwise, use responsive behavior based on screen width
+		if (preferredViewMode === 'list') {
+			viewMode = 'list';
+		} else {
+			viewMode = window.innerWidth < 768 ? 'list' : preferredViewMode;
+		}
 
 		// Initialize the fuzzy searcher with the cube data
 		searcher = new FuzzySearch(cube, matchDescription ? ['name', 'apiData.desc'] : ['name'], {
@@ -74,8 +84,15 @@
 
 		// Add resize listener to update view mode when screen size changes
 		const handleResize = () => {
+			// Don't change view mode if user has manually selected carousel
 			if (viewMode !== 'carousel') {
-				viewMode = window.innerWidth < 768 ? 'list' : 'tile';
+				// If preferredViewMode is 'list', always keep it as list
+				// Otherwise, use responsive behavior
+				if (preferredViewMode === 'list') {
+					viewMode = 'list';
+				} else {
+					viewMode = window.innerWidth < 768 ? 'list' : preferredViewMode;
+				}
 			}
 		};
 
@@ -406,7 +423,6 @@
 	}
 
 	// Derived values
-	const isListView = $derived(viewMode === 'list');
 	const filteredCube = $derived(filterCards(cube));
 	const totalCards = $derived(filteredCube.reduce((sum, card) => sum + (card.quantity || 1), 0));
 	const hasFilters = $derived(!!searchText || !!selectedFilterValue);
@@ -460,7 +476,13 @@
 				class={`btn join-item ${viewMode === 'carousel' ? 'btn-active' : ''}`}
 				onclick={() => setViewMode('carousel')}
 			>
-				<span>{@html feather.icons['sliders'].toSvg({ width: 18, height: 18 })}</span>
+				<div class="flex items-center">
+					<span class="opacity-60">{@html feather.icons.square.toSvg({ width: 8, height: 8 })}</span
+					>
+					<span class="mx-0.5">{@html feather.icons.square.toSvg({ width: 14, height: 14 })}</span>
+					<span class="opacity-60">{@html feather.icons.square.toSvg({ width: 8, height: 8 })}</span
+					>
+				</div>
 			</button>
 		</div>
 	</div>
@@ -635,70 +657,96 @@
 						</div>
 
 						<!-- Center card (current focus) -->
-						<div class="relative flex w-2/4 justify-center">
-							{#if currentCard}
-								<div class="relative flex flex-col items-center">
-									<button
-										class="card relative w-full transition-shadow hover:shadow-lg {clickable
-											? 'hover:ring-primary ring-opacity-50 cursor-pointer hover:ring'
-											: ''}"
-										type="button"
-										onmouseenter={(e) => handleMouseEnter(currentCard, e)}
-										onmouseleave={handleMouseLeave}
-										onclick={() => handleCardClick(currentCard)}
-									>
-										<div class="relative aspect-[813/1185] w-full max-w-[271px]">
-											{#await getCardImage(currentCard, false)}
-												<div class="skeleton absolute inset-0"></div>
-											{:then imageUrl}
-												<img
-													loading="lazy"
-													src={imageUrl}
-													alt={currentCard.name}
-													class="h-full w-full rounded object-cover shadow"
-												/>
-											{:catch error}
-												<div class="bg-base-200 flex h-full items-center justify-center rounded">
-													<span
-														>{@html feather.icons['image-off'].toSvg({
-															width: 24,
-															height: 24
-														})}</span
-													>
+						<div class="relative flex w-2/4 justify-center" bind:this={centerSectionElement}>
+							{#if filteredCube.length > 0}
+								<!-- Calculate number of cards to display based on container width -->
+								{@const centerSectionWidth = centerSectionElement?.clientWidth || 400}
+								{@const cardWidth = Math.min(271, centerSectionWidth - 32)}
+								<!-- Ensure card fits within available width -->
+								{@const cardSpacing = 16}
+								{@const cardsPerRow = Math.max(
+									1,
+									Math.floor(centerSectionWidth / (cardWidth + cardSpacing))
+								)}
+								{@const startIndex = Math.max(
+									0,
+									Math.min(carouselIndex, filteredCube.length - cardsPerRow)
+								)}
+								{@const visibleCards = filteredCube.slice(startIndex, startIndex + cardsPerRow)}
+
+								<div class="flex justify-center gap-4">
+									{#each visibleCards as card, idx}
+										<div class="relative flex flex-col items-center" style="width: {cardWidth}px;">
+											<button
+												class="card relative w-full transition-shadow hover:shadow-lg {clickable
+													? 'hover:ring-primary ring-opacity-50 cursor-pointer hover:ring'
+													: ''}"
+												type="button"
+												onmouseenter={(e) => handleMouseEnter(card, e)}
+												onmouseleave={handleMouseLeave}
+												onclick={() => handleCardClick(card)}
+											>
+												<div class="relative aspect-[813/1185] w-full">
+													{#await getCardImage(card, false)}
+														<div class="skeleton absolute inset-0"></div>
+													{:then imageUrl}
+														<img
+															loading="lazy"
+															src={imageUrl}
+															alt={card.name}
+															class="h-full w-full rounded object-cover shadow"
+														/>
+													{:catch error}
+														<div
+															class="bg-base-200 flex h-full items-center justify-center rounded"
+														>
+															<span
+																>{@html feather.icons['image-off'].toSvg({
+																	width: 24,
+																	height: 24
+																})}</span
+															>
+														</div>
+													{/await}
 												</div>
-											{/await}
+											</button>
+											<p class="mt-2 w-full truncate text-center font-medium">{card.name}</p>
+											{#if card.quantity && card.quantity > 1}
+												<p class="badge badge-neutral text-xs">x{card.quantity}</p>
+											{/if}
+											{#if idx === 0}
+												<div class="mt-2 flex gap-2">
+													<button
+														class="btn btn-circle btn-sm"
+														disabled={carouselIndex === 0}
+														onclick={carouselPrev}
+													>
+														<span
+															>{@html feather.icons['chevron-up'].toSvg({
+																width: 18,
+																height: 18
+															})}</span
+														>
+													</button>
+													<span class="flex items-center">
+														{carouselIndex + 1}/{filteredCube.length}
+													</span>
+													<button
+														class="btn btn-circle btn-sm"
+														disabled={carouselIndex === filteredCube.length - 1}
+														onclick={carouselNext}
+													>
+														<span
+															>{@html feather.icons['chevron-down'].toSvg({
+																width: 18,
+																height: 18
+															})}</span
+														>
+													</button>
+												</div>
+											{/if}
 										</div>
-									</button>
-									<p class="mt-2 text-center font-medium">{currentCard.name}</p>
-									{#if currentCard.quantity && currentCard.quantity > 1}
-										<p class="badge badge-neutral text-xs">x{currentCard.quantity}</p>
-									{/if}
-									<div class="mt-2 flex gap-2">
-										<button
-											class="btn btn-circle btn-sm"
-											disabled={carouselIndex === 0}
-											onclick={carouselPrev}
-										>
-											<span
-												>{@html feather.icons['chevron-up'].toSvg({ width: 18, height: 18 })}</span
-											>
-										</button>
-										<span class="flex items-center">
-											{carouselIndex + 1}/{filteredCube.length}
-										</span>
-										<button
-											class="btn btn-circle btn-sm"
-											disabled={carouselIndex === filteredCube.length - 1}
-											onclick={carouselNext}
-										>
-											<span
-												>{@html feather.icons['chevron-down'].toSvg({
-													width: 18,
-													height: 18
-												})}</span
-											>
-										</button>
-									</div>
+									{/each}
 								</div>
 							{/if}
 						</div>
