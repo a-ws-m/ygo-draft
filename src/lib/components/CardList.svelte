@@ -27,9 +27,9 @@
 	}>();
 
 	// Reactive state
-	let isListView = $state(false); // Default value will be updated in onMount
+	let viewMode = $state<'list' | 'tile' | 'carousel'>('tile'); // Changed from isListView to viewMode
 	let hoveredCard = $state(null);
-	let matchDescription = $state(true); // New state for controlling description search
+	let matchDescription = $state(true);
 
 	// Create variables to track popup position
 	let popupX = $state(0);
@@ -52,9 +52,19 @@
 	// Create a fuzzy searcher instance
 	let searcher = $state(null);
 
+	// Carousel state
+	let carouselIndex = $state(0);
+	let touchStartY = $state(0);
+	let touchStartX = $state(0);
+	let isDragging = $state(false);
+
+	// Add a state variable to track if middle card is being hovered
+	let isMiddleCardHovered = $state(false);
+	let lastHoverEvent = $state(null);
+
 	onMount(() => {
 		// Initialize view mode based on screen width
-		isListView = window.innerWidth < 768; // Use list view on mobile (<768px)
+		viewMode = window.innerWidth < 768 ? 'list' : 'tile';
 
 		// Initialize the fuzzy searcher with the cube data
 		searcher = new FuzzySearch(cube, matchDescription ? ['name', 'apiData.desc'] : ['name'], {
@@ -64,7 +74,9 @@
 
 		// Add resize listener to update view mode when screen size changes
 		const handleResize = () => {
-			isListView = window.innerWidth < 768;
+			if (viewMode !== 'carousel') {
+				viewMode = window.innerWidth < 768 ? 'list' : 'tile';
+			}
 		};
 
 		window.addEventListener('resize', handleResize);
@@ -156,6 +168,17 @@
 		previousFilterProperty = selectedFilterProperty;
 	});
 
+	// Add an effect to update hoveredCard when carouselIndex changes
+	$effect(() => {
+		// If we're hovering the middle card and the carousel index changes,
+		// we need to update the hoveredCard
+		if (isMiddleCardHovered && currentCard && lastHoverEvent) {
+			hoveredCard = currentCard;
+			// Recalculate popup position with the last hover event
+			handleMouseEnter(currentCard, lastHoverEvent);
+		}
+	});
+
 	// Handle chart segment click
 	function handleChartClick(event) {
 		const { property, value } = event.detail;
@@ -199,6 +222,15 @@
 	// Handle mouse events
 	function handleMouseEnter(card, event) {
 		hoveredCard = card;
+
+		// Check if this is the middle card in carousel view
+		if (viewMode === 'carousel' && card === currentCard) {
+			isMiddleCardHovered = true;
+			lastHoverEvent = event;
+		} else {
+			isMiddleCardHovered = false;
+		}
+
 		const rect = event.target.getBoundingClientRect();
 
 		// Calculate available space in all directions
@@ -279,6 +311,8 @@
 
 	function handleMouseLeave() {
 		hoveredCard = null;
+		isMiddleCardHovered = false;
+		lastHoverEvent = null;
 	}
 
 	function handleCardClick(card) {
@@ -300,12 +334,79 @@
 	}
 
 	// Set view mode
-	function setViewMode(mode: 'list' | 'tile') {
-		isListView = mode === 'list';
+	function setViewMode(mode: 'list' | 'tile' | 'carousel') {
+		viewMode = mode;
+		// Reset carousel index when switching to carousel mode
+		if (mode === 'carousel') {
+			carouselIndex = 0;
+		}
+	}
+
+	// Carousel navigation
+	function carouselNext() {
+		if (carouselIndex < filteredCube.length - 1) {
+			carouselIndex++;
+		}
+	}
+
+	function carouselPrev() {
+		if (carouselIndex > 0) {
+			carouselIndex--;
+		}
+	}
+
+	// Handle touch events for swiping
+	function handleTouchStart(event) {
+		touchStartY = event.touches[0].clientY;
+		touchStartX = event.touches[0].clientX;
+		isDragging = true;
+	}
+
+	function handleTouchMove(event) {
+		if (!isDragging) return;
+
+		const touchY = event.touches[0].clientY;
+		const touchX = event.touches[0].clientX;
+
+		// Calculate vertical and horizontal movement
+		const deltaY = touchStartY - touchY;
+		const deltaX = touchStartX - touchX;
+
+		// If horizontal movement is dominant and significant
+		if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 30) {
+			event.preventDefault(); // Prevent default scrolling
+			return;
+		}
+
+		// If vertical movement is significant, navigate carousel
+		if (Math.abs(deltaY) > 30) {
+			if (deltaY > 0) {
+				carouselNext();
+			} else {
+				carouselPrev();
+			}
+			isDragging = false; // Reset dragging state to prevent multiple triggers
+		}
+	}
+
+	function handleTouchEnd() {
+		isDragging = false;
+	}
+
+	// Handle wheel events for carousel
+	function handleWheel(event) {
+		if (viewMode === 'carousel') {
+			if (event.deltaY > 0) {
+				carouselNext();
+			} else {
+				carouselPrev();
+			}
+			event.preventDefault();
+		}
 	}
 
 	// Derived values
-	const viewMode = $derived(isListView ? 'list' : 'tile');
+	const isListView = $derived(viewMode === 'list');
 	const filteredCube = $derived(filterCards(cube));
 	const totalCards = $derived(filteredCube.reduce((sum, card) => sum + (card.quantity || 1), 0));
 	const hasFilters = $derived(!!searchText || !!selectedFilterValue);
@@ -315,6 +416,11 @@
 		const ydkContent = convertToYdk(cube);
 		downloadYdkFile(ydkContent, 'ygo_draft_deck.ydk');
 	}
+
+	// Carousel derived values
+	const currentCard = $derived(filteredCube[carouselIndex] || null);
+	const leftStack = $derived(filteredCube.slice(0, carouselIndex).reverse());
+	const rightStack = $derived(filteredCube.slice(carouselIndex + 1));
 </script>
 
 <div class="relative space-y-4">
@@ -337,17 +443,24 @@
 		<div class="join">
 			<button
 				type="button"
-				class={`btn join-item ${!isListView ? 'btn-active' : ''}`}
+				class={`btn join-item ${viewMode === 'tile' ? 'btn-active' : ''}`}
 				onclick={() => setViewMode('tile')}
 			>
 				<span>{@html feather.icons.grid.toSvg({ width: 18, height: 18 })}</span>
 			</button>
 			<button
 				type="button"
-				class={`btn join-item ${isListView ? 'btn-active' : ''}`}
+				class={`btn join-item ${viewMode === 'list' ? 'btn-active' : ''}`}
 				onclick={() => setViewMode('list')}
 			>
 				<span>{@html feather.icons.list.toSvg({ width: 18, height: 18 })}</span>
+			</button>
+			<button
+				type="button"
+				class={`btn join-item ${viewMode === 'carousel' ? 'btn-active' : ''}`}
+				onclick={() => setViewMode('carousel')}
+			>
+				<span>{@html feather.icons['sliders'].toSvg({ width: 18, height: 18 })}</span>
 			</button>
 		</div>
 	</div>
@@ -450,7 +563,13 @@
 	<!-- Container for cards and details -->
 	<div class="relative flex h-[60vh] flex-col">
 		<!-- Card Previews -->
-		<div class={`flex-1 overflow-y-auto ${border ? 'card card-bordered card-compact' : ''}`}>
+		<div
+			class={`flex-1 overflow-y-auto ${border ? 'card card-bordered card-compact' : ''}`}
+			onwheel={handleWheel}
+			ontouchstart={handleTouchStart}
+			ontouchmove={handleTouchMove}
+			ontouchend={handleTouchEnd}
+		>
 			{#if filteredCube.length === 0}
 				<div class="flex h-full items-center justify-center p-8 text-center">
 					<div class="flex flex-col items-center">
@@ -462,6 +581,166 @@
 						<button type="button" onclick={clearFilters} class="btn btn-primary mt-4">
 							Clear all filters
 						</button>
+					</div>
+				</div>
+			{:else if viewMode === 'carousel'}
+				<div class="flex h-full items-center justify-center">
+					<div class="flex w-full max-w-6xl items-center justify-between px-4">
+						<!-- Left stack (viewed cards) -->
+						<div class="relative flex w-1/4 justify-center">
+							{#if leftStack.length > 0}
+								<div class="stack stack-start max-w-[180px]">
+									{#each leftStack.slice(0, 3) as card, idx}
+										<div class="card bg-base-100 cursor-pointer" onclick={carouselPrev}>
+											<div class="aspect-[813/1185] w-full max-w-[180px]">
+												{#await getCardImage(card, true)}
+													<div class="skeleton absolute inset-0"></div>
+												{:then smallImageUrl}
+													<img
+														loading="lazy"
+														src={smallImageUrl}
+														alt={card.name}
+														class="h-full w-full rounded object-cover shadow"
+													/>
+												{:catch error}
+													<div class="bg-base-200 flex h-full items-center justify-center rounded">
+														<span
+															>{@html feather.icons['image-off'].toSvg({
+																width: 24,
+																height: 24
+															})}</span
+														>
+													</div>
+												{/await}
+											</div>
+										</div>
+									{/each}
+								</div>
+								{#if leftStack.length > 3}
+									<div class="badge badge-neutral absolute bottom-4 left-1/2 -translate-x-1/2">
+										+{leftStack.length - 3} more
+									</div>
+								{/if}
+							{:else}
+								<div class="text-center opacity-30">
+									<span>{@html feather.icons['chevron-up'].toSvg({ width: 32, height: 32 })}</span>
+									<p class="text-sm">No previous cards</p>
+								</div>
+							{/if}
+						</div>
+
+						<!-- Center card (current focus) -->
+						<div class="relative flex w-2/4 justify-center">
+							{#if currentCard}
+								<div class="relative flex flex-col items-center">
+									<button
+										class="card relative w-full transition-shadow hover:shadow-lg {clickable
+											? 'hover:ring-primary ring-opacity-50 cursor-pointer hover:ring'
+											: ''}"
+										type="button"
+										onmouseenter={(e) => handleMouseEnter(currentCard, e)}
+										onmouseleave={handleMouseLeave}
+										onclick={() => handleCardClick(currentCard)}
+									>
+										<div class="relative aspect-[813/1185] w-full max-w-[271px]">
+											{#await getCardImage(currentCard, false)}
+												<div class="skeleton absolute inset-0"></div>
+											{:then imageUrl}
+												<img
+													loading="lazy"
+													src={imageUrl}
+													alt={currentCard.name}
+													class="h-full w-full rounded object-cover shadow"
+												/>
+											{:catch error}
+												<div class="bg-base-200 flex h-full items-center justify-center rounded">
+													<span
+														>{@html feather.icons['image-off'].toSvg({
+															width: 24,
+															height: 24
+														})}</span
+													>
+												</div>
+											{/await}
+										</div>
+									</button>
+									<p class="mt-2 text-center font-medium">{currentCard.name}</p>
+									{#if currentCard.quantity && currentCard.quantity > 1}
+										<p class="badge badge-neutral text-xs">x{currentCard.quantity}</p>
+									{/if}
+									<div class="mt-2 flex gap-2">
+										<button
+											class="btn btn-circle btn-sm"
+											disabled={carouselIndex === 0}
+											onclick={carouselPrev}
+										>
+											<span
+												>{@html feather.icons['chevron-up'].toSvg({ width: 18, height: 18 })}</span
+											>
+										</button>
+										<span class="flex items-center">
+											{carouselIndex + 1}/{filteredCube.length}
+										</span>
+										<button
+											class="btn btn-circle btn-sm"
+											disabled={carouselIndex === filteredCube.length - 1}
+											onclick={carouselNext}
+										>
+											<span
+												>{@html feather.icons['chevron-down'].toSvg({
+													width: 18,
+													height: 18
+												})}</span
+											>
+										</button>
+									</div>
+								</div>
+							{/if}
+						</div>
+
+						<!-- Right stack (upcoming cards) -->
+						<div class="relative flex w-1/4 justify-center">
+							{#if rightStack.length > 0}
+								<div class="stack stack-end max-w-[180px]">
+									{#each rightStack.slice(0, 3) as card, idx}
+										<div class="card bg-base-100 cursor-pointer" onclick={carouselNext}>
+											<div class="aspect-[813/1185] w-full max-w-[180px]">
+												{#await getCardImage(card, true)}
+													<div class="skeleton absolute inset-0"></div>
+												{:then smallImageUrl}
+													<img
+														loading="lazy"
+														src={smallImageUrl}
+														alt={card.name}
+														class="h-full w-full rounded object-cover shadow"
+													/>
+												{:catch error}
+													<div class="bg-base-200 flex h-full items-center justify-center rounded">
+														<span
+															>{@html feather.icons['image-off'].toSvg({
+																width: 24,
+																height: 24
+															})}</span
+														>
+													</div>
+												{/await}
+											</div>
+										</div>
+									{/each}
+								</div>
+								{#if rightStack.length > 3}
+									<div class="badge badge-neutral absolute bottom-4 left-1/2 -translate-x-1/2">
+										+{rightStack.length - 3} more
+									</div>
+								{/if}
+							{:else}
+								<div class="text-center opacity-30">
+									<span>{@html feather.icons['chevron-down'].toSvg({ width: 32, height: 32 })}</span
+									>
+									<p class="text-sm">No more cards</p>
+								</div>
+							{/if}
+						</div>
 					</div>
 				</div>
 			{:else if viewMode === 'tile'}
@@ -534,7 +813,7 @@
 		</div>
 
 		<!-- Pop-up Details -->
-		{#if hoveredCard && viewMode === 'tile'}
+		{#if hoveredCard && (viewMode === 'tile' || viewMode === 'carousel')}
 			<div
 				class="fixed z-50 transform"
 				class:translate-x-[-50%]={popupPosition === 'above' || popupPosition === 'below'}
