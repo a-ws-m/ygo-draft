@@ -1,5 +1,8 @@
+packages:
+  - scripts
 onlyBuiltDependencies:
   - '@tailwindcss/oxide'
   - core-js
   - esbuild
+  - sharp
   - supabase
