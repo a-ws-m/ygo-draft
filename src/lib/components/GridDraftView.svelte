@@ -142,7 +142,7 @@
 		<div class="card-body">
 			<h2 class="card-title flex justify-between">
 				<span>Grid Draft</span>
-				<div class="badge badge-lg {isMyTurn ? 'badge-primary' : 'badge-secondary'}">
+				<div class="badge badge-lg {isMyTurn ? 'badge-success' : 'badge-info'}">
 					{isMyTurn ? 'Your Turn' : 'Waiting for other player'}
 				</div>
 			</h2>
