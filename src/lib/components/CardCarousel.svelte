@@ -2,11 +2,11 @@
 	import feather from 'feather-icons';
 	import { calculatePopupPosition } from '$lib/utils/cardPopupPositioning';
 	import { onMount } from 'svelte';
-	import { register } from 'swiper/element/bundle';
-	import 'swiper/css/bundle';
-
-	// Register Swiper custom elements
-	register();
+	import Swiper from 'swiper';
+	import { Virtual, EffectCards, Mousewheel, Scrollbar } from 'swiper/modules';
+	import 'swiper/css';
+	import 'swiper/css/effect-cards';
+	import 'swiper/css/scrollbar';
 
 	// Props
 	const {
@@ -24,14 +24,50 @@
 	}>();
 
 	// Reactive state
-	let swiperElement = $state<HTMLElement | null>(null);
-	let swiperInstance: any = $state(null);
+	let swiperContainer = $state<HTMLElement | null>(null);
+	let swiperInstance: Swiper | null = $state(null);
 	let activeCardIndex = $state(0);
 
-	// Get resolved image URL for a card
-	function getCardImage(card: any, small = false) {
-		return small ? card.smallImageUrl : card.imageUrl;
-	}
+	// Initialize Swiper when component is mounted
+	onMount(() => {
+		if (swiperContainer && filteredCube.length > 0) {
+			swiperInstance = new Swiper(swiperContainer, {
+				modules: [Virtual, EffectCards, Mousewheel, Scrollbar],
+				centeredSlides: true,
+				effect: 'cards',
+				cardsEffect: {
+					slideShadows: false
+				},
+				grabCursor: true,
+				mousewheel: {
+					enabled: true
+				},
+				scrollbar: {
+					el: '.swiper-scrollbar',
+					draggable: true,
+					hide: false
+				},
+				virtual: {
+					enabled: true
+				},
+				on: {
+					slideChange: () => {
+						if (swiperInstance) {
+							activeCardIndex = swiperInstance.activeIndex;
+						}
+					}
+				}
+			});
+		}
+
+		return () => {
+			// Cleanup when component is destroyed
+			if (swiperInstance) {
+				swiperInstance.destroy();
+				swiperInstance = null;
+			}
+		};
+	});
 
 	// Handle mouse events
 	function handleMouseEnter(card: any, event: MouseEvent) {
@@ -52,79 +88,36 @@
 		}
 	}
 
-	// Initialize Swiper
-	onMount(() => {
-		if (swiperElement) {
-			swiperInstance = swiperElement.swiper;
-
-			// Add event listener for slide change
-			swiperElement.addEventListener('slidechange', (event: any) => {
-				activeCardIndex = event.detail[0].activeIndex;
-			});
-		}
-	});
-
-	// Function to navigate to previous slide
-	function prevSlide() {
-		if (swiperInstance) {
-			swiperInstance.slidePrev();
-		}
-	}
-
-	// Function to navigate to next slide
-	function nextSlide() {
-		if (swiperInstance) {
-			swiperInstance.slideNext();
-		}
-	}
 </script>
 
 <div class="flex h-full items-center justify-center px-4">
-	<div class="flex w-full flex-col items-center">
+	<div class="flex w-full flex-col items-center overflow-visible">
 		{#if filteredCube.length > 0}
-			<div class="relative aspect-[813/1185] w-full max-w-[300px]">
-				<swiper-container
-					bind:this={swiperElement}
-					effect="cards"
-                    virtual="true"
-                    mousewheel-enabled="true"
-					class="h-full w-full"
-				>
-					{#each filteredCube as card, index}
-						<swiper-slide lazy="true">
-							<div
-								class="card h-full w-full transition-shadow hover:shadow-lg {clickable
-									? 'hover:ring-primary ring-opacity-50 cursor-pointer hover:ring'
-									: ''}"
-								onmouseenter={(e) => handleMouseEnter(card, e)}
-								onmouseleave={handleMouseLeave}
-								onclick={() => handleCardClick(card)}
-							>
-								<div class="relative aspect-[813/1185] h-full w-full">
-									{#await getCardImage(card, false)}
-										<div class="skeleton absolute inset-0"></div>
-									{:then imageUrl}
+			<div class="relative w-full">
+				<div bind:this={swiperContainer} class="swiper h-full w-full">
+					<div class="swiper-wrapper">
+						{#each filteredCube as card, index}
+							<div class="swiper-slide" style="width: auto;">
+								<div
+									class="card h-full w-auto transition-shadow hover:shadow-lg {clickable
+										? 'hover:ring-primary ring-opacity-50 cursor-pointer hover:ring'
+										: ''}"
+									onmouseenter={(e) => handleMouseEnter(card, e)}
+									onmouseleave={handleMouseLeave}
+									onclick={() => handleCardClick(card)}
+								>
+									<div class="relative aspect-[813/1185] h-[280px]">
 										<img
-											loading="lazy"
-											src={imageUrl}
+											src={card.imageUrl}
 											alt={card.name}
-											class="h-full w-full rounded object-cover shadow"
+											class="h-full w-auto rounded object-cover shadow"
 										/>
-									{:catch error}
-										<div class="bg-base-200 flex h-full items-center justify-center rounded">
-											<span>
-												{@html feather.icons['image-off'].toSvg({
-													width: 24,
-													height: 24
-												})}
-											</span>
-										</div>
-									{/await}
+									</div>
 								</div>
 							</div>
-						</swiper-slide>
-					{/each}
-				</swiper-container>
+						{/each}
+					</div>
+				</div>
 			</div>
 
 			<!-- Card details section -->
@@ -139,32 +132,8 @@
 				{/if}
 			</div>
 
-			<!-- Pagination controls -->
-			<div class="mt-6 flex w-full justify-center gap-2">
-				<button class="btn btn-circle btn-sm" disabled={activeCardIndex === 0} onclick={prevSlide}>
-					<span>
-						{@html feather.icons['chevron-left'].toSvg({
-							width: 18,
-							height: 18
-						})}
-					</span>
-				</button>
-				<span class="flex items-center">
-					{activeCardIndex + 1}/{filteredCube.length}
-				</span>
-				<button
-					class="btn btn-circle btn-sm"
-					disabled={activeCardIndex === filteredCube.length - 1}
-					onclick={nextSlide}
-				>
-					<span>
-						{@html feather.icons['chevron-right'].toSvg({
-							width: 18,
-							height: 18
-						})}
-					</span>
-				</button>
-			</div>
+			<!-- Add scrollbar -->
+			<div class="swiper-scrollbar"></div>
 		{:else}
 			<div class="p-8 text-center opacity-50">
 				<span>
@@ -180,12 +149,17 @@
 </div>
 
 <style>
-	swiper-container {
-		width: 100%;
+	:root {
+		--swiper-scrollbar-bg-color: var(--color-neutral);
+		--swiper-scrollbar-drag-bg-color: var(--color-neutral-content);
+	}
+
+	.swiper {
+		width: 95%;
 		height: 100%;
 	}
 
-	swiper-slide {
+	.swiper-slide {
 		width: 100%;
 		height: 100%;
 		display: flex;
