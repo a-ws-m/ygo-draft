@@ -429,8 +429,8 @@
 				<CardCarousel
 					{filteredCube}
 					{clickable}
-					{onCardClick}
 					{showDescription}
+					onCardClick={handleCardClick}
 				/>
 			{:else if viewMode === 'tile'}
 				<div

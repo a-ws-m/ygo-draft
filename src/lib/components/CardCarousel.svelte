@@ -24,15 +24,33 @@
 	let swiperInstance: Swiper | null = $state(null);
 	let activeCardIndex = $state(0);
 
+	// React to changes in filteredCube
+	$effect(() => {
+		if (swiperInstance && filteredCube) {
+			// Update virtual slides when filteredCube changes
+			swiperInstance.removeAllSlides();
+			swiperInstance.appendSlide(filteredCube);
+			swiperInstance.update();
+
+			// Reset active index if it's out of bounds
+			if (activeCardIndex >= filteredCube.length) {
+				activeCardIndex = filteredCube.length > 0 ? 0 : -1;
+				swiperInstance.slideTo(0, 0);
+			}
+		}
+	});
+
 	// Initialize Swiper when component is mounted
 	onMount(() => {
 		if (swiperContainer && filteredCube.length > 0) {
 			swiperInstance = new Swiper(swiperContainer, {
-				modules: [Virtual, EffectCards, Mousewheel, Scrollbar],
+				modules: [Mousewheel, Virtual, EffectCards, Scrollbar],
 				centeredSlides: true,
 				effect: 'cards',
 				cardsEffect: {
-					slideShadows: false
+					slideShadows: false,
+					perSlideOffset: 8,
+					perSlideRotate: 2
 				},
 				grabCursor: true,
 				mousewheel: {
@@ -44,9 +62,43 @@
 					hide: false
 				},
 				virtual: {
-					enabled: true
+					enabled: true,
+					slides: filteredCube,
+					addSlidesAfter: 5,
+					addSlidesBefore: 5,
+					renderSlide: (card, index) => {
+						// Create a template string to render each slide
+						return `
+							<div class="swiper-slide">
+								<div
+									class="card transition-shadow hover:shadow-lg ${
+										clickable ? 'hover:ring-primary ring-opacity-50 cursor-pointer hover:ring' : ''
+									}"
+									data-card-index="${index}"
+									style="max-width: 297px; height: auto; aspect-ratio: 421/614;"
+								>
+									<div class="relative h-full w-full">
+										<picture>
+											<source media="(max-width: 296px)" srcset="${card.smallImageUrl || ''}" />
+											<source media="(min-width: 297px)" srcset="${card.imageUrl || ''}" />
+											<img
+												src="${card.smallImageUrl || ''}"
+												alt="${card.name || ''}"
+												class="h-full w-full rounded object-contain shadow"
+											/>
+										</picture>
+									</div>
+								</div>
+							</div>
+						`;
+					}
 				},
+				// Custom handler for card clicks
 				on: {
+					click: (swiper, event) => {
+						if (!clickable) return;
+						onCardClick(swiper.activeIndex >= 0 ? filteredCube[swiper.activeIndex] : null);
+					},
 					slideChange: () => {
 						if (swiperInstance) {
 							activeCardIndex = swiperInstance.activeIndex;
@@ -64,51 +116,23 @@
 			}
 		};
 	});
-
-	// Handle card click
-	function handleCardClick(card: any) {
-		if (clickable) {
-			onCardClick(card);
-		}
-	}
 </script>
 
-<div class="flex h-full flex-col items-center justify-start px-4">
-	<div class="flex w-full flex-col items-center overflow-x-hidden">
+<div class="flex h-full flex-col items-center justify-center px-4">
+	<div class="flex h-full w-full flex-col items-center overflow-x-hidden">
 		{#if filteredCube.length > 0}
-			<div class="relative w-full">
-				<div bind:this={swiperContainer} class="swiper h-[300px] w-full">
-					<!-- Add scrollbar -->
-					<div class="swiper-scrollbar mt-4 w-full max-w-md"></div>
+			<div class="relative w-full" style="height: calc(100% - 4rem);">
+				<div bind:this={swiperContainer} class="swiper h-full w-full">
 					<div class="swiper-wrapper">
-						{#each filteredCube as card, index}
-							<div class="swiper-slide" style="width: auto;">
-								<div
-									class="card h-full w-auto transition-shadow hover:shadow-lg {clickable
-										? 'hover:ring-primary ring-opacity-50 cursor-pointer hover:ring'
-										: ''}"
-									onclick={() => handleCardClick(card)}
-								>
-									<div class="relative aspect-[813/1185] h-[280px]">
-										<picture>
-											<source media="(max-width: 296px)" srcset={card.smallImageUrl} />
-											<source media="(min-width: 297px)" srcset={card.imageUrl} />
-											<img
-												src={card.smallImageUrl}
-												alt={card.name}
-												class="h-full w-full rounded object-cover shadow"
-											/>
-										</picture>
-									</div>
-								</div>
-							</div>
-						{/each}
+						<!-- Slides will be rendered by Swiper Virtual -->
 					</div>
 				</div>
+				<!-- Add scrollbar below cards but above details -->
+                <div class="swiper-scrollbar"></div>
 			</div>
 
 			<!-- Card details section -->
-			<div class="mt-4 flex w-full flex-col items-center">
+			<div class="mt-2 flex w-full flex-col items-center">
 				{#if filteredCube[activeCardIndex]}
 					<CardDetails card={filteredCube[activeCardIndex]}></CardDetails>
 				{/if}
@@ -135,21 +159,20 @@
 
 	.swiper {
 		width: 95%;
-		height: 300px;
-		max-width: 400px;
+		height: auto;
 		margin: 0 auto;
+		padding: 5px 0;
 	}
 
-	.swiper-slide {
+	:global(.swiper-wrapper) {
+		height: 100%;
+	}
+
+	:global(.swiper-slide) {
 		width: 100%;
 		height: 100%;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-	}
-
-	.swiper-scrollbar {
-		height: 6px;
-		border-radius: 3px;
 	}
 </style>
