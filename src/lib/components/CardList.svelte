@@ -299,7 +299,7 @@
 			</button>
 			<button
 				type="button"
-				class={`btn join-item ${viewMode === 'carousel' ? 'btn-active' : ''}`}
+				class={`px-2! btn join-item ${viewMode === 'carousel' ? 'btn-active' : ''}`}
 				onclick={() => setViewMode('carousel')}
 			>
 				<div class="flex items-center">
