@@ -51,14 +51,15 @@ interface RarityDistribution {
 
 /**
  * Creates a new draft in the database and assigns shuffled indexes to the cube cards.
- * @param draftMethod - The drafting method (e.g., "winston" or "rochester").
+ * @param draftMethod - The drafting method (e.g., "winston", "rochester", or "grid").
  * @param poolSize - The size of the card pool.
  * @param numberOfPlayers - The number of players in the draft.
  * @param cube - The cube data (array of cards).
- * @param numberOfPiles - The number of piles for winston draft.
+ * @param numberOfPiles - The number of piles for winston draft or grid size for grid draft.
  * @param packSize - The pack size for rochester draft.
  * @param extraDeckAtEnd - Whether to move extra deck cards to the end of the pool.
  * @param rarityDistribution - Optional settings for rarity distribution in packs.
+ * @param drafted_deck_size - The target number of cards each player should draft.
  * @returns A promise that resolves with the draft ID.
  */
 export async function createDraft(
@@ -69,7 +70,8 @@ export async function createDraft(
     numberOfPiles: number = 3,
     packSize: number = 5,
     extraDeckAtEnd: boolean = false,
-    rarityDistribution: RarityDistribution | null = null
+    rarityDistribution: RarityDistribution | null = null,
+    drafted_deck_size?: number // New parameter for draft deck size
 ): Promise<string> {
     try {
         // Get the current authenticated user
@@ -91,7 +93,8 @@ export async function createDraft(
                 number_of_piles: numberOfPiles,
                 pack_size: packSize,
                 created_by: user.id, // Store the creator's ID
-                participants: [user.id] // Initialize with the creator as first participant
+                participants: [user.id], // Initialize with the creator as first participant
+                drafted_deck_size // Store the target deck size for grid draft
             })
             .select()
             .single();
@@ -127,8 +130,8 @@ export async function createDraft(
         // Limit to the specified pool size
         let limitedCube = processedCube.slice(0, poolSize);
 
-        // Handle extra deck cards
-        if (extraDeckAtEnd) {
+        // Handle extra deck cards for both Rochester and Grid draft
+        if (extraDeckAtEnd && (draftMethod === 'rochester' || draftMethod === 'grid')) {
             // Separate main deck and extra deck cards
             const mainDeckCards = [];
             const extraDeckCards = [];
@@ -143,6 +146,7 @@ export async function createDraft(
 
             // Combine them with extra deck at the end
             limitedCube = [...mainDeckCards, ...extraDeckCards];
+            console.log(`Rearranged ${extraDeckCards.length} extra deck cards to end of pool for ${draftMethod} draft.`);
         }
 
         // Assign shuffled indexes to the cards
@@ -157,7 +161,7 @@ export async function createDraft(
         const { error: cubeError } = await supabase.from("cubes").insert(cubeWithIndexes);
         if (cubeError) throw cubeError;
 
-        console.log("Draft and cube successfully created in the database.");
+        console.log(`Draft and cube successfully created in the database for ${draftMethod} draft with ${poolSize} cards.`);
         return draft.id;
     } catch (error) {
         console.error("Error creating draft:", error);

@@ -2,10 +2,12 @@
 	import TextCard from '$lib/components/TextCard.svelte';
 	import CardDistributionChart from '$lib/components/CardDistributionChart.svelte';
 	import CardDetails from '$lib/components/CardDetails.svelte';
+	import CardCarousel from '$lib/components/CardCarousel.svelte';
 	import { convertToYdk, downloadYdkFile } from '$lib/utils/ydkExporter';
 	import { onMount } from 'svelte';
 	import FuzzySearch from 'fuzzy-search';
 	import feather from 'feather-icons';
+	import { calculatePopupPosition } from '$lib/utils/cardPopupPositioning';
 
 	// Props using $props rune
 	const {
@@ -15,7 +17,8 @@
 		showDescription = false,
 		showChart = false,
 		clickable = false,
-		onCardClick = undefined
+		onCardClick = undefined,
+		preferredViewMode = 'tile'
 	} = $props<{
 		cube: any[];
 		border?: boolean;
@@ -24,12 +27,13 @@
 		showChart?: boolean;
 		clickable?: boolean;
 		onCardClick?: (index: number) => void;
+		preferredViewMode?: 'list' | 'tile' | 'carousel';
 	}>();
 
 	// Reactive state
-	let isListView = $state(false); // Default value will be updated in onMount
+	let viewMode = $state<'list' | 'tile' | 'carousel'>(preferredViewMode); // Initialize with preferred mode
 	let hoveredCard = $state(null);
-	let matchDescription = $state(true); // New state for controlling description search
+	let matchDescription = $state(true);
 
 	// Create variables to track popup position
 	let popupX = $state(0);
@@ -53,8 +57,14 @@
 	let searcher = $state(null);
 
 	onMount(() => {
-		// Initialize view mode based on screen width
-		isListView = window.innerWidth < 768; // Use list view on mobile (<768px)
+		// Initialize view mode based on screen width and preferred mode
+		// If preferredViewMode is 'list', always respect it regardless of screen size
+		// Otherwise, use responsive behavior based on screen width
+		if (preferredViewMode === 'list') {
+			viewMode = 'list';
+		} else {
+			viewMode = window.innerWidth < 768 ? 'list' : preferredViewMode;
+		}
 
 		// Initialize the fuzzy searcher with the cube data
 		searcher = new FuzzySearch(cube, matchDescription ? ['name', 'apiData.desc'] : ['name'], {
@@ -64,7 +74,16 @@
 
 		// Add resize listener to update view mode when screen size changes
 		const handleResize = () => {
-			isListView = window.innerWidth < 768;
+			// Don't change view mode if user has manually selected carousel
+			if (viewMode !== 'carousel') {
+				// If preferredViewMode is 'list', always keep it as list
+				// Otherwise, use responsive behavior
+				if (preferredViewMode === 'list') {
+					viewMode = 'list';
+				} else {
+					viewMode = window.innerWidth < 768 ? 'list' : preferredViewMode;
+				}
+			}
 		};
 
 		window.addEventListener('resize', handleResize);
@@ -196,85 +215,15 @@
 		return small ? card.smallImageUrl : card.imageUrl;
 	}
 
-	// Handle mouse events
+	// Handle mouse events for tile view
 	function handleMouseEnter(card, event) {
 		hoveredCard = card;
-		const rect = event.target.getBoundingClientRect();
 
-		// Calculate available space in all directions
-		const spaceAbove = rect.top;
-		const spaceBelow = window.innerHeight - rect.bottom;
-		const spaceLeft = rect.left;
-		const spaceRight = window.innerWidth - rect.right;
-
-		// Estimated heights for different positions
-		// Vertical positions need more space (400px) than horizontal positions (200px)
-		const neededVerticalSpace = 400; // Approximate height needed for details in above/below positions
-		const neededHorizontalSpace = 200; // Approximate height needed for details in left/right positions
-
-		// Determine available positions based on space requirements
-		const availablePositions = [];
-
-		if (spaceAbove >= neededVerticalSpace)
-			availablePositions.push({ direction: 'above', space: spaceAbove });
-		if (spaceBelow >= neededVerticalSpace)
-			availablePositions.push({ direction: 'below', space: spaceBelow });
-
-		// For left/right positions, also check if we have enough vertical space (bottom of screen)
-		// We need to ensure the card details won't extend beyond bottom of viewport
-		const verticalCenterSpace = Math.min(
-			spaceBelow,
-			window.innerHeight - rect.top - rect.height / 2
-		);
-
-		if (spaceLeft >= 300 && verticalCenterSpace >= neededHorizontalSpace / 2) {
-			availablePositions.push({ direction: 'left', space: spaceLeft });
-		}
-		if (spaceRight >= 300 && verticalCenterSpace >= neededHorizontalSpace / 2) {
-			availablePositions.push({ direction: 'right', space: spaceRight });
-		}
-
-		// If no positions have enough space, get all possible positions with their available space
-		if (availablePositions.length === 0) {
-			// Add all directions with their available space
-			availablePositions.push({ direction: 'above', space: spaceAbove });
-			availablePositions.push({ direction: 'below', space: spaceBelow });
-			availablePositions.push({ direction: 'left', space: spaceLeft });
-			availablePositions.push({ direction: 'right', space: spaceRight });
-		}
-
-		// Sort by available space (descending) and select the best direction
-		popupPosition = availablePositions.sort((a, b) => b.space - a.space)[0].direction;
-
-		// Position based on selected direction
-		if (popupPosition === 'above') {
-			popupX = rect.left + rect.width / 2;
-			popupY = rect.top - 10;
-		} else if (popupPosition === 'below') {
-			popupX = rect.left + rect.width / 2;
-			popupY = rect.bottom + 10;
-		} else if (popupPosition === 'left') {
-			popupX = rect.left - 10;
-			popupY = rect.top + rect.height / 2;
-
-			// Ensure it doesn't go beyond bottom of screen by adjusting Y position if needed
-			const cardDetailsHeight = neededHorizontalSpace;
-			const bottomOverflow = popupY + cardDetailsHeight / 2 - window.innerHeight;
-			if (bottomOverflow > 0) {
-				popupY = Math.max(cardDetailsHeight / 2, popupY - bottomOverflow);
-			}
-		} else {
-			// right
-			popupX = rect.right + 10;
-			popupY = rect.top + rect.height / 2;
-
-			// Ensure it doesn't go beyond bottom of screen by adjusting Y position if needed
-			const cardDetailsHeight = neededHorizontalSpace;
-			const bottomOverflow = popupY + cardDetailsHeight / 2 - window.innerHeight;
-			if (bottomOverflow > 0) {
-				popupY = Math.max(cardDetailsHeight / 2, popupY - bottomOverflow);
-			}
-		}
+		// Use the shared positioning utility
+		const popupData = calculatePopupPosition(event);
+		popupPosition = popupData.position;
+		popupX = popupData.x;
+		popupY = popupData.y;
 	}
 
 	function handleMouseLeave() {
@@ -300,21 +249,22 @@
 	}
 
 	// Set view mode
-	function setViewMode(mode: 'list' | 'tile') {
-		isListView = mode === 'list';
+	function setViewMode(mode: 'list' | 'tile' | 'carousel') {
+		viewMode = mode;
 	}
-
-	// Derived values
-	const viewMode = $derived(isListView ? 'list' : 'tile');
-	const filteredCube = $derived(filterCards(cube));
-	const totalCards = $derived(filteredCube.reduce((sum, card) => sum + (card.quantity || 1), 0));
-	const hasFilters = $derived(!!searchText || !!selectedFilterValue);
 
 	// Handler for YDK download
 	function handleYdkDownload() {
 		const ydkContent = convertToYdk(cube);
 		downloadYdkFile(ydkContent, 'ygo_draft_deck.ydk');
 	}
+
+	// Derived values
+	const filteredCube = $derived(filterCards(cube));
+	const totalCards = $derived(filteredCube.reduce((sum, card) => sum + (card.quantity || 1), 0));
+	const hasFilters = $derived(!!searchText || !!selectedFilterValue);
+	// Add dynamic container height class based on view mode
+	const containerHeightClass = $derived(viewMode === 'carousel' ? 'min-h-[60vh]' : 'h-[60vh]');
 </script>
 
 <div class="relative space-y-4">
@@ -337,17 +287,30 @@
 		<div class="join">
 			<button
 				type="button"
-				class={`btn join-item ${!isListView ? 'btn-active' : ''}`}
+				class={`btn join-item ${viewMode === 'tile' ? 'btn-active' : ''}`}
 				onclick={() => setViewMode('tile')}
 			>
 				<span>{@html feather.icons.grid.toSvg({ width: 18, height: 18 })}</span>
 			</button>
 			<button
 				type="button"
-				class={`btn join-item ${isListView ? 'btn-active' : ''}`}
+				class={`btn join-item ${viewMode === 'list' ? 'btn-active' : ''}`}
 				onclick={() => setViewMode('list')}
 			>
 				<span>{@html feather.icons.list.toSvg({ width: 18, height: 18 })}</span>
+			</button>
+			<button
+				type="button"
+				class={`px-2! btn join-item ${viewMode === 'carousel' ? 'btn-active' : ''}`}
+				onclick={() => setViewMode('carousel')}
+			>
+				<div class="flex items-center">
+					<span class="opacity-60">{@html feather.icons.square.toSvg({ width: 8, height: 8 })}</span
+					>
+					<span class="mx-0.5">{@html feather.icons.square.toSvg({ width: 14, height: 14 })}</span>
+					<span class="opacity-60">{@html feather.icons.square.toSvg({ width: 8, height: 8 })}</span
+					>
+				</div>
 			</button>
 		</div>
 	</div>
@@ -448,9 +411,9 @@
 	{/if}
 
 	<!-- Container for cards and details -->
-	<div class="relative flex h-[60vh] flex-col">
+	<div class="relative flex {containerHeightClass} flex-col">
 		<!-- Card Previews -->
-		<div class={`flex-1 overflow-y-auto ${border ? 'card card-bordered card-compact' : ''}`}>
+		<div class={`flex-1 ${viewMode === 'carousel' ? 'overflow-y-visible' : 'overflow-y-auto'} ${border ? 'card card-bordered card-compact' : ''}`}>
 			{#if filteredCube.length === 0}
 				<div class="flex h-full items-center justify-center p-8 text-center">
 					<div class="flex flex-col items-center">
@@ -464,6 +427,13 @@
 						</button>
 					</div>
 				</div>
+			{:else if viewMode === 'carousel'}
+				<CardCarousel
+					{filteredCube}
+					{clickable}
+					{showDescription}
+					onCardClick={handleCardClick}
+				/>
 			{:else if viewMode === 'tile'}
 				<div
 					class="grid auto-cols-max grid-cols-1 justify-items-center gap-4 p-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6"

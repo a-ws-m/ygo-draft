@@ -13,7 +13,8 @@ export async function initializeDraft() {
     return await strategy.initialize();
 }
 
-export async function handleCardSelection(cardIndex: number) {
+// Update the parameter type to be more flexible - accept either a number or a selection object
+export async function handleCardSelection(cardIndex: number | { selectionType: 'row' | 'column', index: number }) {
     const { store } = draftStore;
 
     if (!store.draftStrategy) {
@@ -69,7 +70,7 @@ export async function handleDraftBroadcast(event: string, payload: any) {
 
                 // Find the pack
                 const pack = store.rounds[store.currentRound][packIndex];
-                
+
                 if (pack) {
                     // Find and remove the card
                     const cardToPickIndex = pack.findIndex(card => card.index === cardIndex);
@@ -81,10 +82,10 @@ export async function handleDraftBroadcast(event: string, payload: any) {
                     if (!store.selectedPlayers.includes(playerIndex)) {
                         store.selectedPlayers.push(playerIndex);
                     }
-                    
+
                     // Check if the current player has completed drafting in the last round
                     const currentPlayerIndex = store.participants.indexOf(store.userId);
-                    if (currentPlayerIndex === playerIndex && 
+                    if (currentPlayerIndex === playerIndex &&
                         store.currentRound === store.rounds.length - 1) {
                         // Check if player's pack is empty
                         const currentPlayerPack = store.rounds[store.currentRound][store.currentPackIndex[currentPlayerIndex]];
@@ -105,7 +106,7 @@ export async function handleDraftBroadcast(event: string, payload: any) {
                 store.currentPackIndex = packAssignments;
                 store.selectedPlayers = [];
                 store.hasSelected = false;
-                
+
                 // Check if the player now has an empty pack in the final round
                 const playerIndex = store.participants.indexOf(store.userId);
                 if (playerIndex !== -1 && store.currentRound === store.rounds.length - 1) {
@@ -114,6 +115,58 @@ export async function handleDraftBroadcast(event: string, payload: any) {
                         // Player has an empty pack in the final round - they are finished
                         store.playerFinished = true;
                     }
+                }
+            }
+            break;
+
+        case 'grid-selection':
+            // Grid-specific event
+            if (store.draftMethod === 'grid') {
+                const { player, selectionType, index, isDraftFinished, completedPlayers } = payload;
+                const gridSize = store.numberOfPiles || 3;
+
+                // Get the selected cards based on the selection info
+                const selectedCards = [];
+
+                // Process the selection locally
+                if (selectionType === 'row') {
+                    // Get all cards from the selected row
+                    selectedCards.push(...store.grid[index].filter(card => card));
+
+                    // Clear the selected row
+                    for (let col = 0; col < gridSize; col++) {
+                        store.grid[index][col] = null;
+                    }
+                } else if (selectionType === 'column') {
+                    // Get all cards from the selected column
+                    for (let row = 0; row < gridSize; row++) {
+                        if (store.grid[row][index]) {
+                            selectedCards.push(store.grid[row][index]);
+                            store.grid[row][index] = null;
+                        }
+                    }
+                }
+
+                // Refill empty spots with cards from the deck
+                for (let row = 0; row < gridSize; row++) {
+                    for (let col = 0; col < gridSize; col++) {
+                        if (!store.grid[row][col] && store.deck.length > 0) {
+                            store.grid[row][col] = store.deck.shift();
+                        }
+                    }
+                }
+
+                // Update the current player
+                store.currentPlayer = player;
+
+                // Update completed players
+                if (completedPlayers) {
+                    store.completedPlayers = completedPlayers;
+                }
+
+                // Check if the draft is finished
+                if (isDraftFinished) {
+                    store.allFinished = true;
                 }
             }
             break;
