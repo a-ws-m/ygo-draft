@@ -148,7 +148,7 @@
 			</h2>
 
 			{#if grid && grid.length > 0}
-				<div class="w-full overflow-x-auto">
+				<div class="w-full overflow-hidden">
 					<div class="grid-container w-full">
 						<!-- Column selection buttons at top -->
 						<div class="column-buttons mb-2 flex w-full">
