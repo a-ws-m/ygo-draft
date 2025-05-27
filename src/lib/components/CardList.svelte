@@ -263,6 +263,8 @@
 	const filteredCube = $derived(filterCards(cube));
 	const totalCards = $derived(filteredCube.reduce((sum, card) => sum + (card.quantity || 1), 0));
 	const hasFilters = $derived(!!searchText || !!selectedFilterValue);
+	// Add dynamic container height class based on view mode
+	const containerHeightClass = $derived(viewMode === 'carousel' ? 'min-h-[60vh]' : 'h-[60vh]');
 </script>
 
 <div class="relative space-y-4">
@@ -409,9 +411,9 @@
 	{/if}
 
 	<!-- Container for cards and details -->
-	<div class="relative flex h-[60vh] flex-col">
+	<div class="relative flex {containerHeightClass} flex-col">
 		<!-- Card Previews -->
-		<div class={`flex-1 overflow-y-auto ${border ? 'card card-bordered card-compact' : ''}`}>
+		<div class={`flex-1 ${viewMode === 'carousel' ? 'overflow-y-visible' : 'overflow-y-auto'} ${border ? 'card card-bordered card-compact' : ''}`}>
 			{#if filteredCube.length === 0}
 				<div class="flex h-full items-center justify-center p-8 text-center">
 					<div class="flex flex-col items-center">

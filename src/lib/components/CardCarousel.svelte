@@ -24,7 +24,6 @@
 	let swiperInstance: Swiper | null = $state(null);
 	let activeCardIndex = $state(0);
 
-	// React to changes in filteredCube
 	$effect(() => {
 		if (swiperInstance && filteredCube) {
 			// Update virtual slides when filteredCube changes
@@ -64,8 +63,8 @@
 				virtual: {
 					enabled: true,
 					slides: filteredCube,
-					addSlidesAfter: 5,
-					addSlidesBefore: 5,
+					addSlidesAfter: 10,
+					addSlidesBefore: 10,
 					renderSlide: (card, index) => {
 						// Create a template string to render each slide
 						return `
@@ -119,22 +118,24 @@
 </script>
 
 <div class="flex h-full flex-col items-center justify-center px-4">
-	<div class="flex h-full w-full flex-col items-center overflow-x-hidden">
+	<div class="carousel-container flex h-full w-full flex-col items-center overflow-x-hidden">
 		{#if filteredCube.length > 0}
-			<div class="relative w-full" style="height: calc(100% - 4rem);">
+			<div class="relative w-full" style="height: min(70%, calc(100% - 200px));">
 				<div bind:this={swiperContainer} class="swiper h-full w-full">
-					<div class="swiper-wrapper">
+					<div class="swiper-wrapper pb-4">
 						<!-- Slides will be rendered by Swiper Virtual -->
 					</div>
 				</div>
 				<!-- Add scrollbar below cards but above details -->
-                <div class="swiper-scrollbar"></div>
+				<div class="swiper-scrollbar"></div>
 			</div>
 
-			<!-- Card details section -->
-			<div class="mt-2 flex w-full flex-col items-center">
+			<!-- Card details section with auto height -->
+			<div class="mt-2 w-full overflow-visible">
 				{#if filteredCube[activeCardIndex]}
-					<CardDetails card={filteredCube[activeCardIndex]}></CardDetails>
+					<div class="card-details-wrapper">
+						<CardDetails card={filteredCube[activeCardIndex]}></CardDetails>
+					</div>
 				{/if}
 			</div>
 		{:else}
@@ -174,5 +175,18 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
+	}
+
+	/* Ensure card details container adjusts properly */
+	:global(.carousel-container) {
+		display: flex;
+		flex-direction: column;
+		height: 100%;
+	}
+
+	:global(.card-details-wrapper) {
+		width: 100%;
+		max-width: 800px;
+		margin: 0 auto;
 	}
 </style>
