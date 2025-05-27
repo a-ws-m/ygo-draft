@@ -57,7 +57,7 @@ pnpm dev
 1. Visit the home page
 2. Upload your cube CSV file (you can create one at [YGOProdeck Cube Builder](https://ygoprodeck.com/cube/))
 3. Configure your draft settings:
-   - Select a draft method (Winston or Rochester)
+   - Select a draft method (Winston, Rochester or Grid)
    - Set the number of players
    - Configure additional settings based on the draft method
 4. Start the draft and share the URL with other players
@@ -76,7 +76,7 @@ pnpm dev
 In Winston Draft, cards are arranged into piles. On your turn:
 1. Look at the first pile
 2. Choose to either take that pile or pass to the next pile
-3. If you pass on all piles, you must take a card from the top of the deck
+3. If you pass on all piles, you must take a card from the top of the pool deck
 4. After your selection, add a card from the deck to each pile you passed
 
 ### Rochester Draft
@@ -87,6 +87,14 @@ In Rochester Draft:
 3. The direction of picking reverses each round
 4. When a pack is empty, a new one is opened
 
+### Grid Draft
+
+In Grid Draft:
+1. Cards are arranged face up in a grid (Default is 3×3)
+2. Players take turns to select a row/column of the grid, adding those cards to their drafted deck
+3. Replenish rows/columns with new cards from the pool
+4. Continue until each player has desired number of cards
+
 ## Technologies
 
 - [Svelte](https://svelte.dev/) and [SvelteKit](https://kit.svelte.dev/) - Frontend framework
@@ -96,6 +104,7 @@ In Rochester Draft:
 - [PapaParse](https://www.papaparse.com/) - CSV parsing
 - [Fuzzy-search](https://github.com/wouterrutgers/fuzzy-search) - Fuzzy searching for card names/descriptions
 - [Feather icons](https://feathericons.com/) - Beautiful, open source icons
+- [Swiper](https://swiperjs.com/) - Card carousel display
 
 ## Contributing
 

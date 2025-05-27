@@ -2,7 +2,8 @@
 	import feather from 'feather-icons';
 
 	// Group all props together on one line
-	let { isOpen = $bindable(false), draftMethod = 'winston' as 'winston' | 'rochester' } = $props();
+	let { isOpen = $bindable(false), draftMethod = 'winston' as 'winston' | 'rochester' | 'grid' } =
+		$props();
 
 	function closeModal() {
 		isOpen = false;
@@ -41,7 +42,11 @@
 			<!-- Header -->
 			<div class="flex items-center justify-between border-b pb-4">
 				<h3 class="text-xl font-semibold" id="modal-title">
-					{draftMethod === 'winston' ? 'Winston' : 'Rochester'} Draft Rules
+					{draftMethod === 'winston'
+						? 'Winston'
+						: draftMethod === 'rochester'
+							? 'Rochester'
+							: 'Grid'} Draft Rules
 				</h3>
 				<button
 					type="button"
@@ -101,7 +106,7 @@
 							Balancing when to take a pile versus when to pass is key. Passing can make piles more
 							attractive for later turns, but you risk your opponent taking valuable cards.
 						</p>
-					{:else}
+					{:else if draftMethod === 'rochester'}
 						<h4 class="font-medium">Rochester Draft Rules</h4>
 						<p>
 							Rochester Draft is a draft format where players open packs, make picks, and pass the
@@ -143,6 +148,36 @@
 							Pay attention to what cards you pass and what cards are passed to you. This helps you
 							identify what strategies adjacent players are pursuing, allowing you to avoid
 							competing for the same card types and maximize the quality of cards you receive.
+						</p>
+					{:else}
+						<h4 class="font-medium">Grid Draft Rules</h4>
+						<p>
+							Grid Draft is a draft format where cards are laid out in a square grid, and players
+							take turns selecting either a row or column of cards.
+						</p>
+
+						<h5 class="font-medium">Setup:</h5>
+						<ol>
+							<li>A shared pool of cards is shuffled.</li>
+							<li>Cards are arranged in a square grid (typically 3×3).</li>
+						</ol>
+
+						<h5 class="font-medium">On Your Turn:</h5>
+						<ol>
+							<li>
+								You must choose to take either a complete row or a complete column of cards from the
+								grid.
+							</li>
+							<li>Add all cards from that row or column to your drafted deck.</li>
+							<li>The empty spaces in the grid are filled with new cards from the pool.</li>
+							<li>Play passes to the next player.</li>
+							<li>The draft continues until each player has drafted their target deck size.</li>
+						</ol>
+
+						<h5 class="font-medium">Strategy Tips:</h5>
+						<p>
+							Pay attention to what cards you're leaving for your opponent in other rows and columns
+							after your selection.
 						</p>
 					{/if}
 				</div>

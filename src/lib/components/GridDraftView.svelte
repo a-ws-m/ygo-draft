@@ -132,8 +132,6 @@
 			(selectionType === 'column' && colIndex === selectedCol)
 		);
 	}
-
-	$inspect(draftStore.store.deck, 'draftStore.store.deck');
 </script>
 
 <div class="flex flex-col gap-6 md:flex-row">
