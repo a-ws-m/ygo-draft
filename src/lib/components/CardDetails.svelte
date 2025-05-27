@@ -6,7 +6,8 @@
 		card,
 		compact = false,
 		clickable = false,
-		onSelect = () => {}
+		onSelect = () => {},
+		useMaxWidth = true
 	} = $props<{
 		card: {
 			name?: string;
@@ -27,6 +28,7 @@
 		compact?: boolean;
 		clickable?: boolean;
 		onSelect?: () => void;
+		useMaxWidth?: boolean;
 	}>();
 
 	// Derived values
@@ -100,7 +102,7 @@
 			</div>
 		{/if}
 
-		<div class={`flex w-full flex-col space-y-2 ${!compact ? 'max-w-xl' : ''}`}>
+		<div class={`flex w-full flex-col space-y-2 ${useMaxWidth && !compact ? 'max-w-xl' : ''}`}>
 			<div class="flex w-full flex-wrap items-stretch justify-between">
 				<div class="flex flex-1 flex-col justify-between space-y-2">
 					<div class="flex items-center gap-2">

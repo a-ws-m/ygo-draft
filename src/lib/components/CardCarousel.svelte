@@ -134,7 +134,7 @@
 			<div class="mt-2 w-full overflow-visible">
 				{#if filteredCube[activeCardIndex]}
 					<div class="card-details-wrapper">
-						<CardDetails card={filteredCube[activeCardIndex]}></CardDetails>
+						<CardDetails card={filteredCube[activeCardIndex]} useMaxWidth={false}></CardDetails>
 					</div>
 				{/if}
 			</div>
