@@ -324,6 +324,23 @@ Deno.serve(async (req) => {
         type: card.type,
         api_data: card
       }));
+      
+      // Add entries for card image IDs
+      for (const card of batch) {
+        if (card.card_images && Array.isArray(card.card_images)) {
+          for (const image of card.card_images) {
+            if (image.id && image.id !== card.id) {
+              // Create duplicate card entry with the image ID
+              upsertData.push({
+                id: image.id,
+                name: card.name,
+                type: card.type,
+                api_data: card,
+              });
+            }
+          }
+        }
+      }
 
       // Upsert cards to database
       const { error } = await supabase

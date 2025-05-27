@@ -11,21 +11,21 @@ const CONFIG = {
   // S3 Configuration
   region: process.env.AWS_REGION || 'us-east-1',
   bucket: process.env.S3_BUCKET || 'ygo-card-images-avif',
-  
+
   // Local paths
   tempDir: path.join(__dirname, 'temp_images'),
-  
+
   // YGOProdeck API URL
   apiUrl: 'https://db.ygoprodeck.com/api/v7/cardinfo.php',
-  
+
   // Image processing settings
   avifQuality: 80,
   avifEffort: 5,
-  
+
   // Batch processing settings
   batchSize: 50,
   maxConcurrent: 10, // Maximum concurrent image processing tasks
-  
+
   // Download timeout in milliseconds (5 seconds)
   downloadTimeout: 5000,
 };
@@ -45,11 +45,11 @@ async function fetchCardData() {
   try {
     console.log('Fetching card data from YGOProdeck API...');
     const response = await axios.get(CONFIG.apiUrl);
-    
+
     if (!response.data || !response.data.data || !Array.isArray(response.data.data)) {
       throw new Error('Invalid response format from YGOProdeck API');
     }
-    
+
     console.log(`Fetched data for ${response.data.data.length} cards`);
     return response.data.data;
   } catch (error) {
@@ -69,7 +69,7 @@ async function downloadImage(url, filepath) {
       responseType: 'arraybuffer',
       timeout: CONFIG.downloadTimeout,
     });
-    
+
     fs.writeFileSync(filepath, response.data);
     return filepath;
   } catch (error) {
@@ -89,7 +89,7 @@ async function convertToAvif(inputPath) {
         effort: CONFIG.avifEffort
       })
       .toBuffer();
-    
+
     return avifBuffer;
   } catch (error) {
     console.error(`Error converting image to AVIF:`, error.message);
@@ -112,7 +112,7 @@ async function uploadToS3(imageBuffer, key, metadata = {}) {
         convertedAt: new Date().toISOString(),
       }
     };
-    
+
     await s3Client.send(new PutObjectCommand(uploadParams));
     return `https://${CONFIG.bucket}.s3.${CONFIG.region}.amazonaws.com/${key}`;
   } catch (error) {
@@ -124,11 +124,11 @@ async function uploadToS3(imageBuffer, key, metadata = {}) {
 /**
  * Check if an image already exists in S3
  */
-async function checkImageExistsInS3(cardId, isSmall = false) {
+async function checkImageExistsInS3(imageId, isSmall = false) {
   try {
-    const key = `${cardId}${isSmall ? '_small' : ''}.avif`;
+    const key = `${imageId}${isSmall ? '_small' : ''}.avif`;
     const url = `https://${CONFIG.bucket}.s3.${CONFIG.region}.amazonaws.com/${key}`;
-    
+
     // Simple HEAD request to check if the file exists
     const response = await axios.head(url, { validateStatus: null });
     return response.status === 200;
@@ -141,59 +141,64 @@ async function checkImageExistsInS3(cardId, isSmall = false) {
 /**
  * Process a single card image
  */
-async function processCardImage(card, imageUrl, isSmall = false) {
-  const cardId = card.id.toString();
-  const key = `${cardId}${isSmall ? '_small' : ''}.avif`;
-  const localPath = path.join(CONFIG.tempDir, `${cardId}${isSmall ? '_small' : ''}.jpg`);
-  
+async function processCardImage(card, imageUrl, isSmall = false, imageId = null) {
+  // Use the image ID if provided, otherwise fall back to the card ID
+  const id = imageId || card.id.toString();
+  const key = `${id}${isSmall ? '_small' : ''}.avif`;
+  const localPath = path.join(CONFIG.tempDir, `${id}${isSmall ? '_small' : ''}.jpg`);
+
   try {
     // Check if image already exists in S3
-    const exists = await checkImageExistsInS3(cardId, isSmall);
+    const exists = await checkImageExistsInS3(id, isSmall);
     if (exists) {
-      console.log(`Image for card ${cardId}${isSmall ? ' (small)' : ''} already exists in S3, skipping...`);
+      console.log(`Image for ${isSmall ? 'small ' : ''}image ID ${id} already exists in S3, skipping...`);
       return {
-        cardId,
+        cardId: card.id,
+        imageId: id,
         isSmall,
         success: true,
         skipped: true,
         url: `https://${CONFIG.bucket}.s3.${CONFIG.region}.amazonaws.com/${key}`
       };
     }
-    
+
     // Download the image
     await downloadImage(imageUrl, localPath);
-    
+
     // Convert to AVIF
     const avifBuffer = await convertToAvif(localPath);
-    
+
     // Upload to S3
     const url = await uploadToS3(avifBuffer, key, {
-      cardId,
+      cardId: card.id.toString(),
+      imageId: id,
       isSmall: isSmall.toString(),
       originalFormat: 'jpeg'
     });
-    
+
     // Clean up local file
     fs.unlinkSync(localPath);
-    
-    console.log(`Successfully processed ${cardId}${isSmall ? ' (small)' : ''}`);
-    
+
+    console.log(`Successfully processed ${isSmall ? 'small ' : ''}image ID ${id}`);
+
     return {
-      cardId,
+      cardId: card.id,
+      imageId: id,
       isSmall,
       success: true,
       url
     };
   } catch (error) {
-    console.error(`Failed to process image for card ${cardId}${isSmall ? ' (small)' : ''}:`, error.message);
-    
+    console.error(`Failed to process ${isSmall ? 'small ' : ''}image ID ${id}:`, error.message);
+
     // Clean up local file if it exists
     if (fs.existsSync(localPath)) {
       fs.unlinkSync(localPath);
     }
-    
+
     return {
-      cardId,
+      cardId: card.id,
+      imageId: id,
       isSmall,
       success: false,
       error: error.message
@@ -206,26 +211,27 @@ async function processCardImage(card, imageUrl, isSmall = false) {
  */
 async function processBatch(cards) {
   const imageProcessingTasks = [];
-  
+
   for (const card of cards) {
     if (!card.card_images || card.card_images.length === 0) {
       console.log(`Card ${card.id} has no images, skipping...`);
       continue;
     }
-    
-    const cardImages = card.card_images[0];
-    
-    // Queue up normal image processing task
-    if (cardImages.image_url) {
-      imageProcessingTasks.push(processCardImage(card, cardImages.image_url, false));
-    }
-    
-    // Queue up small image processing task
-    if (cardImages.image_url_small) {
-      imageProcessingTasks.push(processCardImage(card, cardImages.image_url_small, true));
+
+    // Process all card images, not just the first one
+    for (const cardImage of card.card_images) {
+      // Queue up normal image processing task
+      if (cardImage.image_url) {
+        imageProcessingTasks.push(processCardImage(card, cardImage.image_url, false, cardImage.id.toString()));
+      }
+
+      // Queue up small image processing task
+      if (cardImage.image_url_small) {
+        imageProcessingTasks.push(processCardImage(card, cardImage.image_url_small, true, cardImage.id.toString()));
+      }
     }
   }
-  
+
   // Process all image tasks in parallel and wait for all to complete
   const results = await Promise.all(imageProcessingTasks);
   return results;
@@ -238,47 +244,47 @@ async function processAllCardImages() {
   try {
     // Fetch all card data
     const cards = await fetchCardData();
-    
+
     // Create progress bars
     const multibar = new cliProgress.MultiBar({
       clearOnComplete: false,
       hideCursor: true,
       format: '{bar} {percentage}% | {value}/{total} | {task} | {status}'
     }, cliProgress.Presets.shades_classic);
-    
+
     // Main progress bar for overall progress
-    const mainProgressBar = multibar.create(cards.length, 0, { 
-      task: 'Processing Cards', 
-      status: 'Starting...' 
+    const mainProgressBar = multibar.create(cards.length, 0, {
+      task: 'Processing Cards',
+      status: 'Starting...'
     });
-    
+
     // Stats progress bars
-    const processedBar = multibar.create(cards.length * 2, 0, { 
-      task: 'Processed', 
-      status: '0' 
+    const processedBar = multibar.create(cards.length * 2, 0, {
+      task: 'Processed',
+      status: '0'
     });
-    const skippedBar = multibar.create(cards.length * 2, 0, { 
-      task: 'Skipped', 
-      status: '0' 
+    const skippedBar = multibar.create(cards.length * 2, 0, {
+      task: 'Skipped',
+      status: '0'
     });
-    const failedBar = multibar.create(cards.length * 2, 0, { 
-      task: 'Failed', 
-      status: '0' 
+    const failedBar = multibar.create(cards.length * 2, 0, {
+      task: 'Failed',
+      status: '0'
     });
-    
+
     // Process in batches
     const results = [];
     let processed = 0;
     let skipped = 0;
     let failed = 0;
     let processedCards = 0;
-    
+
     for (let i = 0; i < cards.length; i += CONFIG.batchSize) {
       const batch = cards.slice(i, i + CONFIG.batchSize);
       mainProgressBar.update(processedCards, { status: `Batch ${Math.floor(i / CONFIG.batchSize) + 1}/${Math.ceil(cards.length / CONFIG.batchSize)}` });
-      
+
       const batchResults = await processBatch(batch);
-      
+
       for (const result of batchResults) {
         if (result.success) {
           if (result.skipped) {
@@ -292,33 +298,33 @@ async function processAllCardImages() {
           failed++;
           failedBar.update(failed, { status: `${failed}` });
         }
-        
+
         results.push(result);
       }
-      
+
       // Update the main progress bar
       processedCards += batch.length;
       mainProgressBar.update(processedCards);
     }
-    
+
     // Complete all progress bars
     mainProgressBar.update(cards.length, { status: 'Completed' });
     processedBar.update(processed, { status: `${processed}` });
     skippedBar.update(skipped, { status: `${skipped}` });
     failedBar.update(failed, { status: `${failed}` });
-    
+
     // Stop the progress bars
     multibar.stop();
-    
+
     console.log('\n=== Processing Complete ===');
     console.log(`Total Cards: ${cards.length}`);
     console.log(`Images Processed: ${processed}`);
     console.log(`Images Skipped: ${skipped}`);
     console.log(`Images Failed: ${failed}`);
-    
+
     // Cleanup temp directory
     fs.rmdirSync(CONFIG.tempDir, { recursive: true });
-    
+
     return {
       cards: cards.length,
       processed,
@@ -344,7 +350,7 @@ async function processAllCardImages() {
 - AVIF Quality: ${CONFIG.avifQuality}
 - AVIF Effort: ${CONFIG.avifEffort}
 `);
-    
+
     await processAllCardImages();
   } catch (error) {
     console.error('Fatal error:', error);
