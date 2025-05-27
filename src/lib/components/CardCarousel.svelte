@@ -1,7 +1,7 @@
 <script lang="ts">
 	import feather from 'feather-icons';
-	import { calculatePopupPosition } from '$lib/utils/cardPopupPositioning';
 	import { onMount } from 'svelte';
+	import CardDetails from './CardDetails.svelte';
 	import Swiper from 'swiper';
 	import { Virtual, EffectCards, Mousewheel, Scrollbar } from 'swiper/modules';
 	import 'swiper/css';
@@ -12,15 +12,11 @@
 	const {
 		filteredCube = [],
 		clickable = false,
-		onCardClick = (card: any) => {},
-		onCardHover = (card: any, x: number, y: number, position: string) => {},
-		onCardLeave = () => {}
+		onCardClick = (card: any) => {}
 	} = $props<{
 		filteredCube: any[];
 		clickable?: boolean;
 		onCardClick?: (card: any) => void;
-		onCardHover?: (card: any, x: number, y: number, position: string) => void;
-		onCardLeave?: () => void;
 	}>();
 
 	// Reactive state
@@ -69,32 +65,21 @@
 		};
 	});
 
-	// Handle mouse events
-	function handleMouseEnter(card: any, event: MouseEvent) {
-		// Use the shared positioning utility
-		const popupData = calculatePopupPosition(event);
-
-		// Emit event to parent component
-		onCardHover(card, popupData.x, popupData.y, popupData.position);
-	}
-
-	function handleMouseLeave() {
-		onCardLeave();
-	}
-
+	// Handle card click
 	function handleCardClick(card: any) {
 		if (clickable) {
 			onCardClick(card);
 		}
 	}
-
 </script>
 
-<div class="flex h-full items-center justify-center px-4">
-	<div class="flex w-full flex-col items-center overflow-visible">
+<div class="flex h-full flex-col items-center justify-start px-4">
+	<div class="flex w-full flex-col items-center overflow-x-hidden">
 		{#if filteredCube.length > 0}
 			<div class="relative w-full">
-				<div bind:this={swiperContainer} class="swiper h-full w-full">
+				<div bind:this={swiperContainer} class="swiper h-[300px] w-full">
+					<!-- Add scrollbar -->
+					<div class="swiper-scrollbar mt-4 w-full max-w-md"></div>
 					<div class="swiper-wrapper">
 						{#each filteredCube as card, index}
 							<div class="swiper-slide" style="width: auto;">
@@ -102,16 +87,18 @@
 									class="card h-full w-auto transition-shadow hover:shadow-lg {clickable
 										? 'hover:ring-primary ring-opacity-50 cursor-pointer hover:ring'
 										: ''}"
-									onmouseenter={(e) => handleMouseEnter(card, e)}
-									onmouseleave={handleMouseLeave}
 									onclick={() => handleCardClick(card)}
 								>
 									<div class="relative aspect-[813/1185] h-[280px]">
-										<img
-											src={card.imageUrl}
-											alt={card.name}
-											class="h-full w-auto rounded object-cover shadow"
-										/>
+										<picture>
+											<source media="(max-width: 296px)" srcset={card.smallImageUrl} />
+											<source media="(min-width: 297px)" srcset={card.imageUrl} />
+											<img
+												src={card.smallImageUrl}
+												alt={card.name}
+												class="h-full w-full rounded object-cover shadow"
+											/>
+										</picture>
 									</div>
 								</div>
 							</div>
@@ -123,17 +110,9 @@
 			<!-- Card details section -->
 			<div class="mt-4 flex w-full flex-col items-center">
 				{#if filteredCube[activeCardIndex]}
-					<p class="mt-2 w-full truncate text-center font-medium">
-						{filteredCube[activeCardIndex].name}
-					</p>
-					{#if filteredCube[activeCardIndex].quantity && filteredCube[activeCardIndex].quantity > 1}
-						<p class="badge badge-neutral text-xs">x{filteredCube[activeCardIndex].quantity}</p>
-					{/if}
+					<CardDetails card={filteredCube[activeCardIndex]}></CardDetails>
 				{/if}
 			</div>
-
-			<!-- Add scrollbar -->
-			<div class="swiper-scrollbar"></div>
 		{:else}
 			<div class="p-8 text-center opacity-50">
 				<span>
@@ -156,7 +135,9 @@
 
 	.swiper {
 		width: 95%;
-		height: 100%;
+		height: 300px;
+		max-width: 400px;
+		margin: 0 auto;
 	}
 
 	.swiper-slide {
@@ -165,5 +146,10 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
+	}
+
+	.swiper-scrollbar {
+		height: 6px;
+		border-radius: 3px;
 	}
 </style>

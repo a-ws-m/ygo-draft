@@ -253,18 +253,6 @@
 		viewMode = mode;
 	}
 
-	// Handle carousel events
-	function handleCarouselCardHover(card: any, x: number, y: number, position: string) {
-		hoveredCard = card;
-		popupPosition = position;
-		popupX = x;
-		popupY = y;
-	}
-
-	function handleCarouselCardLeave() {
-		hoveredCard = null;
-	}
-
 	// Handler for YDK download
 	function handleYdkDownload() {
 		const ydkContent = convertToYdk(cube);
@@ -442,8 +430,7 @@
 					{filteredCube}
 					{clickable}
 					{onCardClick}
-					onCardHover={handleCarouselCardHover}
-					onCardLeave={handleCarouselCardLeave}
+					{showDescription}
 				/>
 			{:else if viewMode === 'tile'}
 				<div
@@ -515,7 +502,7 @@
 		</div>
 
 		<!-- Pop-up Details -->
-		{#if hoveredCard && (viewMode === 'tile' || viewMode === 'carousel')}
+		{#if hoveredCard && viewMode === 'tile'}
 			<div
 				class="fixed z-50 transform"
 				class:translate-x-[-50%]={popupPosition === 'above' || popupPosition === 'below'}
