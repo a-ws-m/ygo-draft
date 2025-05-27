@@ -48,12 +48,13 @@
 				effect: 'cards',
 				cardsEffect: {
 					slideShadows: false,
-					perSlideOffset: 8,
+					perSlideOffset: 20,
 					perSlideRotate: 2
 				},
 				grabCursor: true,
 				mousewheel: {
-					enabled: true
+					enabled: true,
+                    releaseOnEdges: true
 				},
 				scrollbar: {
 					el: '.swiper-scrollbar',
@@ -74,7 +75,7 @@
 										clickable ? 'hover:ring-primary ring-opacity-50 cursor-pointer hover:ring' : ''
 									}"
 									data-card-index="${index}"
-									style="max-width: 297px; height: auto; aspect-ratio: 421/614;"
+									style="max-width: 813px; height: auto; aspect-ratio: 421/614;"
 								>
 									<div class="relative h-full w-full">
 										<picture>
@@ -159,7 +160,7 @@
 	}
 
 	.swiper {
-		width: 95%;
+		max-width: 30%;
 		height: auto;
 		margin: 0 auto;
 		padding: 5px 0;
