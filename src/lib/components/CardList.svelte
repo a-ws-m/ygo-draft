@@ -527,6 +527,7 @@
 					clickable={selectMultiple > 0 || clickable}
 					{showDescription}
 					onCardClick={handleCardClick}
+					selectedCardIndices={selectedCardIndices}
 				/>
 			{:else if viewMode === 'tile'}
 				<div
