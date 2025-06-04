@@ -87,7 +87,7 @@
 		try {
 			// Update all selected cards
 			for (const index of selectedIndices) {
-				const selectedCard = currentPack.find(card => card.card_index === index);
+				const selectedCard = currentPack.find((card) => card.card_index === index);
 				if (selectedCard) {
 					await pickCardInAsyncDraft(draftId, draftStore.store.userId, index);
 
@@ -379,8 +379,13 @@
 				<div class="stats shadow">
 					<div class="stat place-items-center">
 						<div class="stat-title">Pack</div>
-						<div class="stat-value text-primary">{packNumber}/{totalPacks}</div>
-						<div class="stat-desc">{Math.round((packNumber / totalPacks) * 100)}% complete</div>
+						<div class="stat-value text-primary">
+							{packNumber <= totalPacks ? packNumber : totalPacks}/{totalPacks}
+						</div>
+						<div class="stat-desc">
+							{packNumber <= totalPacks ? Math.round((packNumber / totalPacks) * 100) : 100}%
+							complete
+						</div>
 					</div>
 					<div class="stat place-items-center">
 						<div class="stat-title">Picks</div>
@@ -466,7 +471,7 @@
 								</div>
 							{:else}
 								<!-- Use the CardList component with multiple selection -->
-								<CardList 
+								<CardList
 									cube={currentPack}
 									selectMultiple={picksRemaining}
 									onSelectionConfirm={confirmSelections}
