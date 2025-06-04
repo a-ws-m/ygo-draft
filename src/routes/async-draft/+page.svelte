@@ -39,7 +39,6 @@
 	let participants = $state<string[]>([]);
 	let isParticipant = $state(false);
 	let joiningDraft = $state(false);
-	let selectedCards = $state<{ card: any; index: number }[]>([]);
 	let isConfirming = $state(false);
 
 	// Toast notification
@@ -78,22 +77,8 @@
 			});
 	}
 
-	function toggleCardSelection(card) {
-		const isSelected = selectedCards.some((selected) => selected.index === card.card_index);
-
-		if (isSelected) {
-			// Remove card from selection
-			selectedCards = selectedCards.filter((selected) => selected.index !== card.card_index);
-		} else {
-			// Add card to selection if we haven't reached the maximum
-			if (selectedCards.length < picksRemaining) {
-				selectedCards = [...selectedCards, { card, index: card.card_index }];
-			}
-		}
-	}
-
-	async function confirmSelections() {
-		if (selectedCards.length !== picksRemaining) {
+	async function confirmSelections(selectedIndices) {
+		if (selectedIndices.length !== picksRemaining) {
 			showToastNotification(`Please select exactly ${picksRemaining} cards.`, 'error');
 			return;
 		}
@@ -101,20 +86,22 @@
 		isConfirming = true;
 		try {
 			// Update all selected cards
-			for (const selection of selectedCards) {
-				await pickCardInAsyncDraft(draftId, draftStore.store.userId, selection.index);
+			for (const index of selectedIndices) {
+				const selectedCard = currentPack.find(card => card.card_index === index);
+				if (selectedCard) {
+					await pickCardInAsyncDraft(draftId, draftStore.store.userId, index);
 
-				// Add to drafted deck
-				draftStore.store.draftedDeck = [...draftStore.store.draftedDeck, selection.card];
-				currentPickCount++;
+					// Add to drafted deck
+					draftStore.store.draftedDeck = [...draftStore.store.draftedDeck, selectedCard];
+					currentPickCount++;
+				}
 			}
 
 			// Show toast notification
-			showToastNotification(`Added ${selectedCards.length} cards to your deck!`);
+			showToastNotification(`Added ${selectedIndices.length} cards to your deck!`);
 
 			// Update picks remaining
 			picksRemaining = 0;
-			selectedCards = [];
 
 			// Load next pack
 			await loadCurrentPack();
@@ -140,7 +127,6 @@
 		try {
 			// Reset picked cards in current pack
 			pickedCardsInPack = [];
-			selectedCards = [];
 
 			// If no picks remaining in the current pack, move to the next pack
 			if (picksRemaining <= 0) {
@@ -315,21 +301,9 @@
 		await loadDraftData();
 	}
 
-	function startRefreshInterval() {
-		if (!refreshInterval && !draftCompleted && isParticipant) {
-			refreshInterval = setInterval(async () => {
-				if (!draftCompleted && currentPack.length > 0) {
-					await loadCurrentPack();
-				}
-			}, 30000); // Refresh every 30 seconds
-		}
-	}
-
 	onMount(() => {
 		if (authStore.session) {
-			setupDraft().then(() => {
-				startRefreshInterval();
-			});
+			setupDraft();
 		} else {
 			isLoading = false;
 		}
@@ -415,11 +389,6 @@
 							{Math.round((currentPickCount / targetDeckSize) * 100)}% complete
 						</div>
 					</div>
-					<div class="stat place-items-center">
-						<div class="stat-title">This Pack</div>
-						<div class="stat-value">{picksPerPack - picksRemaining}/{picksPerPack}</div>
-						<div class="stat-desc">{picksRemaining} picks remaining</div>
-					</div>
 				</div>
 			</div>
 			<div class="navbar-end">
@@ -472,7 +441,7 @@
 							<h2 class="card-title">
 								Current Pack ({currentPack.length} cards)
 								<div class="badge badge-primary">
-									Pick {picksPerPack - picksRemaining + 1}/{picksPerPack}
+									Pack {packNumber}/{totalPacks}
 								</div>
 							</h2>
 							<div class="divider"></div>
@@ -496,73 +465,12 @@
 									</div>
 								</div>
 							{:else}
-								<!-- Cards selection instructions -->
-								<div class="alert alert-info mb-4">
-									<div class="flex-none">
-										{@html feather.icons['info'].toSvg({ class: 'h-5 w-5' })}
-									</div>
-									<div>
-										<p>
-											Select {picksRemaining} cards from this pack, then confirm your selection.
-										</p>
-										<p class="mt-1 text-sm">
-											You've selected {selectedCards.length} of {picksRemaining} cards
-										</p>
-									</div>
-								</div>
-
-								<!-- Custom cards display with selection functionality -->
-								<div
-									class="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
-								>
-									{#each currentPack as card}
-										<div
-											class="card card-compact bg-base-300 hover:bg-primary hover:bg-opacity-20 cursor-pointer transition-all
-                                              {selectedCards.some(
-												(s) => s.index === card.card_index
-											)
-												? 'bg-primary bg-opacity-20 border-primary border-2'
-												: ''}
-                                              {selectedCards.length >= picksRemaining &&
-											!selectedCards.some((s) => s.index === card.card_index)
-												? 'opacity-50'
-												: ''}"
-											onclick={() => toggleCardSelection(card)}
-										>
-											<figure>
-												<img
-													src={card.imageUrl || card.image_url}
-													alt={card.name || card.card_name}
-													loading="lazy"
-												/>
-											</figure>
-											<div class="card-body p-2">
-												<h3 class="card-title text-sm">{card.name || card.card_name}</h3>
-												{#if card.apiData?.rarity || card.api_data?.rarity}
-													<div class="badge badge-sm badge-outline">
-														{card.custom_rarity || card.apiData?.rarity || card.api_data?.rarity}
-													</div>
-												{/if}
-											</div>
-										</div>
-									{/each}
-								</div>
-
-								<!-- Confirmation button -->
-								<div class="card-actions mt-6 justify-end">
-									<button
-										class="btn btn-primary btn-lg"
-										disabled={selectedCards.length !== picksRemaining || isConfirming}
-										onclick={confirmSelections}
-									>
-										{#if isConfirming}
-											<span class="loading loading-spinner loading-sm"></span>
-											Confirming...
-										{:else}
-											Confirm Selection ({selectedCards.length}/{picksRemaining})
-										{/if}
-									</button>
-								</div>
+								<!-- Use the CardList component with multiple selection -->
+								<CardList 
+									cube={currentPack}
+									selectMultiple={picksRemaining}
+									onSelectionConfirm={confirmSelections}
+								/>
 							{/if}
 						</div>
 					</div>
