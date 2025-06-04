@@ -4,6 +4,7 @@
 	import { createDraft } from '$lib/utils/supabaseDraftManager';
 	import { store as authStore } from '$lib/stores/authStore.svelte';
 	import LoginPrompt from '$lib/components/LoginPrompt.svelte';
+	import RarityDistribution from '$lib/components/RarityDistribution.svelte';
 	import feather from 'feather-icons';
 
 	// Define a callback prop for handling cube uploads
@@ -17,11 +18,12 @@
 	let numberOfPiles = $state(3);
 	let gridSize = $state(3); // New variable for grid draft
 	let packsPerRound = $state(1);
-	let packSize = $state(15);
+	let packSize = $derived(draftMethod === 'asynchronous' ? 20 : 15); // Changed default for async
+	let picksPerPack = $state(5); // Changed default from 1 to 5
 	let extraDeckAtEnd = $state(false); // Changed default to false
 	let useRarityDistribution = $state(false); // New state for rarity distribution option
-	let commonPerPack = $state(7);
-	let rarePerPack = $state(5);
+	let commonPerPack = $derived(draftMethod == 'asynchronous' ? 10 : 7);
+	let rarePerPack = $derived(draftMethod == 'asynchronous' ? 7 : 5);
 	let superRarePerPack = $state(2);
 	let ultraRarePerPack = $state(1);
 	let cubeFile = $state(null);
@@ -93,6 +95,14 @@
 		initialGridCards + totalGridRounds * cardsPerGridRound * numberOfPlayers
 	);
 
+	// Derived value for async draft pool size calculation
+	let asyncTotalPoolSize = $derived.by(() => {
+		// Calculate total packs needed per player
+		const packsPerPlayer = Math.ceil(draftedDeckSize / picksPerPack);
+		// Calculate total pool size
+		return packsPerPlayer * packSize * numberOfPlayers;
+	});
+
 	// Functions to handle tooltip visibility with fade effect
 	function startTooltipFadeOut(tooltipType) {
 		if (tooltipType === 'method') {
@@ -156,7 +166,8 @@
 	const draftMethodDescriptions = {
 		winston: `In Winston Draft, players take turns choosing from a number of piles. If you accept a pile, you take all cards in it. If you decline, add another card to the pile from the deck and move to the next one. If you decline the final pile, you take the top card of the deck.`,
 		rochester: `In Rochester Draft, players pass a pack of cards in a circle, taking one card at a time, until no cards remain in the packs. Then, another pack is opened for each player, and the process continues until there are no cards left in the pool.`,
-		grid: `In Grid Draft, cards are laid out in a square grid (default 3x3). On your turn, you choose to take either a row or a column of cards from the grid. The selected cards are added to your deck, and the row/column is replaced with new cards from the pool.`
+		grid: `In Grid Draft, cards are laid out in a square grid (default 3x3). On your turn, you choose to take either a row or a column of cards from the grid. The selected cards are added to your deck, and the row/column is replaced with new cards from the pool.`,
+		asynchronous: `In Asynchronous Draft, each player opens "packs" with a set number of cards drawn from the cube. Players can pick a specified number of cards from each pack before moving to the next one. This draft can be completed at your own pace, with no real-time player interaction required.`
 	};
 
 	function handleFileUpload(event: Event) {
@@ -274,13 +285,13 @@
 		}
 	}
 
-	// Modified validateOptions function to handle grid draft validation properly
+	// Modified validateOptions function to handle all draft methods
 	function validateOptions() {
 		optionErrorMessage = '';
 		showUnevenPoolWarning = false; // Reset the warning flag
 
 		// First check database limits
-		if (draftMethod === 'rochester' || draftMethod === 'grid') {
+		if (draftMethod === 'rochester' || draftMethod === 'grid' || draftMethod === 'asynchronous') {
 			// For Rochester, calculate pool size from drafted deck size
 			if (draftMethod === 'rochester') {
 				poolSize = draftedDeckSize * numberOfPlayers;
@@ -288,6 +299,10 @@
 			// For Grid, calculate pool size based on rounds needed
 			else if (draftMethod === 'grid') {
 				poolSize = gridTotalPoolSize;
+			}
+			// For Asynchronous, calculate from deck size and picks per pack
+			else if (draftMethod === 'asynchronous') {
+				poolSize = asyncTotalPoolSize;
 			}
 		}
 
@@ -365,6 +380,41 @@
 				optionErrorMessage = `Not enough cards in the cube. Need at least ${totalCardsNeeded} cards for all players to draft ${draftedDeckSize} cards each.`;
 				return;
 			}
+		} else if (draftMethod === 'asynchronous') {
+			// Asynchronous draft specific validations
+			if (picksPerPack > packSize) {
+				optionErrorMessage = `Picks per pack (${picksPerPack}) cannot exceed pack size (${packSize}).`;
+				return;
+			}
+
+			if (picksPerPack <= 0) {
+				optionErrorMessage = 'Picks per pack must be at least 1.';
+				return;
+			}
+
+			if (packSize <= 0) {
+				optionErrorMessage = 'Pack size must be at least 1.';
+				return;
+			}
+
+			// Calculate total packs needed
+			const packsPerPlayer = Math.ceil(draftedDeckSize / picksPerPack);
+			const totalCardsNeeded = packsPerPlayer * packSize * numberOfPlayers;
+
+			// Check if the cube has enough cards
+			if (totalCardsNeeded > totalCards) {
+				optionErrorMessage = `Not enough cards in the cube. Need at least ${totalCardsNeeded} cards for all players to draft.`;
+				return;
+			}
+
+			// Validation for rarity distribution
+			if (useRarityDistribution) {
+				const rarityTotal = commonPerPack + rarePerPack + superRarePerPack + ultraRarePerPack;
+				if (rarityTotal !== packSize) {
+					optionErrorMessage = `Rarity distribution total (${rarityTotal}) must equal pack size (${packSize}).`;
+					return;
+				}
+			}
 		}
 	}
 
@@ -374,11 +424,17 @@
 		isProcessing = true;
 
 		try {
-			// For Rochester and Grid drafts, ensure pool size is correctly calculated
+			// Calculate pool size based on draft method
 			if (draftMethod === 'rochester') {
 				poolSize = draftedDeckSize * numberOfPlayers;
 			} else if (draftMethod === 'grid') {
 				poolSize = gridTotalPoolSize;
+			} else if (draftMethod === 'asynchronous') {
+				// Calculate how many packs each player needs to reach the drafted deck size
+				const packsPerPlayer = Math.ceil(draftedDeckSize / picksPerPack);
+				// Calculate pool size needed per player (not total)
+				// For async drafts, each player gets their own independent pool of the same size
+				poolSize = packsPerPlayer * packSize * numberOfPlayers;
 			}
 
 			// Ensure all necessary data is included in the draft creation
@@ -396,10 +452,19 @@
 					smallImageUrl: card.smallImageUrl,
 					custom_rarity: card?.custom_rarity
 				})),
-				draftMethod === 'winston' ? numberOfPiles : draftMethod === 'grid' ? gridSize : 3,
-				draftMethod === 'rochester' ? packSize : 5,
-				extraDeckAtEnd, // Grid draft can also use the extra deck at end option
-				draftMethod === 'rochester' && useRarityDistribution
+				// Third parameter is different based on draft method
+				draftMethod === 'winston'
+					? numberOfPiles
+					: draftMethod === 'grid'
+						? gridSize
+						: draftMethod === 'asynchronous'
+							? picksPerPack
+							: 3,
+				// Fourth parameter is pack size for Rochester and Async
+				draftMethod === 'rochester' || draftMethod === 'asynchronous' ? packSize : 5,
+				extraDeckAtEnd,
+				// Rarity distribution for Rochester and Async drafts
+				(draftMethod === 'rochester' || draftMethod === 'asynchronous') && useRarityDistribution
 					? {
 							commonPerPack,
 							rarePerPack,
@@ -407,7 +472,11 @@
 							ultraRarePerPack
 						}
 					: null,
-				draftMethod === 'grid' || draftMethod === 'rochester' ? draftedDeckSize : undefined
+				// Drafted deck size parameter
+				draftMethod === 'grid' || draftMethod === 'rochester' || draftMethod === 'asynchronous'
+					? draftedDeckSize
+					: undefined,
+				draftMethod === 'asynchronous' ? picksPerPack : undefined
 			);
 
 			// Store draft settings in sessionStorage for additional backup
@@ -417,12 +486,16 @@
 					draftMethod,
 					poolSize,
 					draftedDeckSize:
-						draftMethod === 'rochester' || draftMethod === 'grid' ? draftedDeckSize : undefined,
+						draftMethod === 'rochester' || draftMethod === 'grid' || draftMethod === 'asynchronous'
+							? draftedDeckSize
+							: undefined,
 					numberOfPlayers,
 					numberOfPiles: draftMethod === 'winston' ? numberOfPiles : undefined,
 					gridSize: draftMethod === 'grid' ? gridSize : undefined,
 					packsPerRound: draftMethod === 'rochester' ? packsPerRound : undefined,
-					packSize: draftMethod === 'rochester' ? packSize : undefined,
+					packSize:
+						draftMethod === 'rochester' || draftMethod === 'asynchronous' ? packSize : undefined,
+					picksPerPack: draftMethod === 'asynchronous' ? picksPerPack : undefined,
 					extraDeckAtEnd,
 					useRarityDistribution,
 					raritySettings: useRarityDistribution
@@ -436,8 +509,12 @@
 				})
 			);
 
-			// Navigate to the draft page with the base path prepended
-			goto(`${base}/draft?id=${draftId}`);
+			// Navigate to the appropriate page based on draft method
+			if (draftMethod === 'asynchronous') {
+				goto(`${base}/async-draft?id=${draftId}`);
+			} else {
+				goto(`${base}/draft?id=${draftId}`);
+			}
 		} catch (error) {
 			console.error('Error starting draft:', error);
 			errorMessage = 'Failed to start draft. Please try again.';
@@ -587,6 +664,10 @@
 								<strong>Grid Draft:</strong>
 								{draftMethodDescriptions.grid}
 							</p>
+							<p class="text-base-content/70 mb-2 text-xs">
+								<strong>Asynchronous Draft:</strong>
+								{draftMethodDescriptions.asynchronous}
+							</p>
 						</div>
 					{/if}
 				</div>
@@ -600,11 +681,12 @@
 				<option value="rochester">Rochester Draft</option>
 				<option value="winston">Winston Draft</option>
 				<option value="grid">Grid Draft</option>
+				<option value="asynchronous">Asynchronous Draft</option>
 			</select>
 		</div>
 
 		<!-- Pool Size -->
-		{#if draftMethod === 'rochester' || draftMethod === 'grid'}
+		{#if draftMethod === 'rochester' || draftMethod === 'grid' || draftMethod === 'asynchronous'}
 			<div>
 				<label for="drafted-deck-size" class="text-base-content mb-1 block text-sm font-medium">
 					Drafted deck size <span class="text-base-content/60 text-xs"
@@ -629,6 +711,11 @@
 						Total pool size: {gridTotalPoolSize} cards ({initialGridCards} initial grid cards + {cardsPerGridRound}
 						cards × {totalGridRounds}
 						rounds × {numberOfPlayers} players)
+					</p>
+				{:else}
+					<p class="text-base-content/60 mt-1 text-sm">
+						Pool size per player: {asyncTotalPoolSize / numberOfPlayers} cards (Total: {asyncTotalPoolSize}
+						cards for all players)
 					</p>
 				{/if}
 			</div>
@@ -681,98 +768,23 @@
 				/>
 			</div>
 
-			<!-- Rarity Distribution Option -->
-			<div class="form-control">
-				<label class="label cursor-pointer">
-					<input
-						type="checkbox"
-						id="use-rarity-distribution"
-						bind:checked={useRarityDistribution}
-						onchange={() => {
-							if (useRarityDistribution) {
-								extraDeckAtEnd = false;
-								checkForCardsWithoutRarity();
-							} else {
-								showRarityWarning = false;
-							}
-							validateOptions();
-						}}
-						disabled={extraDeckAtEnd}
-						class="checkbox checkbox-primary"
-					/>
-					<span class="label-text ml-2">Use pack rarity distribution</span>
-				</label>
-			</div>
-
-			<!-- Rarity Distribution Settings -->
-			{#if useRarityDistribution}
-				<div class="border-primary/20 bg-primary/5 ml-6 space-y-3 rounded-md border p-4">
-					<div>
-						<label for="common-per-pack" class="text-base-content mb-1 block text-sm font-medium">
-							Commons per pack
-						</label>
-						<input
-							type="number"
-							id="common-per-pack"
-							bind:value={commonPerPack}
-							min="0"
-							oninput={validateOptions}
-							class="input input-bordered w-full"
-						/>
-					</div>
-					<div>
-						<label for="rare-per-pack" class="text-base-content mb-1 block text-sm font-medium">
-							Rares per pack
-						</label>
-						<input
-							type="number"
-							id="rare-per-pack"
-							bind:value={rarePerPack}
-							min="0"
-							oninput={validateOptions}
-							class="input input-bordered w-full"
-						/>
-					</div>
-					<div>
-						<label
-							for="super-rare-per-pack"
-							class="text-base-content mb-1 block text-sm font-medium"
-						>
-							Super Rares per pack
-						</label>
-						<input
-							type="number"
-							id="super-rare-per-pack"
-							bind:value={superRarePerPack}
-							min="0"
-							oninput={validateOptions}
-							class="input input-bordered w-full"
-						/>
-					</div>
-					<div>
-						<label
-							for="ultra-rare-per-pack"
-							class="text-base-content mb-1 block text-sm font-medium"
-						>
-							Ultra Rares per pack
-						</label>
-						<input
-							type="number"
-							id="ultra-rare-per-pack"
-							bind:value={ultraRarePerPack}
-							min="0"
-							oninput={validateOptions}
-							class="input input-bordered w-full"
-						/>
-					</div>
-					<div class="alert alert-info p-2">
-						<span>
-							Total: {commonPerPack + rarePerPack + superRarePerPack + ultraRarePerPack}
-							(must equal pack size of {packSize})
-						</span>
-					</div>
-				</div>
-			{/if}
+			<!-- Rarity Distribution Component -->
+			<RarityDistribution
+				{useRarityDistribution}
+				{commonPerPack}
+				{rarePerPack}
+				{superRarePerPack}
+				{ultraRarePerPack}
+				{packSize}
+				{extraDeckAtEnd}
+				onDistributionChange={(data) => {
+					if (!data.useRarityDistribution) {
+						showRarityWarning = false;
+					}
+				}}
+				{validateOptions}
+				{checkForCardsWithoutRarity}
+			/>
 		{:else if draftMethod === 'winston'}
 			<div>
 				<label for="number-of-piles" class="text-base-content mb-1 block text-sm font-medium">
@@ -810,6 +822,56 @@
 					Each player will get {gridSize} cards per turn, for {totalGridRounds} turns
 				</p>
 			</div>
+		{:else if draftMethod === 'asynchronous'}
+			<div>
+				<label for="pack-size" class="text-base-content mb-1 block text-sm font-medium">
+					Pack Size
+				</label>
+				<input
+					type="number"
+					id="pack-size"
+					bind:value={packSize}
+					min="1"
+					oninput={validateOptions}
+					class="input input-bordered w-full"
+				/>
+			</div>
+
+			<div>
+				<label for="picks-per-pack" class="text-base-content mb-1 block text-sm font-medium">
+					Picks per Pack
+				</label>
+				<input
+					type="number"
+					id="picks-per-pack"
+					bind:value={picksPerPack}
+					min="1"
+					max={packSize}
+					oninput={validateOptions}
+					class="input input-bordered w-full"
+				/>
+				<p class="text-base-content/60 mt-1 text-sm">
+					Each player will select {picksPerPack} cards from every pack of {packSize} cards.
+				</p>
+			</div>
+
+			<!-- Rarity Distribution Component -->
+			<RarityDistribution
+				{useRarityDistribution}
+				{commonPerPack}
+				{rarePerPack}
+				{superRarePerPack}
+				{ultraRarePerPack}
+				{packSize}
+				{extraDeckAtEnd}
+				onDistributionChange={(data) => {
+					if (!data.useRarityDistribution) {
+						showRarityWarning = false;
+					}
+				}}
+				{validateOptions}
+				{checkForCardsWithoutRarity}
+			/>
 		{/if}
 
 		<!-- Extra Deck at End Option -->

@@ -2,7 +2,7 @@
 	import feather from 'feather-icons';
 
 	// Group all props together on one line
-	let { isOpen = $bindable(false), draftMethod = 'winston' as 'winston' | 'rochester' | 'grid' } =
+	let { isOpen = $bindable(false), draftMethod = 'winston' as 'winston' | 'rochester' | 'grid' | 'asynchronous' } =
 		$props();
 
 	function closeModal() {
@@ -46,7 +46,9 @@
 						? 'Winston'
 						: draftMethod === 'rochester'
 							? 'Rochester'
-							: 'Grid'} Draft Rules
+							: draftMethod === 'grid'
+								? 'Grid'
+								: 'Asynchronous'} Draft Rules
 				</h3>
 				<button
 					type="button"
@@ -149,7 +151,7 @@
 							identify what strategies adjacent players are pursuing, allowing you to avoid
 							competing for the same card types and maximize the quality of cards you receive.
 						</p>
-					{:else}
+					{:else if draftMethod === 'grid'}
 						<h4 class="font-medium">Grid Draft Rules</h4>
 						<p>
 							Grid Draft is a draft format where cards are laid out in a square grid, and players
@@ -178,6 +180,40 @@
 						<p>
 							Pay attention to what cards you're leaving for your opponent in other rows and columns
 							after your selection.
+						</p>
+					{:else}
+						<h4 class="font-medium">Asynchronous Draft Rules</h4>
+						<p>
+							Asynchronous Draft is a draft format where players open packs and pick cards at their own pace,
+							without needing to wait for other players to be online.
+						</p>
+
+						<h5 class="font-medium">Setup:</h5>
+						<ol>
+							<li>A shared pool of cards is shuffled and organized into packs.</li>
+							<li>Each pack contains a set number of cards determined by the draft creator.</li>
+							<li>Players can draft whenever they want, with no need to coordinate schedules.</li>
+						</ol>
+
+						<h5 class="font-medium">Draft Process:</h5>
+						<ol>
+							<li>Each player opens a pack of cards and selects a specified number of cards from it.</li>
+							<li>After making all picks from a pack, the player moves on to the next pack.</li>
+							<li>This continues until the player has drafted their target deck size.</li>
+							<li>Each player drafts independently from their own sequence of packs.</li>
+						</ol>
+
+						<h5 class="font-medium">Card Availability:</h5>
+						<p>
+							The number of times a card can appear in the draft is limited by its quantity in the cube.
+							Once a card is picked by a player, it's no longer available for other players.
+						</p>
+
+						<h5 class="font-medium">Strategy Tips:</h5>
+						<p>
+							Since players draft independently, focus on building a cohesive deck strategy rather than
+							responding to what other players are drafting. Choose cards that work well together to maximize
+							your deck's effectiveness.
 						</p>
 					{/if}
 				</div>

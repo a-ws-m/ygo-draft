@@ -51,12 +51,12 @@ interface RarityDistribution {
 
 /**
  * Creates a new draft in the database and assigns shuffled indexes to the cube cards.
- * @param draftMethod - The drafting method (e.g., "winston", "rochester", or "grid").
+ * @param draftMethod - The drafting method (e.g., "winston", "rochester", "grid", or "asynchronous").
  * @param poolSize - The size of the card pool.
  * @param numberOfPlayers - The number of players in the draft.
  * @param cube - The cube data (array of cards).
- * @param numberOfPiles - The number of piles for winston draft or grid size for grid draft.
- * @param packSize - The pack size for rochester draft.
+ * @param numberOfPiles - The number of piles for winston draft, grid size for grid draft, or picks per pack for asynchronous draft.
+ * @param packSize - The pack size for rochester or asynchronous draft.
  * @param extraDeckAtEnd - Whether to move extra deck cards to the end of the pool.
  * @param rarityDistribution - Optional settings for rarity distribution in packs.
  * @param drafted_deck_size - The target number of cards each player should draft.
@@ -71,14 +71,15 @@ export async function createDraft(
     packSize: number = 5,
     extraDeckAtEnd: boolean = false,
     rarityDistribution: RarityDistribution | null = null,
-    drafted_deck_size?: number // New parameter for draft deck size
+    drafted_deck_size?: number, // Parameter for draft deck size
+    picksPerPack?: number // Optional parameter for asynchronous draft
 ): Promise<string> {
     try {
         // Get the current authenticated user
         const { data: { user } } = await supabase.auth.getUser();
 
         if (!user) {
-            throw new Error("User must be authenticated to create a draft");
+            throw new Error("No authenticated user found. Please log in to create a draft.");
         }
 
         // Create a new draft session in the `drafts` table
@@ -92,9 +93,10 @@ export async function createDraft(
                 status: "waiting",
                 number_of_piles: numberOfPiles,
                 pack_size: packSize,
-                created_by: user.id, // Store the creator's ID
-                participants: [user.id], // Initialize with the creator as first participant
-                drafted_deck_size // Store the target deck size for grid draft
+                created_by: user.id,
+                participants: [user.id],
+                drafted_deck_size,
+                picks_per_pack: draftMethod === 'asynchronous' ? picksPerPack : undefined // Store picks per pack for async drafts
             })
             .select()
             .single();
@@ -118,7 +120,7 @@ export async function createDraft(
         let processedCube = expandedCube;
 
         // If using rarity distribution for Rochester draft
-        if (draftMethod === 'rochester' && rarityDistribution) {
+        if ((draftMethod === 'rochester' || draftMethod === 'asynchronous') && rarityDistribution) {
             processedCube = organizeCardsByRarity(expandedCube, rarityDistribution, packSize, numberOfPlayers, poolSize);
             console.log("Organized cards by rarity for Rochester draft.");
             console.log("Cards organized by rarity:", processedCube.map(card => getRarityFromCard(card)));
@@ -131,7 +133,7 @@ export async function createDraft(
         let limitedCube = processedCube.slice(0, poolSize);
 
         // Handle extra deck cards for both Rochester and Grid draft
-        if (extraDeckAtEnd && (draftMethod === 'rochester' || draftMethod === 'grid')) {
+        if (extraDeckAtEnd && (draftMethod === 'rochester' || draftMethod === 'grid' || draftMethod === 'asynchronous')) {
             // Separate main deck and extra deck cards
             const mainDeckCards = [];
             const extraDeckCards = [];
