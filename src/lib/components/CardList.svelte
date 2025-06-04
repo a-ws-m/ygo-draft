@@ -7,7 +7,7 @@
 	import { onMount } from 'svelte';
 	import FuzzySearch from 'fuzzy-search';
 	import feather from 'feather-icons';
-	import { calculatePopupPosition } from '$lib/utils/cardPopupPositioning';
+	import tippy from 'tippy.js';
 
 	// Props using $props rune
 	const {
@@ -36,15 +36,9 @@
 
 	// Reactive state
 	let viewMode = $state<'list' | 'tile' | 'carousel'>(preferredViewMode); // Initialize with preferred mode
-	let hoveredCard = $state(null);
 	let matchDescription = $state(true);
 	let selectedCardIndices = $state<number[]>([]);
 	let isConfirming = $state(false);
-
-	// Create variables to track popup position
-	let popupX = $state(0);
-	let popupY = $state(0);
-	let popupPosition = $state('below'); // 'above', 'below', 'left', or 'right'
 
 	// Modal state
 	let showConfirmModal = $state(false);
@@ -221,19 +215,25 @@
 		return small ? card.smallImageUrl : card.imageUrl;
 	}
 
-	// Handle mouse events for tile view
-	function handleMouseEnter(card, event) {
-		hoveredCard = card;
+	function tooltip(index: number) {
+		// Mount the card details component to the tooltip
 
-		// Use the shared positioning utility
-		const popupData = calculatePopupPosition(event);
-		popupPosition = popupData.position;
-		popupX = popupData.x;
-		popupY = popupData.y;
-	}
-
-	function handleMouseLeave() {
-		hoveredCard = null;
+		// Create a tooltip instance
+		return (element) => {
+			const cardDetailsDiv = document.getElementById(`cardDetails${index}`);
+			const tooltipInstance = tippy(element, {
+				content: cardDetailsDiv?.innerHTML,
+				allowHTML: true,
+				maxWidth: 500,
+				interactive: false,
+				trigger: 'mouseenter focus',
+				hideOnClick: false,
+				placement: 'top',
+				duration: [200, 0],
+				animation: 'shift-away'
+			});
+			return tooltipInstance.destroy;
+		};
 	}
 
 	// Handle card selection for multiselect mode
@@ -527,14 +527,14 @@
 					clickable={selectMultiple > 0 || clickable}
 					{showDescription}
 					onCardClick={handleCardClick}
-					selectedCardIndices={selectedCardIndices}
+					{selectedCardIndices}
 				/>
 			{:else if viewMode === 'tile'}
 				<div
 					class="grid auto-cols-max grid-cols-1 justify-items-center gap-4 p-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6"
 					style="grid-template-columns: repeat(auto-fill, minmax(min(calc(100% / 3 - 16px), 271px), 1fr));"
 				>
-					{#each filteredCube as card}
+					{#each filteredCube as card, index}
 						<div class="flex w-full max-w-[271px] flex-col items-center">
 							<button
 								class="card relative w-full transition-shadow hover:shadow-lg {clickable ||
@@ -550,10 +550,9 @@
 									? 'opacity-50'
 									: ''}"
 								type="button"
-								onmouseenter={(e) => handleMouseEnter(card, e)}
-								onmouseleave={handleMouseLeave}
 								onclick={() => handleCardClick(card)}
 								onkeydown={(e) => e.key === 'Enter' && handleCardClick(card)}
+								{@attach tooltip(index)}
 							>
 								<!-- Card Image -->
 								<div class="relative aspect-[813/1185] w-full max-w-[271px]">
@@ -572,6 +571,9 @@
 												class="h-full w-full rounded object-cover shadow"
 											/>
 										</picture>
+										<div class="hidden" id="cardDetails{index}">
+											<CardDetails {card} />
+										</div>
 									{:catch error}
 										<div
 											class="bg-base-200 absolute inset-0 flex items-center justify-center rounded"
@@ -636,20 +638,6 @@
 						Confirm Selection ({selectedCardIndices.length}/{selectMultiple})
 					{/if}
 				</button>
-			</div>
-		{/if}
-
-		<!-- Pop-up Details -->
-		{#if hoveredCard && viewMode === 'tile'}
-			<div
-				class="fixed z-50 transform"
-				class:translate-x-[-50%]={popupPosition === 'above' || popupPosition === 'below'}
-				class:translate-y-[-50%]={popupPosition === 'left' || popupPosition === 'right'}
-				class:translate-y-[-100%]={popupPosition === 'above'}
-				class:translate-x-[-100%]={popupPosition === 'left'}
-				style="left: {popupX}px; top: {popupY}px;"
-			>
-				<CardDetails card={hoveredCard} />
 			</div>
 		{/if}
 
