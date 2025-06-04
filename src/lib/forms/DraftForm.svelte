@@ -6,6 +6,7 @@
 	import LoginPrompt from '$lib/components/LoginPrompt.svelte';
 	import RarityDistribution from '$lib/components/RarityDistribution.svelte';
 	import feather from 'feather-icons';
+	import tippy from 'tippy.js';
 
 	// Define a callback prop for handling cube uploads
 	let { onCubeUploaded }: { onCubeUploaded: (cube: any[]) => void } = $props();
@@ -34,9 +35,6 @@
 	let optionErrorMessage = $state('');
 	let totalCards = $state(0);
 	let cube = $state([]);
-	let showMethodTooltip = $state(false);
-	let showCubeTooltip = $state(false); // New state for cube tooltip
-	let showOverlapTooltip = $state(false); // New state for overlap tooltip
 	let isAuthenticated = $derived(!!authStore.session);
 	let showRarityWarning = $state(false);
 	let cardsWithoutRarity = $state([]);
@@ -70,18 +68,34 @@
 		}
 	];
 
-	// Fade-out states and timers for tooltips
-	let methodTooltipTimer = $state(null);
-	let cubeTooltipTimer = $state(null);
-	let overlapTooltipTimer = $state(null);
-
 	// Constants for limits
 	const MAX_POOL_SIZE = 1000;
 	const MAX_PLAYERS = 10;
 	const MAX_GRID_SIZE = 5; // Maximum grid size
 	const MIN_GRID_SIZE = 2; // Minimum grid size
 	const DAILY_DRAFT_LIMIT = 100; // Not used directly in UI but useful for reference
-	const TOOLTIP_FADE_DELAY = 100; // 500ms delay for tooltip fade-out
+
+	// Tooltip function for tippy.js
+	function tooltip() {
+		return (element) => {
+			const tooltipInstance = tippy(element, {
+				content: element.querySelector('.tooltip-content')?.innerHTML,
+				allowHTML: true,
+				maxWidth:300,
+				interactive: true,
+				trigger: 'mouseenter focus',
+				hideOnClick: false,
+				placement: 'auto',
+				duration: [200, 0],
+				animation: 'shift-away',
+				appendTo: document.body,
+				// popperOptions: {
+				// 	strategy: 'fixed',
+				// }
+			});
+			return tooltipInstance.destroy;
+		};
+	}
 
 	// Derived value for max drafted deck size
 	let maxDraftedDeckSize = $derived(Math.floor(MAX_POOL_SIZE / numberOfPlayers));
@@ -108,93 +122,6 @@
 
 	// Derived value for player pool size in async drafts with overlap
 	let playerPoolSize = $derived(Math.floor(poolSize / numberOfPlayers));
-
-	// Functions to handle tooltip visibility with fade effect
-	function startTooltipFadeOut(tooltipType) {
-		if (tooltipType === 'method') {
-			if (methodTooltipTimer) clearTimeout(methodTooltipTimer);
-
-			// Select the tooltip element and add the hiding class
-			const tooltip = document.querySelector('[role="tooltip"]');
-			if (tooltip) tooltip.classList.add('hiding');
-
-			methodTooltipTimer = setTimeout(() => {
-				showMethodTooltip = false;
-				methodTooltipTimer = null;
-			}, TOOLTIP_FADE_DELAY);
-		} else if (tooltipType === 'cube') {
-			if (cubeTooltipTimer) clearTimeout(cubeTooltipTimer);
-
-			// Find the cube tooltip element and add the hiding class
-			const tooltips = document.querySelectorAll('[role="tooltip"]');
-			tooltips.forEach((tooltip) => {
-				if (tooltip.textContent.includes('Cube File Format')) {
-					tooltip.classList.add('hiding');
-				}
-			});
-
-			cubeTooltipTimer = setTimeout(() => {
-				showCubeTooltip = false;
-				cubeTooltipTimer = null;
-			}, TOOLTIP_FADE_DELAY);
-		} else if (tooltipType === 'overlap') {
-			if (overlapTooltipTimer) clearTimeout(overlapTooltipTimer);
-
-			// Find the overlap tooltip element and add the hiding class
-			const tooltips = document.querySelectorAll('[role="tooltip"]');
-			tooltips.forEach((tooltip) => {
-				if (tooltip.textContent.includes('Overlap Option')) {
-					tooltip.classList.add('hiding');
-				}
-			});
-
-			overlapTooltipTimer = setTimeout(() => {
-				showOverlapTooltip = false;
-				overlapTooltipTimer = null;
-			}, TOOLTIP_FADE_DELAY);
-		}
-	}
-
-	function cancelTooltipFadeOut(tooltipType) {
-		if (tooltipType === 'method') {
-			if (methodTooltipTimer) {
-				clearTimeout(methodTooltipTimer);
-				methodTooltipTimer = null;
-
-				// Remove the hiding class to restore opacity
-				const tooltip = document.querySelector('[role="tooltip"]');
-				if (tooltip && tooltip.textContent.includes('Draft Methods')) {
-					tooltip.classList.remove('hiding');
-				}
-			}
-		} else if (tooltipType === 'cube') {
-			if (cubeTooltipTimer) {
-				clearTimeout(cubeTooltipTimer);
-				cubeTooltipTimer = null;
-
-				// Remove the hiding class to restore opacity
-				const tooltips = document.querySelectorAll('[role="tooltip"]');
-				tooltips.forEach((tooltip) => {
-					if (tooltip.textContent.includes('Cube File Format')) {
-						tooltip.classList.remove('hiding');
-					}
-				});
-			}
-		} else if (tooltipType === 'overlap') {
-			if (overlapTooltipTimer) {
-				clearTimeout(overlapTooltipTimer);
-				overlapTooltipTimer = null;
-
-				// Remove the hiding class to restore opacity
-				const tooltips = document.querySelectorAll('[role="tooltip"]');
-				tooltips.forEach((tooltip) => {
-					if (tooltip.textContent.includes('Overlap Option')) {
-						tooltip.classList.remove('hiding');
-					}
-				});
-			}
-		}
-	}
 
 	// Draft method descriptions
 	const draftMethodDescriptions = {
@@ -582,43 +509,34 @@
 						type="button"
 						class="btn btn-xs btn-circle btn-ghost"
 						aria-label="Cube file information"
-						onmouseenter={() => {
-							cancelTooltipFadeOut('cube');
-							showCubeTooltip = true;
-						}}
-						onmouseleave={() => startTooltipFadeOut('cube')}
+						{@attach tooltip()}
 					>
 						?
-					</button>
-					{#if showCubeTooltip}
-						<div
-							class="prose prose-sm ring-opacity-5 tooltip-fade bg-base-100 ring-base-300 absolute top-0 left-6 z-10 w-64 rounded-md p-3 shadow-lg ring-1"
-							style={`--fadeOutTime: ${TOOLTIP_FADE_DELAY}ms`}
-							onmouseenter={() => {
-								cancelTooltipFadeOut('cube');
-								showCubeTooltip = true;
-							}}
-							onmouseleave={() => startTooltipFadeOut('cube')}
-							role="tooltip"
-						>
-							<h4 class="text-base-content text-sm font-medium">Cube File Format</h4>
-							<p class="text-base-content/70 text-xs">
-								Visit <a
-									href="https://ygoprodeck.com/cube/"
-									target="_blank"
-									rel="noopener noreferrer"
-									class="link link-primary">YGOProdeck Cube Builder</a
-								>
-								to find or build a cube, then click the button to download it as a CSV file.
-							</p>
-							<p class="text-base-content/70 mt-1 text-xs">
-								<strong>Custom Rarities:</strong> To add custom rarities, include a fifth column in your
-								CSV with one of the following values: "Common", "Rare", "Super Rare", "Ultra Rare". To
-								do this, add a comma to each row, followed by the custom rarity. You can also just use
-								the acronyms ("c", "r", "sr", "ur"). Master Duel rarities are used if not specified.
-							</p>
+						<div class="tooltip-content hidden">
+							<div class="card bg-base-100">
+								<div class="card-body p-4">
+									<div class="flex flex-col space-y-2">
+										<h4 class="text-base-content text-sm font-medium">Cube File Format</h4>
+										<p class="text-base-content/70 text-xs">
+											Visit <a
+												href="https://ygoprodeck.com/cube/"
+												target="_blank"
+												rel="noopener noreferrer"
+												class="link link-primary">YGOProdeck Cube Builder</a>
+											to find or build a cube, then click the button to download it as a CSV file.
+										</p>
+										<p class="text-base-content/70 mt-1 text-xs">
+											<strong>Custom Rarities:</strong> To add custom rarities, include a fifth column
+											in your CSV with one of the following values: "Common", "Rare", "Super Rare", "Ultra
+											Rare". To do this, add a comma to each row, followed by the custom rarity. You can
+											also just use the acronyms ("c", "r", "sr", "ur"). Master Duel rarities are used
+											if not specified.
+										</p>
+									</div>
+								</div>
+							</div>
 						</div>
-					{/if}
+					</button>
 				</div>
 			</div>
 
@@ -677,44 +595,35 @@
 						type="button"
 						class="btn btn-xs btn-circle btn-ghost"
 						aria-label="Draft method information"
-						onmouseenter={() => {
-							cancelTooltipFadeOut('method');
-							showMethodTooltip = true;
-						}}
-						onmouseleave={() => startTooltipFadeOut('method')}
+						{@attach tooltip()}
 					>
 						?
-					</button>
-					{#if showMethodTooltip}
-						<div
-							class="prose prose-sm ring-opacity-5 tooltip-fade bg-base-100 ring-base-300 absolute top-0 left-6 z-10 w-64 rounded-md p-3 shadow-lg ring-1"
-							style={`--fadeOutTime: ${TOOLTIP_FADE_DELAY}ms`}
-							onmouseenter={() => {
-								cancelTooltipFadeOut('method');
-								showMethodTooltip = true;
-							}}
-							onmouseleave={() => startTooltipFadeOut('method')}
-							role="tooltip"
-						>
-							<h4 class="text-base-content text-sm font-medium">Draft Methods</h4>
-							<p class="text-base-content/70 text-xs">
-								<strong>Rochester Draft:</strong>
-								{draftMethodDescriptions.rochester}
-							</p>
-							<p class="text-base-content/70 text-xs">
-								<strong>Winston Draft:</strong>
-								{draftMethodDescriptions.winston}
-							</p>
-							<p class="text-base-content/70 mb-2 text-xs">
-								<strong>Grid Draft:</strong>
-								{draftMethodDescriptions.grid}
-							</p>
-							<p class="text-base-content/70 mb-2 text-xs">
-								<strong>Asynchronous Draft:</strong>
-								{draftMethodDescriptions.asynchronous}
-							</p>
+						<div class="tooltip-content hidden">
+							<div class="card bg-base-100">
+								<div class="card-body p-4">
+									<div class="flex flex-col space-y-2">
+										<h4 class="text-base-content text-sm font-medium">Draft Methods</h4>
+										<p class="text-base-content/70 text-xs">
+											<strong>Rochester Draft:</strong>
+											{draftMethodDescriptions.rochester}
+										</p>
+										<p class="text-base-content/70 text-xs">
+											<strong>Winston Draft:</strong>
+											{draftMethodDescriptions.winston}
+										</p>
+										<p class="text-base-content/70 text-xs">
+											<strong>Grid Draft:</strong>
+											{draftMethodDescriptions.grid}
+										</p>
+										<p class="text-base-content/70 text-xs">
+											<strong>Asynchronous Draft:</strong>
+											{draftMethodDescriptions.asynchronous}
+										</p>
+									</div>
+								</div>
+							</div>
 						</div>
-					{/if}
+					</button>
 				</div>
 			</div>
 			<select
@@ -917,40 +826,31 @@
 								type="button"
 								class="btn btn-xs btn-circle btn-ghost"
 								aria-label="Overlap option information"
-								onmouseenter={() => {
-									cancelTooltipFadeOut('overlap');
-									showOverlapTooltip = true;
-								}}
-								onmouseleave={() => startTooltipFadeOut('overlap')}
+								{@attach tooltip()}
 							>
 								?
-							</button>
-							{#if showOverlapTooltip}
-								<div
-									class="prose prose-sm ring-opacity-5 tooltip-fade bg-base-100 ring-base-300 absolute top-0 left-6 z-10 w-64 rounded-md p-3 shadow-lg ring-1"
-									style={`--fadeOutTime: ${TOOLTIP_FADE_DELAY}ms`}
-									onmouseenter={() => {
-										cancelTooltipFadeOut('overlap');
-										showOverlapTooltip = true;
-									}}
-									onmouseleave={() => startTooltipFadeOut('overlap')}
-									role="tooltip"
-								>
-									<h4 class="text-base-content text-sm font-medium">Overlap Option</h4>
-									<p class="text-base-content/70 text-xs">
-										When enabled, each player gets their own independent card pool. This means
-										players might see some of the same cards as other players.
-									</p>
-									<p class="text-base-content/70 mt-1 text-xs">
-										When disabled, players will only see cards from their portion of the overall
-										pool, ensuring no cards are duplicated between players.
-									</p>
-									<p class="text-base-content/70 mt-1 text-xs">
-										Enable this option when your cube is smaller than the total required pool size
-										or when you want players to have equal access to powerful cards.
-									</p>
+								<div class="tooltip-content hidden">
+									<div class="card bg-base-100">
+										<div class="card-body p-4">
+											<div class="flex flex-col space-y-2">
+												<h4 class="text-base-content text-sm font-medium">Overlap Option</h4>
+												<p class="text-base-content/70 text-xs">
+													When enabled, each player gets their own independent card pool. This means
+													players might see some of the same cards as other players.
+												</p>
+												<p class="text-base-content/70 text-xs">
+													When disabled, players will only see cards from their portion of the overall
+													pool, ensuring no cards are duplicated between players.
+												</p>
+												<p class="text-base-content/70 text-xs">
+													Enable this option when your cube is smaller than the total required pool size
+													or when you want players to have equal access to powerful cards.
+												</p>
+											</div>
+										</div>
+									</div>
 								</div>
-							{/if}
+							</button>
 						</div>
 					</span>
 				</label>
@@ -1282,13 +1182,3 @@
 		</div>
 	</div>
 {/if}
-
-<style>
-	.tooltip-fade {
-		opacity: 1;
-		transition: opacity var(--fadeOutTime) linear;
-	}
-	:global(.tooltip-fade.hiding) {
-		opacity: 0;
-	}
-</style>

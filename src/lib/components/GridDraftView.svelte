@@ -42,7 +42,7 @@
 	let turnCheckInterval: number;
 
 	// Function to create tooltips for card details
-	function tooltip(card) {
+	function tooltip() {
 		return (element) => {
 			const tooltipInstance = tippy(element, {
 				content: element.querySelector('.card-details-content')?.innerHTML,
@@ -51,7 +51,7 @@
 				interactive: false,
 				trigger: 'mouseenter focus',
 				hideOnClick: false,
-				placement: 'top',
+				placement: 'auto',
 				duration: [200, 0],
 				animation: 'shift-away'
 			});
@@ -197,7 +197,7 @@
 												{#if card}
 													<div
 														class="aspect-[813/1185] cursor-pointer overflow-hidden rounded shadow-md transition-transform hover:scale-105"
-														{@attach tooltip(card)}
+														{@attach tooltip()}
 														role="img"
 														aria-label={card.name}
 													>

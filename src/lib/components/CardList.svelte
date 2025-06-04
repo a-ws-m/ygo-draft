@@ -227,7 +227,7 @@
 				interactive: false,
 				trigger: 'mouseenter focus',
 				hideOnClick: false,
-				placement: 'top',
+				placement: 'auto',
 				duration: [200, 0],
 				animation: 'shift-away'
 			});
