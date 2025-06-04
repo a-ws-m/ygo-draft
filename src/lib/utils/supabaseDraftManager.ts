@@ -60,6 +60,8 @@ interface RarityDistribution {
  * @param extraDeckAtEnd - Whether to move extra deck cards to the end of the pool.
  * @param rarityDistribution - Optional settings for rarity distribution in packs.
  * @param drafted_deck_size - The target number of cards each player should draft.
+ * @param picksPerPack - Optional parameter for asynchronous draft
+ * @param allowOverlap - Whether to allow overlap in player packs for asynchronous draft
  * @returns A promise that resolves with the draft ID.
  */
 export async function createDraft(
@@ -72,7 +74,8 @@ export async function createDraft(
     extraDeckAtEnd: boolean = false,
     rarityDistribution: RarityDistribution | null = null,
     drafted_deck_size?: number, // Parameter for draft deck size
-    picksPerPack?: number // Optional parameter for asynchronous draft
+    picksPerPack?: number, // Optional parameter for asynchronous draft
+    allowOverlap: boolean = false // New parameter for allowing overlap in player packs
 ): Promise<string> {
     try {
         // Get the current authenticated user
@@ -96,7 +99,7 @@ export async function createDraft(
                 created_by: user.id,
                 participants: [user.id],
                 drafted_deck_size,
-                picks_per_pack: draftMethod === 'asynchronous' ? picksPerPack : undefined // Store picks per pack for async drafts
+                picks_per_pack: draftMethod === 'asynchronous' ? picksPerPack : undefined, // Store picks per pack for async drafts
             })
             .select()
             .single();
@@ -116,48 +119,104 @@ export async function createDraft(
             }
         }
 
-        // Handle the card ordering based on settings
-        let processedCube = expandedCube;
+        let cubeWithIndexes = [];
 
-        // If using rarity distribution for Rochester draft
-        if ((draftMethod === 'rochester' || draftMethod === 'asynchronous') && rarityDistribution) {
-            processedCube = organizeCardsByRarity(expandedCube, rarityDistribution, packSize, numberOfPlayers, poolSize);
-            console.log("Organized cards by rarity for Rochester draft.");
-            console.log("Cards organized by rarity:", processedCube.map(card => getRarityFromCard(card)));
-        } else {
-            // Otherwise just shuffle the cube
-            processedCube = shuffleArray(expandedCube);
-        }
-
-        // Limit to the specified pool size
-        let limitedCube = processedCube.slice(0, poolSize);
-
-        // Handle extra deck cards for both Rochester and Grid draft
-        if (extraDeckAtEnd && (draftMethod === 'rochester' || draftMethod === 'grid' || draftMethod === 'asynchronous')) {
-            // Separate main deck and extra deck cards
-            const mainDeckCards = [];
-            const extraDeckCards = [];
-
-            for (const entry of limitedCube) {
-                if (isExtraDeckCard(entry.apiData)) {
-                    extraDeckCards.push(entry);
-                } else {
-                    mainDeckCards.push(entry);
+        if (draftMethod === 'asynchronous' && allowOverlap) {
+            // For async drafts with overlap, create a separate pool for each player
+            const playerPoolSize = Math.floor(poolSize / numberOfPlayers);
+            let currentIndex = 0;
+            
+            for (let playerIndex = 0; playerIndex < numberOfPlayers; playerIndex++) {
+                // Create a copy of the expanded cube for each player and shuffle it
+                let playerCube = [...expandedCube];
+                playerCube = shuffleArray(playerCube);
+                
+                // Handle rarity distribution for this player's cube if needed
+                if (rarityDistribution) {
+                    playerCube = organizeCardsByRarity(playerCube, rarityDistribution, packSize, 1, playerPoolSize);
                 }
+                
+                // Limit to the player pool size
+                let limitedPlayerCube = playerCube.slice(0, playerPoolSize);
+                
+                // Handle extra deck cards for this player's cube
+                if (extraDeckAtEnd) {
+                    // Separate main deck and extra deck cards
+                    const mainDeckCards = [];
+                    const extraDeckCards = [];
+                    
+                    for (const entry of limitedPlayerCube) {
+                        if (isExtraDeckCard(entry.apiData)) {
+                            extraDeckCards.push(entry);
+                        } else {
+                            mainDeckCards.push(entry);
+                        }
+                    }
+                    
+                    // Combine them with extra deck at the end
+                    limitedPlayerCube = [...mainDeckCards, ...extraDeckCards];
+                }
+                
+                // Assign player index and global index to each card
+                const playerCubeWithIndexes = limitedPlayerCube.map((entry, idx) => ({
+                    card_id: entry.card_id,
+                    draft_id: entry.draft_id,
+                    index: currentIndex + idx, // Global index across all players
+                    custom_rarity: entry.custom_rarity,
+                }));
+                
+                // Add this player's cards to the overall cube
+                cubeWithIndexes = [...cubeWithIndexes, ...playerCubeWithIndexes];
+                
+                // Update the current index for the next player
+                currentIndex += playerPoolSize;
+            }
+            
+            console.log(`Async draft with overlap: Created ${numberOfPlayers} separate pools of ${playerPoolSize} cards each.`);
+        } else {
+            // Handle the card ordering based on settings (original logic for non-overlap drafts)
+            let processedCube = expandedCube;
+
+            // If using rarity distribution for Rochester draft or non-overlap Async draft
+            if ((draftMethod === 'rochester' || draftMethod === 'asynchronous') && rarityDistribution) {
+                processedCube = organizeCardsByRarity(expandedCube, rarityDistribution, packSize, numberOfPlayers, poolSize);
+                console.log("Organized cards by rarity for Rochester or Asynchronous draft.");
+                console.log("Cards organized by rarity:", processedCube.map(card => getRarityFromCard(card)));
+            } else {
+                // Otherwise just shuffle the cube
+                processedCube = shuffleArray(expandedCube);
             }
 
-            // Combine them with extra deck at the end
-            limitedCube = [...mainDeckCards, ...extraDeckCards];
-            console.log(`Rearranged ${extraDeckCards.length} extra deck cards to end of pool for ${draftMethod} draft.`);
-        }
+            // Limit to the specified pool size
+            let limitedCube = processedCube.slice(0, poolSize);
 
-        // Assign shuffled indexes to the cards
-        const cubeWithIndexes = limitedCube.map((entry, index) => ({
-            card_id: entry.card_id,
-            draft_id: entry.draft_id,
-            index, // Assign a unique index after shuffling
-            custom_rarity: entry.custom_rarity // Add custom rarity to the cube entry
-        }));
+            // Handle extra deck cards for both Rochester and Grid draft
+            if (extraDeckAtEnd && (draftMethod === 'rochester' || draftMethod === 'grid' || draftMethod === 'asynchronous')) {
+                // Separate main deck and extra deck cards
+                const mainDeckCards = [];
+                const extraDeckCards = [];
+
+                for (const entry of limitedCube) {
+                    if (isExtraDeckCard(entry.apiData)) {
+                        extraDeckCards.push(entry);
+                    } else {
+                        mainDeckCards.push(entry);
+                    }
+                }
+
+                // Combine them with extra deck at the end
+                limitedCube = [...mainDeckCards, ...extraDeckCards];
+                console.log(`Rearranged ${extraDeckCards.length} extra deck cards to end of pool for ${draftMethod} draft.`);
+            }
+
+            // Assign shuffled indexes to the cards
+            cubeWithIndexes = limitedCube.map((entry, index) => ({
+                card_id: entry.card_id,
+                draft_id: entry.draft_id,
+                index, // Assign a unique index after shuffling
+                custom_rarity: entry.custom_rarity // Add custom rarity to the cube entry
+            }));
+        }
 
         // Insert cube data into the `cubes` table
         const { error: cubeError } = await supabase.from("cubes").insert(cubeWithIndexes);

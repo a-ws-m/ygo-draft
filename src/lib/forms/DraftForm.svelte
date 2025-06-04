@@ -21,6 +21,7 @@
 	let packSize = $derived(draftMethod === 'asynchronous' ? 20 : 15); // Changed default for async
 	let picksPerPack = $state(5); // Changed default from 1 to 5
 	let extraDeckAtEnd = $state(false); // Changed default to false
+	let allowOverlap = $state(false); // New state for allowing overlap in player packs
 	let useRarityDistribution = $state(false); // New state for rarity distribution option
 	let commonPerPack = $derived(draftMethod == 'asynchronous' ? 10 : 7);
 	let rarePerPack = $derived(draftMethod == 'asynchronous' ? 7 : 5);
@@ -35,6 +36,7 @@
 	let cube = $state([]);
 	let showMethodTooltip = $state(false);
 	let showCubeTooltip = $state(false); // New state for cube tooltip
+	let showOverlapTooltip = $state(false); // New state for overlap tooltip
 	let isAuthenticated = $derived(!!authStore.session);
 	let showRarityWarning = $state(false);
 	let cardsWithoutRarity = $state([]);
@@ -71,6 +73,7 @@
 	// Fade-out states and timers for tooltips
 	let methodTooltipTimer = $state(null);
 	let cubeTooltipTimer = $state(null);
+	let overlapTooltipTimer = $state(null);
 
 	// Constants for limits
 	const MAX_POOL_SIZE = 1000;
@@ -103,6 +106,9 @@
 		return packsPerPlayer * packSize * numberOfPlayers;
 	});
 
+	// Derived value for player pool size in async drafts with overlap
+	let playerPoolSize = $derived(Math.floor(poolSize / numberOfPlayers));
+
 	// Functions to handle tooltip visibility with fade effect
 	function startTooltipFadeOut(tooltipType) {
 		if (tooltipType === 'method') {
@@ -131,6 +137,21 @@
 				showCubeTooltip = false;
 				cubeTooltipTimer = null;
 			}, TOOLTIP_FADE_DELAY);
+		} else if (tooltipType === 'overlap') {
+			if (overlapTooltipTimer) clearTimeout(overlapTooltipTimer);
+
+			// Find the overlap tooltip element and add the hiding class
+			const tooltips = document.querySelectorAll('[role="tooltip"]');
+			tooltips.forEach((tooltip) => {
+				if (tooltip.textContent.includes('Overlap Option')) {
+					tooltip.classList.add('hiding');
+				}
+			});
+
+			overlapTooltipTimer = setTimeout(() => {
+				showOverlapTooltip = false;
+				overlapTooltipTimer = null;
+			}, TOOLTIP_FADE_DELAY);
 		}
 	}
 
@@ -155,6 +176,19 @@
 				const tooltips = document.querySelectorAll('[role="tooltip"]');
 				tooltips.forEach((tooltip) => {
 					if (tooltip.textContent.includes('Cube File Format')) {
+						tooltip.classList.remove('hiding');
+					}
+				});
+			}
+		} else if (tooltipType === 'overlap') {
+			if (overlapTooltipTimer) {
+				clearTimeout(overlapTooltipTimer);
+				overlapTooltipTimer = null;
+
+				// Remove the hiding class to restore opacity
+				const tooltips = document.querySelectorAll('[role="tooltip"]');
+				tooltips.forEach((tooltip) => {
+					if (tooltip.textContent.includes('Overlap Option')) {
 						tooltip.classList.remove('hiding');
 					}
 				});
@@ -285,7 +319,7 @@
 		}
 	}
 
-	// Modified validateOptions function to handle all draft methods
+	// Modified validateOptions function to handle all draft methods and the new overlap option
 	function validateOptions() {
 		optionErrorMessage = '';
 		showUnevenPoolWarning = false; // Reset the warning flag
@@ -324,8 +358,10 @@
 		}
 
 		// Then check other validations
-		if (poolSize > totalCards) {
+		if (!allowOverlap && poolSize > totalCards) {
 			optionErrorMessage = 'Pool size cannot exceed the total number of cards in the cube.';
+		} else if (draftMethod === 'asynchronous' && allowOverlap && playerPoolSize > totalCards) {
+			optionErrorMessage = `With overlap enabled, each player's pool (${playerPoolSize} cards) cannot exceed the total number of cards in the cube (${totalCards} cards).`;
 		} else if (draftMethod === 'rochester') {
 			if (packSize < numberOfPlayers) {
 				optionErrorMessage = 'Pack size must be at least equal to the number of players.';
@@ -401,9 +437,15 @@
 			const packsPerPlayer = Math.ceil(draftedDeckSize / picksPerPack);
 			const totalCardsNeeded = packsPerPlayer * packSize * numberOfPlayers;
 
-			// Check if the cube has enough cards
-			if (totalCardsNeeded > totalCards) {
+			// Check if the cube has enough cards when overlap is not allowed
+			if (!allowOverlap && totalCardsNeeded > totalCards) {
 				optionErrorMessage = `Not enough cards in the cube. Need at least ${totalCardsNeeded} cards for all players to draft.`;
+				return;
+			}
+
+			// When overlap is allowed, we only need to check per-player pool size
+			if (allowOverlap && playerPoolSize > totalCards) {
+				optionErrorMessage = `Not enough cards in the cube. With overlap enabled, each player needs ${playerPoolSize} cards.`;
 				return;
 			}
 
@@ -476,7 +518,9 @@
 				draftMethod === 'grid' || draftMethod === 'rochester' || draftMethod === 'asynchronous'
 					? draftedDeckSize
 					: undefined,
-				draftMethod === 'asynchronous' ? picksPerPack : undefined
+				draftMethod === 'asynchronous' ? picksPerPack : undefined,
+				// Add the new allowOverlap parameter
+				draftMethod === 'asynchronous' ? allowOverlap : undefined
 			);
 
 			// Store draft settings in sessionStorage for additional backup
@@ -498,6 +542,7 @@
 					picksPerPack: draftMethod === 'asynchronous' ? picksPerPack : undefined,
 					extraDeckAtEnd,
 					useRarityDistribution,
+					allowOverlap: draftMethod === 'asynchronous' ? allowOverlap : undefined,
 					raritySettings: useRarityDistribution
 						? {
 								commonPerPack,
@@ -853,6 +898,67 @@
 				<p class="text-base-content/60 mt-1 text-sm">
 					Each player will select {picksPerPack} cards from every pack of {packSize} cards.
 				</p>
+			</div>
+
+			<!-- New option for allowing overlap in packs with tooltip -->
+			<div class="form-control">
+				<label class="label cursor-pointer">
+					<span class="flex items-center">
+						<input
+							type="checkbox"
+							id="allow-overlap"
+							bind:checked={allowOverlap}
+							onchange={validateOptions}
+							class="checkbox checkbox-primary"
+						/>
+						<span class="label-text ml-2">Allow overlap in player packs</span>
+						<div class="relative ml-2">
+							<button
+								type="button"
+								class="btn btn-xs btn-circle btn-ghost"
+								aria-label="Overlap option information"
+								onmouseenter={() => {
+									cancelTooltipFadeOut('overlap');
+									showOverlapTooltip = true;
+								}}
+								onmouseleave={() => startTooltipFadeOut('overlap')}
+							>
+								?
+							</button>
+							{#if showOverlapTooltip}
+								<div
+									class="prose prose-sm ring-opacity-5 tooltip-fade bg-base-100 ring-base-300 absolute top-0 left-6 z-10 w-64 rounded-md p-3 shadow-lg ring-1"
+									style={`--fadeOutTime: ${TOOLTIP_FADE_DELAY}ms`}
+									onmouseenter={() => {
+										cancelTooltipFadeOut('overlap');
+										showOverlapTooltip = true;
+									}}
+									onmouseleave={() => startTooltipFadeOut('overlap')}
+									role="tooltip"
+								>
+									<h4 class="text-base-content text-sm font-medium">Overlap Option</h4>
+									<p class="text-base-content/70 text-xs">
+										When enabled, each player gets their own independent card pool. This means
+										players might see some of the same cards as other players.
+									</p>
+									<p class="text-base-content/70 mt-1 text-xs">
+										When disabled, players will only see cards from their portion of the overall
+										pool, ensuring no cards are duplicated between players.
+									</p>
+									<p class="text-base-content/70 mt-1 text-xs">
+										Enable this option when your cube is smaller than the total required pool size
+										or when you want players to have equal access to powerful cards.
+									</p>
+								</div>
+							{/if}
+						</div>
+					</span>
+				</label>
+				{#if allowOverlap}
+					<p class="text-base-content/60 mt-2 ml-8 text-sm">
+						Each player pool: {playerPoolSize} cards (total: {poolSize} cards for all players)
+					</p>
+				{/if}
 			</div>
 
 			<!-- Rarity Distribution Component -->
