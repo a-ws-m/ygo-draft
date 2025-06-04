@@ -66,10 +66,10 @@
 		// Initialize view mode based on screen width and preferred mode
 		// If preferredViewMode is 'list', always respect it regardless of screen size
 		// Otherwise, use responsive behavior based on screen width
-		if (preferredViewMode === 'list') {
-			viewMode = 'list';
+		if (preferredViewMode === 'list' || preferredViewMode === 'carousel') {
+			viewMode = preferredViewMode;
 		} else {
-			viewMode = window.innerWidth < 768 ? 'list' : preferredViewMode;
+			viewMode = window.innerWidth < 768 ? 'carousel' : preferredViewMode;
 		}
 
 		// Initialize the fuzzy searcher with the cube data
