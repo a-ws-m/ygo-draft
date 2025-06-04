@@ -770,11 +770,11 @@
 
 			<!-- Rarity Distribution Component -->
 			<RarityDistribution
-				{useRarityDistribution}
-				{commonPerPack}
-				{rarePerPack}
-				{superRarePerPack}
-				{ultraRarePerPack}
+				bind:useRarityDistribution
+				bind:commonPerPack
+				bind:rarePerPack
+				bind:superRarePerPack
+				bind:ultraRarePerPack
 				{packSize}
 				{extraDeckAtEnd}
 				onDistributionChange={(data) => {
@@ -857,11 +857,11 @@
 
 			<!-- Rarity Distribution Component -->
 			<RarityDistribution
-				{useRarityDistribution}
-				{commonPerPack}
-				{rarePerPack}
-				{superRarePerPack}
-				{ultraRarePerPack}
+				bind:useRarityDistribution
+				bind:commonPerPack
+				bind:rarePerPack
+				bind:superRarePerPack
+				bind:ultraRarePerPack
 				{packSize}
 				{extraDeckAtEnd}
 				onDistributionChange={(data) => {

@@ -1,11 +1,11 @@
 <script lang="ts">
-	// Define props using Svelte 5 syntax
+	// Define bindable props using Svelte 5 syntax
 	let {
-		useRarityDistribution,
-		commonPerPack,
-		rarePerPack,
-		superRarePerPack,
-		ultraRarePerPack,
+		useRarityDistribution = $bindable(false),
+		commonPerPack = $bindable(7),
+		rarePerPack = $bindable(5),
+		superRarePerPack = $bindable(2),
+		ultraRarePerPack = $bindable(1),
 		packSize,
 		extraDeckAtEnd,
 		onDistributionChange,
@@ -26,7 +26,7 @@
 			checkForCardsWithoutRarity?.();
 		}
 		validateOptions?.();
-		
+
 		// Notify parent component about the change
 		onDistributionChange?.({ useRarityDistribution });
 	}
@@ -78,10 +78,7 @@
 				/>
 			</div>
 			<div>
-				<label
-					for="super-rare-per-pack"
-					class="text-base-content mb-1 block text-sm font-medium"
-				>
+				<label for="super-rare-per-pack" class="text-base-content mb-1 block text-sm font-medium">
 					Super Rares per pack
 				</label>
 				<input
@@ -94,10 +91,7 @@
 				/>
 			</div>
 			<div>
-				<label
-					for="ultra-rare-per-pack"
-					class="text-base-content mb-1 block text-sm font-medium"
-				>
+				<label for="ultra-rare-per-pack" class="text-base-content mb-1 block text-sm font-medium">
 					Ultra Rares per pack
 				</label>
 				<input
