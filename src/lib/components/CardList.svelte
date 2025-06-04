@@ -215,14 +215,13 @@
 		return small ? card.smallImageUrl : card.imageUrl;
 	}
 
-	function tooltip(index: number) {
+	function tooltip() {
 		// Mount the card details component to the tooltip
 
 		// Create a tooltip instance
 		return (element) => {
-			const cardDetailsDiv = document.getElementById(`cardDetails${index}`);
 			const tooltipInstance = tippy(element, {
-				content: cardDetailsDiv?.innerHTML,
+				content: element.querySelector('.card-details-content')?.innerHTML,
 				allowHTML: true,
 				maxWidth: 500,
 				interactive: false,
@@ -534,7 +533,7 @@
 					class="grid auto-cols-max grid-cols-1 justify-items-center gap-4 p-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6"
 					style="grid-template-columns: repeat(auto-fill, minmax(min(calc(100% / 3 - 16px), 271px), 1fr));"
 				>
-					{#each filteredCube as card, index}
+					{#each filteredCube as card}
 						<div class="flex w-full max-w-[271px] flex-col items-center">
 							<button
 								class="card relative w-full transition-shadow hover:shadow-lg {clickable ||
@@ -552,7 +551,7 @@
 								type="button"
 								onclick={() => handleCardClick(card)}
 								onkeydown={(e) => e.key === 'Enter' && handleCardClick(card)}
-								{@attach tooltip(index)}
+								{@attach tooltip()}
 							>
 								<!-- Card Image -->
 								<div class="relative aspect-[813/1185] w-full max-w-[271px]">
@@ -571,7 +570,7 @@
 												class="h-full w-full rounded object-cover shadow"
 											/>
 										</picture>
-										<div class="hidden" id="cardDetails{index}">
+										<div class="hidden card-details-content">
 											<CardDetails {card} />
 										</div>
 									{:catch error}

@@ -5,8 +5,9 @@
 	import CardDetails from '$lib/components/CardDetails.svelte';
 	import CardList from '$lib/components/CardList.svelte';
 	import feather from 'feather-icons';
-	import { calculatePopupPosition } from '$lib/utils/cardPopupPositioning';
 	import { store } from '$lib/stores/authStore.svelte';
+	import tippy from 'tippy.js';
+	import 'tippy.js/dist/tippy.css';
 
 	// Track whether the current player's turn is active
 	let isMyTurn = $derived(
@@ -18,17 +19,11 @@
 	let grid = $derived(draftStore.store.grid || []); // 2D array of cards
 
 	// UI state for showing cards and hover effects
-	let hoveredCard = $state(null);
 	let selectedRow = $state(-1);
 	let selectedCol = $state(-1);
 	let selectionType = $state<'row' | 'column' | null>(null);
 	let showSelectionConfirm = $state(false);
 	let showConfirmationModal = $state(false); // New state for modal
-
-	// Updated popup positioning variables
-	let popupX = $state(0);
-	let popupY = $state(0);
-	let popupPosition = $state<'above' | 'below' | 'left' | 'right'>('below');
 
 	// Get flat array of selected cards based on row or column
 	let selectedCards = $derived.by(() => {
@@ -46,6 +41,24 @@
 	// Initialize a timer to check turn state regularly
 	let turnCheckInterval: number;
 
+	// Function to create tooltips for card details
+	function tooltip(card) {
+		return (element) => {
+			const tooltipInstance = tippy(element, {
+				content: element.querySelector('.card-details-content')?.innerHTML,
+				allowHTML: true,
+				maxWidth: 500,
+				interactive: false,
+				trigger: 'mouseenter focus',
+				hideOnClick: false,
+				placement: 'top',
+				duration: [200, 0],
+				animation: 'shift-away'
+			});
+			return tooltipInstance.destroy;
+		};
+	}
+
 	onMount(() => {
 		// Check turn state every second
 		turnCheckInterval = window.setInterval(() => {
@@ -62,20 +75,6 @@
 	// Helper function to get card image URL
 	function getCardImage(card, small = false) {
 		return small ? card.smallImageUrl : card.imageUrl;
-	}
-
-	function handleMouseEnter(card, event) {
-		hoveredCard = card;
-
-		// Use the shared positioning logic
-		const popupData = calculatePopupPosition(event);
-		popupPosition = popupData.position;
-		popupX = popupData.x;
-		popupY = popupData.y;
-	}
-
-	function handleMouseLeave() {
-		hoveredCard = null;
 	}
 
 	function selectRow(rowIndex: number) {
@@ -198,8 +197,7 @@
 												{#if card}
 													<div
 														class="aspect-[813/1185] cursor-pointer overflow-hidden rounded shadow-md transition-transform hover:scale-105"
-														onmouseenter={(e) => handleMouseEnter(card, e)}
-														onmouseleave={handleMouseLeave}
+														{@attach tooltip(card)}
 														role="img"
 														aria-label={card.name}
 													>
@@ -221,6 +219,9 @@
 																			'https://via.placeholder.com/400x586?text=Image+Not+Found';
 																	}}
 																/>
+																<div class="card-details-content hidden">
+																	<CardDetails {card} />
+																</div>
 															{:catch}
 																<div
 																	class="bg-base-200 flex h-full w-full items-center justify-center"
@@ -269,20 +270,6 @@
 		</div>
 	</div>
 </div>
-
-<!-- Card Detail Popup -->
-{#if hoveredCard}
-	<div
-		class="fixed z-50 transform"
-		class:translate-x-[-50%]={popupPosition === 'above' || popupPosition === 'below'}
-		class:translate-y-[-50%]={popupPosition === 'left' || popupPosition === 'right'}
-		class:translate-y-[-100%]={popupPosition === 'above'}
-		class:translate-x-[-100%]={popupPosition === 'left'}
-		style="left: {popupX}px; top: {popupY}px;"
-	>
-		<CardDetails card={hoveredCard} />
-	</div>
-{/if}
 
 <!-- Selection Confirmation Modal -->
 {#if showConfirmationModal && selectedCards.length > 0}
