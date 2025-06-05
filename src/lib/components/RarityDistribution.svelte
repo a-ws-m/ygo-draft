@@ -31,7 +31,7 @@
 </script>
 
 <!-- Rarity Distribution Option -->
-<div class={["form-control", useRarityDistribution && "mb-3"]}>
+<div class={['form-control', useRarityDistribution && 'mb-3']}>
 	<label class="label cursor-pointer">
 		<input
 			type="checkbox"
@@ -60,7 +60,7 @@
 				aria-label="Fixed Card Counts"
 			/>
 
-			<div class="tab-content space-y-4 mt-4">
+			<div class="tab-content mt-4 space-y-4">
 				<!-- Fixed Card Count Mode -->
 				<div>
 					<label class="label" for="common-per-pack"> Commons per pack </label>
@@ -106,7 +106,7 @@
 						class="input input-bordered w-full"
 					/>
 				</div>
-				<div class="alert alert-info p-2">
+				<div class={['alert  p-2', totalPerPack === packSize ? 'alert-info' : 'alert-error']}>
 					<span>
 						Total: {totalPerPack}
 						(must equal pack size of {packSize})
@@ -123,7 +123,7 @@
 				name="rarity-mode"
 				aria-label="Rarity Rates"
 			/>
-			<div class="tab-content space-y-4 mt-4">
+			<div class="tab-content mt-4 space-y-4">
 				<!-- Rarity Rate Mode (Percentage-based) -->
 				<div>
 					<label class="label" for="common-rate"> Common rate (%) </label>
@@ -173,7 +173,7 @@
 						class="input input-bordered w-full"
 					/>
 				</div>
-				<div class="alert {totalPercentage === 100 ? 'alert-info' : 'alert-error'} p-2">
+				<div class={['alert  p-2', totalPercentage === 100 ? 'alert-info' : 'alert-error']}>
 					<span>
 						Total: {totalPercentage}% (must equal 100%)
 					</span>
