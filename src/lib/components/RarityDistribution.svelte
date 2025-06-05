@@ -31,7 +31,7 @@
 </script>
 
 <!-- Rarity Distribution Option -->
-<div class="form-control">
+<div class={["form-control", useRarityDistribution && "mb-3"]}>
 	<label class="label cursor-pointer">
 		<input
 			type="checkbox"
@@ -47,7 +47,7 @@
 
 <!-- Rarity Distribution Settings -->
 {#if useRarityDistribution}
-	<fieldset class="w-full fieldset bg-base-200 border-base-300 rounded-box border p-4 space-y-2">
+	<fieldset class="fieldset bg-base-200 border-base-300 rounded-box w-full border p-4">
 		<!-- Distribution Mode Tabs -->
 		<div class="tabs tabs-border">
 			<input
@@ -60,12 +60,10 @@
 				aria-label="Fixed Card Counts"
 			/>
 
-			<div class="tab-content">
+			<div class="tab-content space-y-4 mt-4">
 				<!-- Fixed Card Count Mode -->
 				<div>
-					<label for="common-per-pack" class="text-base-content mb-1 block text-sm font-medium">
-						Commons per pack
-					</label>
+					<label class="label" for="common-per-pack"> Commons per pack </label>
 					<input
 						type="number"
 						onchange={validateOptions}
@@ -76,9 +74,7 @@
 					/>
 				</div>
 				<div>
-					<label for="rare-per-pack" class="text-base-content mb-1 block text-sm font-medium">
-						Rares per pack
-					</label>
+					<label class="label" for="rare-per-pack"> Rares per pack </label>
 					<input
 						type="number"
 						onchange={validateOptions}
@@ -89,9 +85,7 @@
 					/>
 				</div>
 				<div>
-					<label for="super-rare-per-pack" class="text-base-content mb-1 block text-sm font-medium">
-						Super Rares per pack
-					</label>
+					<label class="label" for="super-rare-per-pack"> Super Rares per pack </label>
 					<input
 						type="number"
 						onchange={validateOptions}
@@ -102,9 +96,7 @@
 					/>
 				</div>
 				<div>
-					<label for="ultra-rare-per-pack" class="text-base-content mb-1 block text-sm font-medium">
-						Ultra Rares per pack
-					</label>
+					<label class="label" for="ultra-rare-per-pack"> Ultra Rares per pack </label>
 					<input
 						type="number"
 						onchange={validateOptions}
@@ -131,12 +123,10 @@
 				name="rarity-mode"
 				aria-label="Rarity Rates"
 			/>
-			<div class="tab-content">
+			<div class="tab-content space-y-4 mt-4">
 				<!-- Rarity Rate Mode (Percentage-based) -->
 				<div>
-					<label for="common-rate" class="text-base-content mb-1 block text-sm font-medium">
-						Common rate (%)
-					</label>
+					<label class="label" for="common-rate"> Common rate (%) </label>
 					<input
 						type="number"
 						onchange={validateOptions}
@@ -148,9 +138,7 @@
 					/>
 				</div>
 				<div>
-					<label for="rare-rate" class="text-base-content mb-1 block text-sm font-medium">
-						Rare rate (%)
-					</label>
+					<label class="label" for="rare-rate"> Rare rate (%) </label>
 					<input
 						type="number"
 						onchange={validateOptions}
@@ -162,9 +150,7 @@
 					/>
 				</div>
 				<div>
-					<label for="super-rare-rate" class="text-base-content mb-1 block text-sm font-medium">
-						Super Rare rate (%)
-					</label>
+					<label class="label" for="super-rare-rate"> Super Rare rate (%) </label>
 					<input
 						type="number"
 						onchange={validateOptions}
@@ -176,9 +162,7 @@
 					/>
 				</div>
 				<div>
-					<label for="ultra-rare-rate" class="text-base-content mb-1 block text-sm font-medium">
-						Ultra Rare rate (%)
-					</label>
+					<label class="label" for="ultra-rare-rate"> Ultra Rare rate (%) </label>
 					<input
 						type="number"
 						onchange={validateOptions}

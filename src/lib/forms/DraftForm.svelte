@@ -538,9 +538,7 @@
 		<!-- Cube File Upload with Pre-made Cube Option -->
 		<div class="relative">
 			<div class="mb-1 flex items-center">
-				<label for="cube-file" class="text-base-content block text-sm font-medium">
-					Upload Cube File (.csv)
-				</label>
+				<label for="cube-file" class="label"> Upload Cube File (.csv) </label>
 				<div class="relative ml-2">
 					<button
 						type="button"
@@ -625,9 +623,7 @@
 		<!-- Draft Method Selection -->
 		<div>
 			<div class="mb-1 flex items-center">
-				<label for="draft-method" class="text-base-content block text-sm font-medium">
-					Draft Method
-				</label>
+				<label for="draft-method" class="label"> Draft Method </label>
 				<div class="relative ml-2">
 					<button
 						type="button"
@@ -680,7 +676,7 @@
 		<!-- Pool Size -->
 		{#if draftMethod === 'rochester' || draftMethod === 'grid' || draftMethod === 'asynchronous'}
 			<div>
-				<label for="drafted-deck-size" class="text-base-content mb-1 block text-sm font-medium">
+				<label for="drafted-deck-size" class="label">
 					Drafted deck size <span class="text-base-content/60 text-xs"
 						>(max: {maxDraftedDeckSize})</span
 					>
@@ -713,7 +709,7 @@
 			</div>
 		{:else}
 			<div>
-				<label for="pool-size" class="text-base-content mb-1 block text-sm font-medium">
+				<label for="pool-size" class="label">
 					Pool Size <span class="text-base-content/60 text-xs">(max: {MAX_POOL_SIZE})</span>
 				</label>
 				<input
@@ -730,7 +726,7 @@
 
 		<!-- Number of Players -->
 		<div>
-			<label for="number-of-players" class="text-base-content mb-1 block text-sm font-medium">
+			<label for="number-of-players" class="label">
 				Number of Players <span class="text-base-content/60 text-xs">(max: {MAX_PLAYERS})</span>
 			</label>
 			<input
@@ -747,9 +743,7 @@
 		<!-- Rochester Draft Options -->
 		{#if draftMethod === 'rochester'}
 			<div>
-				<label for="pack-size" class="text-base-content mb-1 block text-sm font-medium">
-					Pack Size
-				</label>
+				<label for="pack-size" class="label"> Pack Size </label>
 				<input
 					type="number"
 					id="pack-size"
@@ -779,9 +773,7 @@
 			/>
 		{:else if draftMethod === 'winston'}
 			<div>
-				<label for="number-of-piles" class="text-base-content mb-1 block text-sm font-medium">
-					Number of Piles
-				</label>
+				<label for="number-of-piles" class="label"> Number of Piles </label>
 				<input
 					type="number"
 					id="number-of-piles"
@@ -793,7 +785,7 @@
 			</div>
 		{:else if draftMethod === 'grid'}
 			<div>
-				<label for="grid-size" class="text-base-content mb-1 block text-sm font-medium">
+				<label for="grid-size" class="label">
 					Grid Size <span class="text-base-content/60 text-xs"
 						>({MIN_GRID_SIZE}-{MAX_GRID_SIZE})</span
 					>
@@ -816,9 +808,7 @@
 			</div>
 		{:else if draftMethod === 'asynchronous'}
 			<div>
-				<label for="pack-size" class="text-base-content mb-1 block text-sm font-medium">
-					Pack Size
-				</label>
+				<label for="pack-size" class="label"> Pack Size </label>
 				<input
 					type="number"
 					id="pack-size"
@@ -830,9 +820,7 @@
 			</div>
 
 			<div>
-				<label for="picks-per-pack" class="text-base-content mb-1 block text-sm font-medium">
-					Picks per Pack
-				</label>
+				<label for="picks-per-pack" class="label"> Picks per Pack </label>
 				<input
 					type="number"
 					id="picks-per-pack"
