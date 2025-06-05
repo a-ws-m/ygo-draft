@@ -7,6 +7,7 @@
 	import RarityDistribution from '$lib/components/RarityDistribution.svelte';
 	import feather from 'feather-icons';
 	import tippy from 'tippy.js';
+	import CardList from '$lib/components/CardList.svelte';
 
 	// Define a callback prop for handling cube uploads
 	let { onCubeUploaded }: { onCubeUploaded: (cube: any[]) => void } = $props();
@@ -42,6 +43,13 @@
 	let hasCustomRarities = $state(false); // Track if the cube has custom rarities
 	let cardsWithoutCustomRarity = $state([]);
 	let cardsMissingBothRarities = $state([]); // Track cards missing both custom and Master Duel rarities
+
+	// New state for custom rarity rates
+	let useRarityRates = $state(false);
+	let commonRate = $state(45);
+	let rareRate = $state(30);
+	let superRareRate = $state(15);
+	let ultraRareRate = $state(10);
 
 	// New state for pre-made cube modal and selection
 	let showPremadeCubesModal = $state(false);
@@ -81,7 +89,7 @@
 			const tooltipInstance = tippy(element, {
 				content: element.querySelector('.tooltip-content')?.innerHTML,
 				allowHTML: true,
-				maxWidth:300,
+				maxWidth: 300,
 				interactive: true,
 				arrow: false,
 				trigger: 'mouseenter focus',
@@ -90,7 +98,7 @@
 				duration: [200, 0],
 				animation: 'shift-away',
 				appendTo: document.body,
-				theme: 'daisy',
+				theme: 'daisy'
 				// popperOptions: {
 				// 	strategy: 'fixed',
 				// }
@@ -137,6 +145,13 @@
 		// When we change the draft method away from asynchronous, we need to make sure number of players > 1
 		if (draftMethod !== 'asynchronous' && numberOfPlayers < 2) {
 			numberOfPlayers = 2;
+		}
+	});
+
+	$effect(() => {
+		// When we change the draft method we may need to reset some options
+		if (!['rochester', 'asynchronous'].includes(draftMethod)) {
+			useRarityDistribution = false; // Reset rarity distribution for these methods
 		}
 	});
 
@@ -227,7 +242,7 @@
 	}
 
 	function checkForCardsWithoutRarity() {
-		if (useRarityDistribution && draftMethod === 'rochester') {
+		if (useRarityDistribution && ['rochester', 'asynchronous'].includes(draftMethod)) {
 			// Check for cards without rarities based on whether we have custom rarities or not
 			if (hasCustomRarities) {
 				// When using custom rarities, check for cards without custom rarity
@@ -255,7 +270,7 @@
 		}
 	}
 
-	// Modified validateOptions function to handle all draft methods and the new overlap option
+	// Modified validateOptions function to handle all draft methods and the new rarity rate option
 	function validateOptions() {
 		optionErrorMessage = '';
 		showUnevenPoolWarning = false; // Reset the warning flag
@@ -298,7 +313,9 @@
 			optionErrorMessage = 'Pool size cannot exceed the total number of cards in the cube.';
 		} else if (draftMethod === 'asynchronous' && allowOverlap && playerPoolSize > totalCards) {
 			optionErrorMessage = `With overlap enabled, each player's pool (${playerPoolSize} cards) cannot exceed the total number of cards in the cube (${totalCards} cards).`;
-		} else if (draftMethod === 'rochester') {
+		}
+
+		if (['rochester', 'asynchronous'].includes(draftMethod)) {
 			if (packSize < numberOfPlayers) {
 				optionErrorMessage = 'Pack size must be at least equal to the number of players.';
 			} else if (poolSize < packSize * packsPerRound) {
@@ -309,16 +326,25 @@
 
 			// Validation for rarity distribution
 			if (useRarityDistribution) {
-				const rarityTotal = commonPerPack + rarePerPack + superRarePerPack + ultraRarePerPack;
-				if (rarityTotal !== packSize) {
-					optionErrorMessage = `Rarity distribution total (${rarityTotal}) must equal pack size (${packSize}).`;
-					return;
-				}
+				if (useRarityRates) {
+					// Check if rates sum to 100%
+					const rateTotal = commonRate + rareRate + superRareRate + ultraRareRate;
+					if (rateTotal !== 100) {
+						optionErrorMessage = `Rarity rates total (${rateTotal}%) must equal 100%.`;
+						return;
+					}
+				} else {
+					const rarityTotal = commonPerPack + rarePerPack + superRarePerPack + ultraRarePerPack;
+					if (rarityTotal !== packSize) {
+						optionErrorMessage = `Rarity distribution total (${rarityTotal}) must equal pack size (${packSize}).`;
+						return;
+					}
 
-				// Check if pool is evenly divisible for rarity distribution
-				const totalPackCards = packSize * numberOfPlayers;
-				if (poolSize % totalPackCards !== 0) {
-					showUnevenPoolWarning = true;
+					// Check if pool is evenly divisible for rarity distribution
+					const totalPackCards = packSize * numberOfPlayers;
+					if (poolSize % totalPackCards !== 0) {
+						showUnevenPoolWarning = true;
+					}
 				}
 			}
 		} else if (draftMethod === 'winston') {
@@ -352,7 +378,9 @@
 				optionErrorMessage = `Not enough cards in the cube. Need at least ${totalCardsNeeded} cards for all players to draft ${draftedDeckSize} cards each.`;
 				return;
 			}
-		} else if (draftMethod === 'asynchronous') {
+		}
+
+		if (draftMethod === 'asynchronous') {
 			// Asynchronous draft specific validations
 			if (picksPerPack > packSize) {
 				optionErrorMessage = `Picks per pack (${picksPerPack}) cannot exceed pack size (${packSize}).`;
@@ -383,15 +411,6 @@
 			if (allowOverlap && playerPoolSize > totalCards) {
 				optionErrorMessage = `Not enough cards in the cube. With overlap enabled, each player needs ${playerPoolSize} cards.`;
 				return;
-			}
-
-			// Validation for rarity distribution
-			if (useRarityDistribution) {
-				const rarityTotal = commonPerPack + rarePerPack + superRarePerPack + ultraRarePerPack;
-				if (rarityTotal !== packSize) {
-					optionErrorMessage = `Rarity distribution total (${rarityTotal}) must equal pack size (${packSize}).`;
-					return;
-				}
 			}
 		}
 	}
@@ -447,7 +466,12 @@
 							commonPerPack,
 							rarePerPack,
 							superRarePerPack,
-							ultraRarePerPack
+							ultraRarePerPack,
+							useRarityRates,
+							commonRate,
+							rareRate,
+							superRareRate,
+							ultraRareRate
 						}
 					: null,
 				// Drafted deck size parameter
@@ -484,7 +508,12 @@
 								commonPerPack,
 								rarePerPack,
 								superRarePerPack,
-								ultraRarePerPack
+								ultraRarePerPack,
+								useRarityRates,
+								commonRate,
+								rareRate,
+								superRareRate,
+								ultraRareRate
 							}
 						: undefined
 				})
@@ -510,9 +539,7 @@
 		<!-- Cube File Upload with Pre-made Cube Option -->
 		<div class="relative">
 			<div class="mb-1 flex items-center">
-				<label for="cube-file" class="text-base-content block text-sm font-medium">
-					Upload Cube File (.csv)
-				</label>
+				<label for="cube-file" class="label"> Upload Cube File (.csv) </label>
 				<div class="relative ml-2">
 					<button
 						type="button"
@@ -531,15 +558,16 @@
 												href="https://ygoprodeck.com/cube/"
 												target="_blank"
 												rel="noopener noreferrer"
-												class="link link-primary">YGOProdeck Cube Builder</a>
+												class="link link-primary">YGOProdeck Cube Builder</a
+											>
 											to find or build a cube, then click the button to download it as a CSV file.
 										</p>
 										<p class="text-base-content/70 mt-1 text-xs">
 											<strong>Custom Rarities:</strong> To add custom rarities, include a fifth column
 											in your CSV with one of the following values: "Common", "Rare", "Super Rare", "Ultra
-											Rare". To do this, add a comma to each row, followed by the custom rarity. You can
-											also just use the acronyms ("c", "r", "sr", "ur"). Master Duel rarities are used
-											if not specified.
+											Rare". To do this, add a comma to each row, followed by the custom rarity. You
+											can also just use the acronyms ("c", "r", "sr", "ur"). Master Duel rarities are
+											used if not specified.
 										</p>
 									</div>
 								</div>
@@ -596,9 +624,7 @@
 		<!-- Draft Method Selection -->
 		<div>
 			<div class="mb-1 flex items-center">
-				<label for="draft-method" class="text-base-content block text-sm font-medium">
-					Draft Method
-				</label>
+				<label for="draft-method" class="label"> Draft Method </label>
 				<div class="relative ml-2">
 					<button
 						type="button"
@@ -651,7 +677,7 @@
 		<!-- Pool Size -->
 		{#if draftMethod === 'rochester' || draftMethod === 'grid' || draftMethod === 'asynchronous'}
 			<div>
-				<label for="drafted-deck-size" class="text-base-content mb-1 block text-sm font-medium">
+				<label for="drafted-deck-size" class="label">
 					Drafted deck size <span class="text-base-content/60 text-xs"
 						>(max: {maxDraftedDeckSize})</span
 					>
@@ -684,7 +710,7 @@
 			</div>
 		{:else}
 			<div>
-				<label for="pool-size" class="text-base-content mb-1 block text-sm font-medium">
+				<label for="pool-size" class="label">
 					Pool Size <span class="text-base-content/60 text-xs">(max: {MAX_POOL_SIZE})</span>
 				</label>
 				<input
@@ -701,7 +727,7 @@
 
 		<!-- Number of Players -->
 		<div>
-			<label for="number-of-players" class="text-base-content mb-1 block text-sm font-medium">
+			<label for="number-of-players" class="label">
 				Number of Players <span class="text-base-content/60 text-xs">(max: {MAX_PLAYERS})</span>
 			</label>
 			<input
@@ -718,9 +744,7 @@
 		<!-- Rochester Draft Options -->
 		{#if draftMethod === 'rochester'}
 			<div>
-				<label for="pack-size" class="text-base-content mb-1 block text-sm font-medium">
-					Pack Size
-				</label>
+				<label for="pack-size" class="label"> Pack Size </label>
 				<input
 					type="number"
 					id="pack-size"
@@ -738,21 +762,19 @@
 				bind:rarePerPack
 				bind:superRarePerPack
 				bind:ultraRarePerPack
+				bind:useRarityRates
+				bind:commonRate
+				bind:rareRate
+				bind:superRareRate
+				bind:ultraRareRate
 				{packSize}
 				{extraDeckAtEnd}
-				onDistributionChange={(data) => {
-					if (!data.useRarityDistribution) {
-						showRarityWarning = false;
-					}
-				}}
 				{validateOptions}
 				{checkForCardsWithoutRarity}
 			/>
 		{:else if draftMethod === 'winston'}
 			<div>
-				<label for="number-of-piles" class="text-base-content mb-1 block text-sm font-medium">
-					Number of Piles
-				</label>
+				<label for="number-of-piles" class="label"> Number of Piles </label>
 				<input
 					type="number"
 					id="number-of-piles"
@@ -764,7 +786,7 @@
 			</div>
 		{:else if draftMethod === 'grid'}
 			<div>
-				<label for="grid-size" class="text-base-content mb-1 block text-sm font-medium">
+				<label for="grid-size" class="label">
 					Grid Size <span class="text-base-content/60 text-xs"
 						>({MIN_GRID_SIZE}-{MAX_GRID_SIZE})</span
 					>
@@ -787,9 +809,7 @@
 			</div>
 		{:else if draftMethod === 'asynchronous'}
 			<div>
-				<label for="pack-size" class="text-base-content mb-1 block text-sm font-medium">
-					Pack Size
-				</label>
+				<label for="pack-size" class="label"> Pack Size </label>
 				<input
 					type="number"
 					id="pack-size"
@@ -801,9 +821,7 @@
 			</div>
 
 			<div>
-				<label for="picks-per-pack" class="text-base-content mb-1 block text-sm font-medium">
-					Picks per Pack
-				</label>
+				<label for="picks-per-pack" class="label"> Picks per Pack </label>
 				<input
 					type="number"
 					id="picks-per-pack"
@@ -821,47 +839,45 @@
 			<!-- New option for allowing overlap in packs with tooltip -->
 			<div class="form-control">
 				<label class="label cursor-pointer">
-					<span class="flex items-center">
-						<input
-							type="checkbox"
-							id="allow-overlap"
-							bind:checked={allowOverlap}
-							onchange={validateOptions}
-							class="checkbox checkbox-primary"
-						/>
-						<span class="label-text ml-2">Allow overlap in player packs</span>
-						<div class="relative ml-2">
-							<button
-								type="button"
-								class="btn btn-xs btn-circle btn-ghost"
-								aria-label="Overlap option information"
-								{@attach tooltip()}
-							>
-								?
-								<div class="tooltip-content hidden">
-									<div class="card bg-base-100">
-										<div class="card-body p-4">
-											<div class="flex flex-col space-y-2">
-												<h4 class="text-base-content text-sm font-medium">Overlap Option</h4>
-												<p class="text-base-content/70 text-xs">
-													When enabled, each player gets their own independent card pool. This means
-													players might see some of the same cards as other players.
-												</p>
-												<p class="text-base-content/70 text-xs">
-													When disabled, players will only see cards from their portion of the overall
-													pool, ensuring no cards are duplicated between players.
-												</p>
-												<p class="text-base-content/70 text-xs">
-													Enable this option when your cube is smaller than the total required pool size
-													or when you want players to have equal access to powerful cards.
-												</p>
-											</div>
+					<input
+						type="checkbox"
+						id="allow-overlap"
+						bind:checked={allowOverlap}
+						onchange={validateOptions}
+						class="checkbox checkbox-primary"
+					/>
+					<span class="label-text ml-2">Allow overlap in player packs</span>
+					<div class="relative ml-2">
+						<button
+							type="button"
+							class="btn btn-xs btn-circle btn-ghost"
+							aria-label="Overlap option information"
+							{@attach tooltip()}
+						>
+							?
+							<div class="tooltip-content hidden">
+								<div class="card bg-base-100">
+									<div class="card-body p-4">
+										<div class="flex flex-col space-y-2">
+											<h4 class="text-base-content text-sm font-medium">Overlap Option</h4>
+											<p class="text-base-content/70 text-xs">
+												When enabled, each player gets their own independent card pool. This means
+												players might see some of the same cards as other players.
+											</p>
+											<p class="text-base-content/70 text-xs">
+												When disabled, players will only see cards from their portion of the overall
+												pool, ensuring no cards are duplicated between players.
+											</p>
+											<p class="text-base-content/70 text-xs">
+												Enable this option when your cube is smaller than the total required pool
+												size or when you want players to have equal access to powerful cards.
+											</p>
 										</div>
 									</div>
 								</div>
-							</button>
-						</div>
-					</span>
+							</div>
+						</button>
+					</div>
 				</label>
 				{#if allowOverlap}
 					<p class="text-base-content/60 mt-2 ml-8 text-sm">
@@ -877,13 +893,13 @@
 				bind:rarePerPack
 				bind:superRarePerPack
 				bind:ultraRarePerPack
+				bind:useRarityRates
+				bind:commonRate
+				bind:rareRate
+				bind:superRareRate
+				bind:ultraRareRate
 				{packSize}
 				{extraDeckAtEnd}
-				onDistributionChange={(data) => {
-					if (!data.useRarityDistribution) {
-						showRarityWarning = false;
-					}
-				}}
 				{validateOptions}
 				{checkForCardsWithoutRarity}
 			/>
@@ -911,30 +927,18 @@
 
 		<!-- Option Validation Error -->
 		{#if optionErrorMessage}
-			<p class="text-error mt-2 text-sm">{optionErrorMessage}</p>
+			<div class="alert alert-error align-middle">
+				{@html feather.icons['alert-circle'].toSvg({ width: 24, height: 24 })}
+				<span>
+					{optionErrorMessage}
+				</span>
+			</div>
 		{/if}
 
 		<!-- Uneven Pool Warning -->
 		{#if showUnevenPoolWarning && useRarityDistribution && draftMethod === 'rochester'}
-			<div class="alert alert-warning mt-4">
-				<svg
-					xmlns="http://www.w3.org/2000/svg"
-					width="24"
-					height="24"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					class="feather feather-alert-circle"
-					><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line
-						x1="12"
-						y1="16"
-						x2="12.01"
-						y2="16"
-					></line></svg
-				>
+			<div class="alert alert-warning align-middle">
+				{@html feather.icons['alert-circle'].toSvg({ width: 24, height: 24 })}
 				<div>
 					<h3 class="font-bold">Uneven pool warning</h3>
 					<p>
@@ -949,19 +953,8 @@
 		<!-- Custom Rarities Message -->
 		{#if isCubeValid && hasCustomRarities && useRarityDistribution}
 			{#if cardsWithoutCustomRarity.length > 0}
-				<div class="alert alert-warning mt-4">
-					<svg
-						class="text-warning h-5 w-5"
-						viewBox="0 0 20 20"
-						fill="currentColor"
-						aria-hidden="true"
-					>
-						<path
-							fill-rule="evenodd"
-							d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z"
-							clip-rule="evenodd"
-						/>
-					</svg>
+				<div class="alert alert-warning align-middle">
+					{@html feather.icons['alert-circle'].toSvg({ width: 24, height: 24 })}
 					<div>
 						<h3 class="font-bold">Cards without custom rarity</h3>
 						<p>
@@ -992,21 +985,8 @@
 					</div>
 				</div>
 			{:else}
-				<div class="alert alert-success mt-4">
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						width="24"
-						height="24"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						class="feather feather-alert-circle"
-						><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"
-						></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg
-					>
+				<div class="alert alert-success align-middle">
+					{@html feather.icons.info.toSvg({ width: 24, height: 24 })}
 					<div>
 						<h3 class="font-bold">Custom rarities detected</h3>
 						<p>Custom rarities will be used for card distribution in Rochester draft.</p>
@@ -1110,61 +1090,8 @@
 					draft if you use rarity distribution:
 				</p>
 			{/if}
-			<div class="mt-4 max-h-96 overflow-auto">
-				<div class="space-y-2 p-2">
-					{#each cardsWithoutRarity as card}
-						<div
-							class="flex items-center rounded border p-2"
-							class:border-error={hasCustomRarities &&
-								!card?.custom_rarity &&
-								!card?.apiData?.rarity}
-							class:bg-error={hasCustomRarities && !card?.custom_rarity && !card?.apiData?.rarity}
-						>
-							{#if card.smallImageUrl instanceof Promise || card.imageUrl instanceof Promise}
-								{#await card.smallImageUrl instanceof Promise ? card.smallImageUrl : card.imageUrl}
-									<div class="bg-base-200 mr-2 flex h-12 w-12 items-center justify-center rounded">
-										<span class="loading loading-spinner loading-xs text-base-content"></span>
-									</div>
-								{:then imageUrl}
-									<img
-										src={imageUrl}
-										alt={card.name}
-										class="mr-2 h-12 w-12 rounded object-cover"
-										onerror={(e) => {
-											e.target.src = 'https://via.placeholder.com/400x586?text=Image+Not+Found';
-										}}
-									/>
-								{:catch}
-									<img
-										src="https://via.placeholder.com/400x586?text=Image+Not+Found"
-										alt={card.name}
-										class="mr-2 h-12 w-12 rounded object-cover"
-									/>
-								{/await}
-							{:else}
-								<img
-									src={card.smallImageUrl || card.imageUrl}
-									alt={card.name}
-									class="mr-2 h-12 w-12 rounded object-cover"
-									onerror={(e) => {
-										e.target.src = 'https://via.placeholder.com/400x586?text=Image+Not+Found';
-									}}
-								/>
-							{/if}
-							<span
-								class="text-sm"
-								class:text-error={hasCustomRarities &&
-									!card?.custom_rarity &&
-									!card?.apiData?.rarity}
-							>
-								{card.name}
-								{#if hasCustomRarities && !card?.custom_rarity && !card?.apiData?.rarity}
-									<span class="ml-2 text-xs font-medium">(No Master Duel rarity)</span>
-								{/if}
-							</span>
-						</div>
-					{/each}
-				</div>
+			<div class="m-6">
+				<CardList cube={cardsWithoutRarity} />
 			</div>
 			<div class="modal-action">
 				<button

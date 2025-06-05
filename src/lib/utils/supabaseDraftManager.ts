@@ -43,10 +43,18 @@ function shuffleArray<T>(array: T[]): T[] {
  * Interface for rarity distribution settings
  */
 interface RarityDistribution {
+    // Fixed count settings
     commonPerPack: number;
     rarePerPack: number;
     superRarePerPack: number;
     ultraRarePerPack: number;
+
+    // Rate-based settings (percentages)
+    useRarityRates?: boolean;
+    commonRate?: number;
+    rareRate?: number;
+    superRareRate?: number;
+    ultraRareRate?: number;
 }
 
 /**
@@ -125,38 +133,19 @@ export async function createDraft(
             // For async drafts with overlap, create a separate pool for each player
             const playerPoolSize = Math.floor(poolSize / numberOfPlayers);
             let currentIndex = 0;
-            
+
             for (let playerIndex = 0; playerIndex < numberOfPlayers; playerIndex++) {
-                // Create a copy of the expanded cube for each player and shuffle it
-                let playerCube = [...expandedCube];
-                playerCube = shuffleArray(playerCube);
-                
-                // Handle rarity distribution for this player's cube if needed
-                if (rarityDistribution) {
-                    playerCube = organizeCardsByRarity(playerCube, rarityDistribution, packSize, 1, playerPoolSize);
-                }
-                
-                // Limit to the player pool size
-                let limitedPlayerCube = playerCube.slice(0, playerPoolSize);
-                
-                // Handle extra deck cards for this player's cube
-                if (extraDeckAtEnd) {
-                    // Separate main deck and extra deck cards
-                    const mainDeckCards = [];
-                    const extraDeckCards = [];
-                    
-                    for (const entry of limitedPlayerCube) {
-                        if (isExtraDeckCard(entry.apiData)) {
-                            extraDeckCards.push(entry);
-                        } else {
-                            mainDeckCards.push(entry);
-                        }
-                    }
-                    
-                    // Combine them with extra deck at the end
-                    limitedPlayerCube = [...mainDeckCards, ...extraDeckCards];
-                }
-                
+                // Process the card pool for this player
+                let limitedPlayerCube = processCardPool(
+                    [...expandedCube], // Create a copy of the expanded cube
+                    rarityDistribution,
+                    packSize,
+                    1, // Single player for individual pool
+                    playerPoolSize,
+                    extraDeckAtEnd,
+                    draftMethod
+                );
+
                 // Assign player index and global index to each card
                 const playerCubeWithIndexes = limitedPlayerCube.map((entry, idx) => ({
                     card_id: entry.card_id,
@@ -164,50 +153,26 @@ export async function createDraft(
                     index: currentIndex + idx, // Global index across all players
                     custom_rarity: entry.custom_rarity,
                 }));
-                
+
                 // Add this player's cards to the overall cube
                 cubeWithIndexes = [...cubeWithIndexes, ...playerCubeWithIndexes];
-                
+
                 // Update the current index for the next player
                 currentIndex += playerPoolSize;
             }
-            
+
             console.log(`Async draft with overlap: Created ${numberOfPlayers} separate pools of ${playerPoolSize} cards each.`);
         } else {
-            // Handle the card ordering based on settings (original logic for non-overlap drafts)
-            let processedCube = expandedCube;
-
-            // If using rarity distribution for Rochester draft or non-overlap Async draft
-            if ((draftMethod === 'rochester' || draftMethod === 'asynchronous') && rarityDistribution) {
-                processedCube = organizeCardsByRarity(expandedCube, rarityDistribution, packSize, numberOfPlayers, poolSize);
-                console.log("Organized cards by rarity for Rochester or Asynchronous draft.");
-                console.log("Cards organized by rarity:", processedCube.map(card => getRarityFromCard(card)));
-            } else {
-                // Otherwise just shuffle the cube
-                processedCube = shuffleArray(expandedCube);
-            }
-
-            // Limit to the specified pool size
-            let limitedCube = processedCube.slice(0, poolSize);
-
-            // Handle extra deck cards for both Rochester and Grid draft
-            if (extraDeckAtEnd && (draftMethod === 'rochester' || draftMethod === 'grid' || draftMethod === 'asynchronous')) {
-                // Separate main deck and extra deck cards
-                const mainDeckCards = [];
-                const extraDeckCards = [];
-
-                for (const entry of limitedCube) {
-                    if (isExtraDeckCard(entry.apiData)) {
-                        extraDeckCards.push(entry);
-                    } else {
-                        mainDeckCards.push(entry);
-                    }
-                }
-
-                // Combine them with extra deck at the end
-                limitedCube = [...mainDeckCards, ...extraDeckCards];
-                console.log(`Rearranged ${extraDeckCards.length} extra deck cards to end of pool for ${draftMethod} draft.`);
-            }
+            // Process the card pool for the draft
+            let limitedCube = processCardPool(
+                expandedCube,
+                rarityDistribution,
+                packSize,
+                numberOfPlayers,
+                poolSize,
+                extraDeckAtEnd,
+                draftMethod
+            );
 
             // Assign shuffled indexes to the cards
             cubeWithIndexes = limitedCube.map((entry, index) => ({
@@ -231,6 +196,61 @@ export async function createDraft(
 }
 
 /**
+ * Processes a card pool by applying shuffling, rarity distribution, and extra deck handling
+ * @param cardPool - The pool of cards to process
+ * @param rarityDistribution - Optional rarity distribution settings
+ * @param packSize - Size of packs for rarity distribution
+ * @param numberOfPlayers - Number of players for rarity distribution
+ * @param poolSize - Maximum size to limit the card pool
+ * @param extraDeckAtEnd - Whether to move extra deck cards to the end
+ * @param draftMethod - The drafting method being used
+ * @returns Processed card pool
+ */
+function processCardPool(
+    cardPool: any[],
+    rarityDistribution: RarityDistribution | null,
+    packSize: number,
+    numberOfPlayers: number,
+    poolSize: number,
+    extraDeckAtEnd: boolean,
+    draftMethod: string
+): any[] {
+    let processedPool = cardPool;
+
+    // Apply rarity distribution or shuffle
+    if ((draftMethod === 'rochester' || draftMethod === 'asynchronous') && rarityDistribution) {
+        processedPool = organizeCardsByRarity(processedPool, rarityDistribution, packSize, numberOfPlayers, poolSize);
+        console.log("Organized cards by rarity for Rochester or Asynchronous draft.");
+    } else {
+        processedPool = shuffleArray(processedPool);
+    }
+
+    // Limit to the specified pool size
+    let limitedPool = processedPool.slice(0, poolSize);
+
+    // Handle extra deck cards
+    if (extraDeckAtEnd) {
+        // Separate main deck and extra deck cards
+        const mainDeckCards = [];
+        const extraDeckCards = [];
+
+        for (const entry of limitedPool) {
+            if (isExtraDeckCard(entry.apiData)) {
+                extraDeckCards.push(entry);
+            } else {
+                mainDeckCards.push(entry);
+            }
+        }
+
+        // Combine them with extra deck at the end
+        limitedPool = [...mainDeckCards, ...extraDeckCards];
+        console.log(`Rearranged ${extraDeckCards.length} extra deck cards to end of pool for ${draftMethod} draft.`);
+    }
+
+    return limitedPool;
+}
+
+/**
  * Organizes cards by rarity to ensure the correct distribution in packs
  * @param cards - The expanded card array
  * @param rarityDistribution - The settings for rarity distribution
@@ -248,12 +268,6 @@ function organizeCardsByRarity(
 ): any[] {
     // Calculate the number of packs that will be created
     const numberOfPacks = Math.floor(poolSize / packSize);
-
-    // Calculate the number of cards of each rarity needed
-    const commonCount = numberOfPacks * rarityDistribution.commonPerPack;
-    const rareCount = numberOfPacks * rarityDistribution.rarePerPack;
-    const superRareCount = numberOfPacks * rarityDistribution.superRarePerPack;
-    const ultraRareCount = numberOfPacks * rarityDistribution.ultraRarePerPack;
 
     // Filter cards by their rarity
     const commons = cards.filter(card => {
@@ -281,6 +295,174 @@ function organizeCardsByRarity(
     shuffleArray(rares);
     shuffleArray(superRares);
     shuffleArray(ultraRares);
+
+    // Using rate-based approach or fixed counts?
+    if (rarityDistribution.useRarityRates) {
+        return organizeCardsByRarityRates(
+            commons, rares, superRares, ultraRares,
+            rarityDistribution,
+            packSize,
+            numberOfPacks,
+            poolSize
+        );
+    } else {
+        return organizeCardsByFixedCounts(
+            commons, rares, superRares, ultraRares,
+            rarityDistribution,
+            packSize,
+            numberOfPacks,
+            poolSize
+        );
+    }
+}
+
+/**
+ * Organizes cards using a stochastic rate-based approach for rarity distribution
+ * @param commons - Array of common cards
+ * @param rares - Array of rare cards
+ * @param superRares - Array of super rare cards
+ * @param ultraRares - Array of ultra rare cards
+ * @param rarityDistribution - Rarity distribution settings
+ * @param packSize - Number of cards per pack
+ * @param numberOfPacks - Number of packs to create
+ * @param poolSize - Total card pool size
+ * @returns An array of cards organized into packs with stochastic rarity distribution
+ */
+function organizeCardsByRarityRates(
+    commons: any[],
+    rares: any[],
+    superRares: any[],
+    ultraRares: any[],
+    rarityDistribution: RarityDistribution,
+    packSize: number,
+    numberOfPacks: number,
+    poolSize: number
+): any[] {
+    // Get the rates (ensure they sum to 100)
+    const commonRate = rarityDistribution.commonRate || 0;
+    const rareRate = rarityDistribution.rareRate || 0;
+    const superRareRate = rarityDistribution.superRareRate || 0;
+    const ultraRareRate = rarityDistribution.ultraRareRate || 0;
+
+    // Calculate cumulative probabilities for random selection
+    const rarityRanges = [
+        commonRate,                              // 0 to commonRate
+        commonRate + rareRate,                   // commonRate to commonRate+rareRate
+        commonRate + rareRate + superRareRate,   // ... and so on
+        100                                      // Should be 100 (all four rates)
+    ];
+
+    // Index trackers for each rarity pile
+    let commonIndex = 0;
+    let rareIndex = 0;
+    let superRareIndex = 0;
+    let ultraRareIndex = 0;
+
+    const organizedDeck = [];
+
+    // For each pack, assign cards based on probabilities
+    for (let packIndex = 0; packIndex < numberOfPacks; packIndex++) {
+        for (let cardIndex = 0; cardIndex < packSize; cardIndex++) {
+            // Random number between 0 and 100
+            const randomValue = Math.random() * 100;
+
+            // Determine which rarity to pick based on the random value
+            let selectedCard = null;
+
+            if (randomValue < rarityRanges[0] && commonIndex < commons.length) {
+                // Common card
+                selectedCard = commons[commonIndex++];
+            }
+            else if (randomValue < rarityRanges[1] && rareIndex < rares.length) {
+                // Rare card
+                selectedCard = rares[rareIndex++];
+            }
+            else if (randomValue < rarityRanges[2] && superRareIndex < superRares.length) {
+                // Super Rare card
+                selectedCard = superRares[superRareIndex++];
+            }
+            else if (ultraRareIndex < ultraRares.length) {
+                // Ultra Rare card
+                selectedCard = ultraRares[ultraRareIndex++];
+            }
+
+            // If we've run out of cards of a specific rarity, use any available rarity
+            if (!selectedCard) {
+                if (commonIndex < commons.length) {
+                    selectedCard = commons[commonIndex++];
+                } else if (rareIndex < rares.length) {
+                    selectedCard = rares[rareIndex++];
+                } else if (superRareIndex < superRares.length) {
+                    selectedCard = superRares[superRareIndex++];
+                } else if (ultraRareIndex < ultraRares.length) {
+                    selectedCard = ultraRares[ultraRareIndex++];
+                } else {
+                    throw new Error("Ran out of cards while trying to fill the pack.");
+                }
+            }
+
+            if (selectedCard) {
+                organizedDeck.push(selectedCard);
+            }
+        }
+    }
+
+    // Log the actual distribution achieved
+    const finalCommons = organizedDeck.filter(card => {
+        const rarity = getRarityFromCard(card);
+        return rarity?.toLowerCase() === 'common';
+    }).length;
+
+    const finalRares = organizedDeck.filter(card => {
+        const rarity = getRarityFromCard(card);
+        return rarity?.toLowerCase() === 'rare';
+    }).length;
+
+    const finalSuperRares = organizedDeck.filter(card => {
+        const rarity = getRarityFromCard(card);
+        return rarity?.toLowerCase() === 'super rare';
+    }).length;
+
+    const finalUltraRares = organizedDeck.filter(card => {
+        const rarity = getRarityFromCard(card);
+        return rarity?.toLowerCase() === 'ultra rare';
+    }).length;
+
+    console.log(`Final distribution: Commons: ${finalCommons} (${Math.round(finalCommons / organizedDeck.length * 100)}%), ` +
+        `Rares: ${finalRares} (${Math.round(finalRares / organizedDeck.length * 100)}%), ` +
+        `Super Rares: ${finalSuperRares} (${Math.round(finalSuperRares / organizedDeck.length * 100)}%), ` +
+        `Ultra Rares: ${finalUltraRares} (${Math.round(finalUltraRares / organizedDeck.length * 100)}%)`);
+
+    return organizedDeck;
+}
+
+/**
+ * Organizes cards using a fixed count approach for rarity distribution
+ * @param commons - Array of common cards
+ * @param rares - Array of rare cards
+ * @param superRares - Array of super rare cards
+ * @param ultraRares - Array of ultra rare cards
+ * @param rarityDistribution - Rarity distribution settings
+ * @param packSize - Number of cards per pack
+ * @param numberOfPacks - Number of packs to create
+ * @param poolSize - Total card pool size
+ * @returns An array of cards organized into packs with fixed rarity counts
+ */
+function organizeCardsByFixedCounts(
+    commons: any[],
+    rares: any[],
+    superRares: any[],
+    ultraRares: any[],
+    rarityDistribution: RarityDistribution,
+    packSize: number,
+    numberOfPacks: number,
+    poolSize: number
+): any[] {
+    // Calculate the number of cards of each rarity needed
+    const commonCount = numberOfPacks * rarityDistribution.commonPerPack;
+    const rareCount = numberOfPacks * rarityDistribution.rarePerPack;
+    const superRareCount = numberOfPacks * rarityDistribution.superRarePerPack;
+    const ultraRareCount = numberOfPacks * rarityDistribution.ultraRarePerPack;
 
     // Ensure we have enough cards of each rarity
     if (commons.length < commonCount) {
@@ -339,6 +521,7 @@ function organizeCardsByRarity(
     }
 
     // Add remaining cards if we need to reach the pool size
+    const cards = [...commons, ...rares, ...superRares, ...ultraRares];
     const remainingCards = cards.filter(card => {
         return !organizedDeck.some(c => c.card_id === card.card_id);
     });
