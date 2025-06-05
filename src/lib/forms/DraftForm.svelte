@@ -936,25 +936,8 @@
 
 		<!-- Uneven Pool Warning -->
 		{#if showUnevenPoolWarning && useRarityDistribution && draftMethod === 'rochester'}
-			<div class="alert alert-warning mt-4">
-				<svg
-					xmlns="http://www.w3.org/2000/svg"
-					width="24"
-					height="24"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					class="feather feather-alert-circle"
-					><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line
-						x1="12"
-						y1="16"
-						x2="12.01"
-						y2="16"
-					></line></svg
-				>
+			<div class="alert alert-warning align-middle">
+				{@html feather.icons['alert-circle'].toSvg({ width: 24, height: 24 })}
 				<div>
 					<h3 class="font-bold">Uneven pool warning</h3>
 					<p>
@@ -969,19 +952,8 @@
 		<!-- Custom Rarities Message -->
 		{#if isCubeValid && hasCustomRarities && useRarityDistribution}
 			{#if cardsWithoutCustomRarity.length > 0}
-				<div class="alert alert-warning mt-4">
-					<svg
-						class="text-warning h-5 w-5"
-						viewBox="0 0 20 20"
-						fill="currentColor"
-						aria-hidden="true"
-					>
-						<path
-							fill-rule="evenodd"
-							d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z"
-							clip-rule="evenodd"
-						/>
-					</svg>
+				<div class="alert alert-warning align-middle">
+					{@html feather.icons['alert-circle'].toSvg({ width: 24, height: 24 })}
 					<div>
 						<h3 class="font-bold">Cards without custom rarity</h3>
 						<p>
@@ -1012,21 +984,8 @@
 					</div>
 				</div>
 			{:else}
-				<div class="alert alert-success mt-4">
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						width="24"
-						height="24"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						class="feather feather-alert-circle"
-						><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"
-						></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg
-					>
+				<div class="alert alert-success align-middle">
+					{@html feather.icons.info.toSvg({ width: 24, height: 24 })}
 					<div>
 						<h3 class="font-bold">Custom rarities detected</h3>
 						<p>Custom rarities will be used for card distribution in Rochester draft.</p>
