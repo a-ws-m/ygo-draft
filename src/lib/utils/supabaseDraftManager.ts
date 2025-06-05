@@ -125,38 +125,19 @@ export async function createDraft(
             // For async drafts with overlap, create a separate pool for each player
             const playerPoolSize = Math.floor(poolSize / numberOfPlayers);
             let currentIndex = 0;
-            
+
             for (let playerIndex = 0; playerIndex < numberOfPlayers; playerIndex++) {
-                // Create a copy of the expanded cube for each player and shuffle it
-                let playerCube = [...expandedCube];
-                playerCube = shuffleArray(playerCube);
-                
-                // Handle rarity distribution for this player's cube if needed
-                if (rarityDistribution) {
-                    playerCube = organizeCardsByRarity(playerCube, rarityDistribution, packSize, 1, playerPoolSize);
-                }
-                
-                // Limit to the player pool size
-                let limitedPlayerCube = playerCube.slice(0, playerPoolSize);
-                
-                // Handle extra deck cards for this player's cube
-                if (extraDeckAtEnd) {
-                    // Separate main deck and extra deck cards
-                    const mainDeckCards = [];
-                    const extraDeckCards = [];
-                    
-                    for (const entry of limitedPlayerCube) {
-                        if (isExtraDeckCard(entry.apiData)) {
-                            extraDeckCards.push(entry);
-                        } else {
-                            mainDeckCards.push(entry);
-                        }
-                    }
-                    
-                    // Combine them with extra deck at the end
-                    limitedPlayerCube = [...mainDeckCards, ...extraDeckCards];
-                }
-                
+                // Process the card pool for this player
+                let limitedPlayerCube = processCardPool(
+                    [...expandedCube], // Create a copy of the expanded cube
+                    rarityDistribution,
+                    packSize,
+                    1, // Single player for individual pool
+                    playerPoolSize,
+                    extraDeckAtEnd,
+                    draftMethod
+                );
+
                 // Assign player index and global index to each card
                 const playerCubeWithIndexes = limitedPlayerCube.map((entry, idx) => ({
                     card_id: entry.card_id,
@@ -164,50 +145,26 @@ export async function createDraft(
                     index: currentIndex + idx, // Global index across all players
                     custom_rarity: entry.custom_rarity,
                 }));
-                
+
                 // Add this player's cards to the overall cube
                 cubeWithIndexes = [...cubeWithIndexes, ...playerCubeWithIndexes];
-                
+
                 // Update the current index for the next player
                 currentIndex += playerPoolSize;
             }
-            
+
             console.log(`Async draft with overlap: Created ${numberOfPlayers} separate pools of ${playerPoolSize} cards each.`);
         } else {
-            // Handle the card ordering based on settings (original logic for non-overlap drafts)
-            let processedCube = expandedCube;
-
-            // If using rarity distribution for Rochester draft or non-overlap Async draft
-            if ((draftMethod === 'rochester' || draftMethod === 'asynchronous') && rarityDistribution) {
-                processedCube = organizeCardsByRarity(expandedCube, rarityDistribution, packSize, numberOfPlayers, poolSize);
-                console.log("Organized cards by rarity for Rochester or Asynchronous draft.");
-                console.log("Cards organized by rarity:", processedCube.map(card => getRarityFromCard(card)));
-            } else {
-                // Otherwise just shuffle the cube
-                processedCube = shuffleArray(expandedCube);
-            }
-
-            // Limit to the specified pool size
-            let limitedCube = processedCube.slice(0, poolSize);
-
-            // Handle extra deck cards for both Rochester and Grid draft
-            if (extraDeckAtEnd && (draftMethod === 'rochester' || draftMethod === 'grid' || draftMethod === 'asynchronous')) {
-                // Separate main deck and extra deck cards
-                const mainDeckCards = [];
-                const extraDeckCards = [];
-
-                for (const entry of limitedCube) {
-                    if (isExtraDeckCard(entry.apiData)) {
-                        extraDeckCards.push(entry);
-                    } else {
-                        mainDeckCards.push(entry);
-                    }
-                }
-
-                // Combine them with extra deck at the end
-                limitedCube = [...mainDeckCards, ...extraDeckCards];
-                console.log(`Rearranged ${extraDeckCards.length} extra deck cards to end of pool for ${draftMethod} draft.`);
-            }
+            // Process the card pool for the draft
+            let limitedCube = processCardPool(
+                expandedCube,
+                rarityDistribution,
+                packSize,
+                numberOfPlayers,
+                poolSize,
+                extraDeckAtEnd,
+                draftMethod
+            );
 
             // Assign shuffled indexes to the cards
             cubeWithIndexes = limitedCube.map((entry, index) => ({
@@ -228,6 +185,61 @@ export async function createDraft(
         console.error("Error creating draft:", error);
         throw error;
     }
+}
+
+/**
+ * Processes a card pool by applying shuffling, rarity distribution, and extra deck handling
+ * @param cardPool - The pool of cards to process
+ * @param rarityDistribution - Optional rarity distribution settings
+ * @param packSize - Size of packs for rarity distribution
+ * @param numberOfPlayers - Number of players for rarity distribution
+ * @param poolSize - Maximum size to limit the card pool
+ * @param extraDeckAtEnd - Whether to move extra deck cards to the end
+ * @param draftMethod - The drafting method being used
+ * @returns Processed card pool
+ */
+function processCardPool(
+    cardPool: any[],
+    rarityDistribution: RarityDistribution | null,
+    packSize: number,
+    numberOfPlayers: number,
+    poolSize: number,
+    extraDeckAtEnd: boolean,
+    draftMethod: string
+): any[] {
+    let processedPool = cardPool;
+
+    // Apply rarity distribution or shuffle
+    if ((draftMethod === 'rochester' || draftMethod === 'asynchronous') && rarityDistribution) {
+        processedPool = organizeCardsByRarity(processedPool, rarityDistribution, packSize, numberOfPlayers, poolSize);
+        console.log("Organized cards by rarity for Rochester or Asynchronous draft.");
+    } else {
+        processedPool = shuffleArray(processedPool);
+    }
+
+    // Limit to the specified pool size
+    let limitedPool = processedPool.slice(0, poolSize);
+
+    // Handle extra deck cards
+    if (extraDeckAtEnd) {
+        // Separate main deck and extra deck cards
+        const mainDeckCards = [];
+        const extraDeckCards = [];
+
+        for (const entry of limitedPool) {
+            if (isExtraDeckCard(entry.apiData)) {
+                extraDeckCards.push(entry);
+            } else {
+                mainDeckCards.push(entry);
+            }
+        }
+
+        // Combine them with extra deck at the end
+        limitedPool = [...mainDeckCards, ...extraDeckCards];
+        console.log(`Rearranged ${extraDeckCards.length} extra deck cards to end of pool for ${draftMethod} draft.`);
+    }
+
+    return limitedPool;
 }
 
 /**
