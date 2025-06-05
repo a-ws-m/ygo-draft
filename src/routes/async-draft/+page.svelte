@@ -473,6 +473,7 @@
 								<!-- Use the CardList component with multiple selection -->
 								<CardList
 									cube={currentPack}
+									showDescription={true}
 									selectMultiple={picksRemaining}
 									onSelectionConfirm={confirmSelections}
 								/>

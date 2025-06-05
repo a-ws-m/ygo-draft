@@ -86,7 +86,15 @@
 	</div>
 	<div class="collapse-content pb-4">
 		<div class="mt-2">
-			<CardDetails {card} {imageUrl} {smallImageUrl} compact={true} {clickable} {onSelect} />
+			<CardDetails
+				{card}
+				{imageUrl}
+				{smallImageUrl}
+				compact={true}
+				{clickable}
+				{onSelect}
+				{isSelected}
+			/>
 		</div>
 	</div>
 </div>
