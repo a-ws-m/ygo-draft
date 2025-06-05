@@ -43,10 +43,18 @@ function shuffleArray<T>(array: T[]): T[] {
  * Interface for rarity distribution settings
  */
 interface RarityDistribution {
+    // Fixed count settings
     commonPerPack: number;
     rarePerPack: number;
     superRarePerPack: number;
     ultraRarePerPack: number;
+
+    // Rate-based settings (percentages)
+    useRarityRates?: boolean;
+    commonRate?: number;
+    rareRate?: number;
+    superRareRate?: number;
+    ultraRareRate?: number;
 }
 
 /**
@@ -261,12 +269,6 @@ function organizeCardsByRarity(
     // Calculate the number of packs that will be created
     const numberOfPacks = Math.floor(poolSize / packSize);
 
-    // Calculate the number of cards of each rarity needed
-    const commonCount = numberOfPacks * rarityDistribution.commonPerPack;
-    const rareCount = numberOfPacks * rarityDistribution.rarePerPack;
-    const superRareCount = numberOfPacks * rarityDistribution.superRarePerPack;
-    const ultraRareCount = numberOfPacks * rarityDistribution.ultraRarePerPack;
-
     // Filter cards by their rarity
     const commons = cards.filter(card => {
         const rarity = getRarityFromCard(card);
@@ -293,6 +295,174 @@ function organizeCardsByRarity(
     shuffleArray(rares);
     shuffleArray(superRares);
     shuffleArray(ultraRares);
+
+    // Using rate-based approach or fixed counts?
+    if (rarityDistribution.useRarityRates) {
+        return organizeCardsByRarityRates(
+            commons, rares, superRares, ultraRares,
+            rarityDistribution,
+            packSize,
+            numberOfPacks,
+            poolSize
+        );
+    } else {
+        return organizeCardsByFixedCounts(
+            commons, rares, superRares, ultraRares,
+            rarityDistribution,
+            packSize,
+            numberOfPacks,
+            poolSize
+        );
+    }
+}
+
+/**
+ * Organizes cards using a stochastic rate-based approach for rarity distribution
+ * @param commons - Array of common cards
+ * @param rares - Array of rare cards
+ * @param superRares - Array of super rare cards
+ * @param ultraRares - Array of ultra rare cards
+ * @param rarityDistribution - Rarity distribution settings
+ * @param packSize - Number of cards per pack
+ * @param numberOfPacks - Number of packs to create
+ * @param poolSize - Total card pool size
+ * @returns An array of cards organized into packs with stochastic rarity distribution
+ */
+function organizeCardsByRarityRates(
+    commons: any[],
+    rares: any[],
+    superRares: any[],
+    ultraRares: any[],
+    rarityDistribution: RarityDistribution,
+    packSize: number,
+    numberOfPacks: number,
+    poolSize: number
+): any[] {
+    // Get the rates (ensure they sum to 100)
+    const commonRate = rarityDistribution.commonRate || 0;
+    const rareRate = rarityDistribution.rareRate || 0;
+    const superRareRate = rarityDistribution.superRareRate || 0;
+    const ultraRareRate = rarityDistribution.ultraRareRate || 0;
+
+    // Calculate cumulative probabilities for random selection
+    const rarityRanges = [
+        commonRate,                              // 0 to commonRate
+        commonRate + rareRate,                   // commonRate to commonRate+rareRate
+        commonRate + rareRate + superRareRate,   // ... and so on
+        100                                      // Should be 100 (all four rates)
+    ];
+
+    // Index trackers for each rarity pile
+    let commonIndex = 0;
+    let rareIndex = 0;
+    let superRareIndex = 0;
+    let ultraRareIndex = 0;
+
+    const organizedDeck = [];
+
+    // For each pack, assign cards based on probabilities
+    for (let packIndex = 0; packIndex < numberOfPacks; packIndex++) {
+        for (let cardIndex = 0; cardIndex < packSize; cardIndex++) {
+            // Random number between 0 and 100
+            const randomValue = Math.random() * 100;
+
+            // Determine which rarity to pick based on the random value
+            let selectedCard = null;
+
+            if (randomValue < rarityRanges[0] && commonIndex < commons.length) {
+                // Common card
+                selectedCard = commons[commonIndex++];
+            }
+            else if (randomValue < rarityRanges[1] && rareIndex < rares.length) {
+                // Rare card
+                selectedCard = rares[rareIndex++];
+            }
+            else if (randomValue < rarityRanges[2] && superRareIndex < superRares.length) {
+                // Super Rare card
+                selectedCard = superRares[superRareIndex++];
+            }
+            else if (ultraRareIndex < ultraRares.length) {
+                // Ultra Rare card
+                selectedCard = ultraRares[ultraRareIndex++];
+            }
+
+            // If we've run out of cards of a specific rarity, use any available rarity
+            if (!selectedCard) {
+                if (commonIndex < commons.length) {
+                    selectedCard = commons[commonIndex++];
+                } else if (rareIndex < rares.length) {
+                    selectedCard = rares[rareIndex++];
+                } else if (superRareIndex < superRares.length) {
+                    selectedCard = superRares[superRareIndex++];
+                } else if (ultraRareIndex < ultraRares.length) {
+                    selectedCard = ultraRares[ultraRareIndex++];
+                } else {
+                    throw new Error("Ran out of cards while trying to fill the pack.");
+                }
+            }
+
+            if (selectedCard) {
+                organizedDeck.push(selectedCard);
+            }
+        }
+    }
+
+    // Log the actual distribution achieved
+    const finalCommons = organizedDeck.filter(card => {
+        const rarity = getRarityFromCard(card);
+        return rarity?.toLowerCase() === 'common';
+    }).length;
+
+    const finalRares = organizedDeck.filter(card => {
+        const rarity = getRarityFromCard(card);
+        return rarity?.toLowerCase() === 'rare';
+    }).length;
+
+    const finalSuperRares = organizedDeck.filter(card => {
+        const rarity = getRarityFromCard(card);
+        return rarity?.toLowerCase() === 'super rare';
+    }).length;
+
+    const finalUltraRares = organizedDeck.filter(card => {
+        const rarity = getRarityFromCard(card);
+        return rarity?.toLowerCase() === 'ultra rare';
+    }).length;
+
+    console.log(`Final distribution: Commons: ${finalCommons} (${Math.round(finalCommons / organizedDeck.length * 100)}%), ` +
+        `Rares: ${finalRares} (${Math.round(finalRares / organizedDeck.length * 100)}%), ` +
+        `Super Rares: ${finalSuperRares} (${Math.round(finalSuperRares / organizedDeck.length * 100)}%), ` +
+        `Ultra Rares: ${finalUltraRares} (${Math.round(finalUltraRares / organizedDeck.length * 100)}%)`);
+
+    return organizedDeck;
+}
+
+/**
+ * Organizes cards using a fixed count approach for rarity distribution
+ * @param commons - Array of common cards
+ * @param rares - Array of rare cards
+ * @param superRares - Array of super rare cards
+ * @param ultraRares - Array of ultra rare cards
+ * @param rarityDistribution - Rarity distribution settings
+ * @param packSize - Number of cards per pack
+ * @param numberOfPacks - Number of packs to create
+ * @param poolSize - Total card pool size
+ * @returns An array of cards organized into packs with fixed rarity counts
+ */
+function organizeCardsByFixedCounts(
+    commons: any[],
+    rares: any[],
+    superRares: any[],
+    ultraRares: any[],
+    rarityDistribution: RarityDistribution,
+    packSize: number,
+    numberOfPacks: number,
+    poolSize: number
+): any[] {
+    // Calculate the number of cards of each rarity needed
+    const commonCount = numberOfPacks * rarityDistribution.commonPerPack;
+    const rareCount = numberOfPacks * rarityDistribution.rarePerPack;
+    const superRareCount = numberOfPacks * rarityDistribution.superRarePerPack;
+    const ultraRareCount = numberOfPacks * rarityDistribution.ultraRarePerPack;
 
     // Ensure we have enough cards of each rarity
     if (commons.length < commonCount) {
@@ -351,6 +521,7 @@ function organizeCardsByRarity(
     }
 
     // Add remaining cards if we need to reach the pool size
+    const cards = [...commons, ...rares, ...superRares, ...ultraRares];
     const remainingCards = cards.filter(card => {
         return !organizedDeck.some(c => c.card_id === card.card_id);
     });

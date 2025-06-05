@@ -43,6 +43,13 @@
 	let cardsWithoutCustomRarity = $state([]);
 	let cardsMissingBothRarities = $state([]); // Track cards missing both custom and Master Duel rarities
 
+	// New state for custom rarity rates
+	let useRarityRates = $state(false);
+	let commonRate = $state(45);
+	let rareRate = $state(30);
+	let superRareRate = $state(15);
+	let ultraRareRate = $state(10);
+
 	// New state for pre-made cube modal and selection
 	let showPremadeCubesModal = $state(false);
 	let selectedPremadeCube = $state('');
@@ -81,7 +88,7 @@
 			const tooltipInstance = tippy(element, {
 				content: element.querySelector('.tooltip-content')?.innerHTML,
 				allowHTML: true,
-				maxWidth:300,
+				maxWidth: 300,
 				interactive: true,
 				arrow: false,
 				trigger: 'mouseenter focus',
@@ -90,7 +97,7 @@
 				duration: [200, 0],
 				animation: 'shift-away',
 				appendTo: document.body,
-				theme: 'daisy',
+				theme: 'daisy'
 				// popperOptions: {
 				// 	strategy: 'fixed',
 				// }
@@ -227,7 +234,7 @@
 	}
 
 	function checkForCardsWithoutRarity() {
-		if (useRarityDistribution && draftMethod === 'rochester') {
+		if (useRarityDistribution && draftMethod in ['rochester', 'asynchronous']) {
 			// Check for cards without rarities based on whether we have custom rarities or not
 			if (hasCustomRarities) {
 				// When using custom rarities, check for cards without custom rarity
@@ -255,8 +262,9 @@
 		}
 	}
 
-	// Modified validateOptions function to handle all draft methods and the new overlap option
+	// Modified validateOptions function to handle all draft methods and the new rarity rate option
 	function validateOptions() {
+		console.debug('Validating options...');
 		optionErrorMessage = '';
 		showUnevenPoolWarning = false; // Reset the warning flag
 
@@ -309,16 +317,25 @@
 
 			// Validation for rarity distribution
 			if (useRarityDistribution) {
-				const rarityTotal = commonPerPack + rarePerPack + superRarePerPack + ultraRarePerPack;
-				if (rarityTotal !== packSize) {
-					optionErrorMessage = `Rarity distribution total (${rarityTotal}) must equal pack size (${packSize}).`;
-					return;
-				}
+				if (useRarityRates) {
+					// Check if rates sum to 100%
+					const rateTotal = commonRate + rareRate + superRareRate + ultraRareRate;
+					if (rateTotal !== 100) {
+						optionErrorMessage = `Rarity rates total (${rateTotal}%) must equal 100%.`;
+						return;
+					}
+				} else {
+					const rarityTotal = commonPerPack + rarePerPack + superRarePerPack + ultraRarePerPack;
+					if (rarityTotal !== packSize) {
+						optionErrorMessage = `Rarity distribution total (${rarityTotal}) must equal pack size (${packSize}).`;
+						return;
+					}
 
-				// Check if pool is evenly divisible for rarity distribution
-				const totalPackCards = packSize * numberOfPlayers;
-				if (poolSize % totalPackCards !== 0) {
-					showUnevenPoolWarning = true;
+					// Check if pool is evenly divisible for rarity distribution
+					const totalPackCards = packSize * numberOfPlayers;
+					if (poolSize % totalPackCards !== 0) {
+						showUnevenPoolWarning = true;
+					}
 				}
 			}
 		} else if (draftMethod === 'winston') {
@@ -447,7 +464,12 @@
 							commonPerPack,
 							rarePerPack,
 							superRarePerPack,
-							ultraRarePerPack
+							ultraRarePerPack,
+							useRarityRates,
+							commonRate,
+							rareRate,
+							superRareRate,
+							ultraRareRate
 						}
 					: null,
 				// Drafted deck size parameter
@@ -484,7 +506,12 @@
 								commonPerPack,
 								rarePerPack,
 								superRarePerPack,
-								ultraRarePerPack
+								ultraRarePerPack,
+								useRarityRates,
+								commonRate,
+								rareRate,
+								superRareRate,
+								ultraRareRate
 							}
 						: undefined
 				})
@@ -531,15 +558,16 @@
 												href="https://ygoprodeck.com/cube/"
 												target="_blank"
 												rel="noopener noreferrer"
-												class="link link-primary">YGOProdeck Cube Builder</a>
+												class="link link-primary">YGOProdeck Cube Builder</a
+											>
 											to find or build a cube, then click the button to download it as a CSV file.
 										</p>
 										<p class="text-base-content/70 mt-1 text-xs">
 											<strong>Custom Rarities:</strong> To add custom rarities, include a fifth column
 											in your CSV with one of the following values: "Common", "Rare", "Super Rare", "Ultra
-											Rare". To do this, add a comma to each row, followed by the custom rarity. You can
-											also just use the acronyms ("c", "r", "sr", "ur"). Master Duel rarities are used
-											if not specified.
+											Rare". To do this, add a comma to each row, followed by the custom rarity. You
+											can also just use the acronyms ("c", "r", "sr", "ur"). Master Duel rarities are
+											used if not specified.
 										</p>
 									</div>
 								</div>
@@ -740,11 +768,6 @@
 				bind:ultraRarePerPack
 				{packSize}
 				{extraDeckAtEnd}
-				onDistributionChange={(data) => {
-					if (!data.useRarityDistribution) {
-						showRarityWarning = false;
-					}
-				}}
 				{validateOptions}
 				{checkForCardsWithoutRarity}
 			/>
@@ -848,12 +871,12 @@
 													players might see some of the same cards as other players.
 												</p>
 												<p class="text-base-content/70 text-xs">
-													When disabled, players will only see cards from their portion of the overall
-													pool, ensuring no cards are duplicated between players.
+													When disabled, players will only see cards from their portion of the
+													overall pool, ensuring no cards are duplicated between players.
 												</p>
 												<p class="text-base-content/70 text-xs">
-													Enable this option when your cube is smaller than the total required pool size
-													or when you want players to have equal access to powerful cards.
+													Enable this option when your cube is smaller than the total required pool
+													size or when you want players to have equal access to powerful cards.
 												</p>
 											</div>
 										</div>
@@ -877,13 +900,13 @@
 				bind:rarePerPack
 				bind:superRarePerPack
 				bind:ultraRarePerPack
+				bind:useRarityRates
+				bind:commonRate
+				bind:rareRate
+				bind:superRareRate
+				bind:ultraRareRate
 				{packSize}
 				{extraDeckAtEnd}
-				onDistributionChange={(data) => {
-					if (!data.useRarityDistribution) {
-						showRarityWarning = false;
-					}
-				}}
 				{validateOptions}
 				{checkForCardsWithoutRarity}
 			/>
