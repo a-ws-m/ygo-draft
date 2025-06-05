@@ -215,11 +215,13 @@
 		return small ? card.smallImageUrl : card.imageUrl;
 	}
 
-	function tooltip() {
+	function tooltip(card) {
 		// Mount the card details component to the tooltip
 
 		// Create a tooltip instance
 		return (element) => {
+			card; // Trigger Svelte reactivity when card changes
+
 			const tooltipInstance = tippy(element, {
 				content: element.querySelector('.card-details-content')?.innerHTML,
 				allowHTML: true,
@@ -553,7 +555,7 @@
 								type="button"
 								onclick={() => handleCardClick(card)}
 								onkeydown={(e) => e.key === 'Enter' && handleCardClick(card)}
-								{@attach tooltip()}
+								{@attach tooltip(card)}
 							>
 								<!-- Card Image -->
 								<div class="relative aspect-[813/1185] w-full max-w-[271px]">
