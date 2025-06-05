@@ -234,7 +234,7 @@
 	}
 
 	function checkForCardsWithoutRarity() {
-		if (useRarityDistribution && draftMethod in ['rochester', 'asynchronous']) {
+		if (useRarityDistribution && ['rochester', 'asynchronous'].includes(draftMethod)) {
 			// Check for cards without rarities based on whether we have custom rarities or not
 			if (hasCustomRarities) {
 				// When using custom rarities, check for cards without custom rarity
@@ -264,7 +264,6 @@
 
 	// Modified validateOptions function to handle all draft methods and the new rarity rate option
 	function validateOptions() {
-		console.debug('Validating options...');
 		optionErrorMessage = '';
 		showUnevenPoolWarning = false; // Reset the warning flag
 
@@ -306,7 +305,9 @@
 			optionErrorMessage = 'Pool size cannot exceed the total number of cards in the cube.';
 		} else if (draftMethod === 'asynchronous' && allowOverlap && playerPoolSize > totalCards) {
 			optionErrorMessage = `With overlap enabled, each player's pool (${playerPoolSize} cards) cannot exceed the total number of cards in the cube (${totalCards} cards).`;
-		} else if (draftMethod === 'rochester') {
+		}
+
+		if (['rochester', 'asynchronous'].includes(draftMethod)) {
 			if (packSize < numberOfPlayers) {
 				optionErrorMessage = 'Pack size must be at least equal to the number of players.';
 			} else if (poolSize < packSize * packsPerRound) {
@@ -369,7 +370,9 @@
 				optionErrorMessage = `Not enough cards in the cube. Need at least ${totalCardsNeeded} cards for all players to draft ${draftedDeckSize} cards each.`;
 				return;
 			}
-		} else if (draftMethod === 'asynchronous') {
+		}
+
+		if (draftMethod === 'asynchronous') {
 			// Asynchronous draft specific validations
 			if (picksPerPack > packSize) {
 				optionErrorMessage = `Picks per pack (${picksPerPack}) cannot exceed pack size (${packSize}).`;
@@ -400,15 +403,6 @@
 			if (allowOverlap && playerPoolSize > totalCards) {
 				optionErrorMessage = `Not enough cards in the cube. With overlap enabled, each player needs ${playerPoolSize} cards.`;
 				return;
-			}
-
-			// Validation for rarity distribution
-			if (useRarityDistribution) {
-				const rarityTotal = commonPerPack + rarePerPack + superRarePerPack + ultraRarePerPack;
-				if (rarityTotal !== packSize) {
-					optionErrorMessage = `Rarity distribution total (${rarityTotal}) must equal pack size (${packSize}).`;
-					return;
-				}
 			}
 		}
 	}
@@ -766,6 +760,11 @@
 				bind:rarePerPack
 				bind:superRarePerPack
 				bind:ultraRarePerPack
+				bind:useRarityRates
+				bind:commonRate
+				bind:rareRate
+				bind:superRareRate
+				bind:ultraRareRate
 				{packSize}
 				{extraDeckAtEnd}
 				{validateOptions}

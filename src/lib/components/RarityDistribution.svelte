@@ -19,10 +19,6 @@
 	} = $props();
 
 	$effect(() => {
-		// Validate whenever any of the rarity values change
-		totalPerPack;
-		totalPercentage;
-
 		if (useRarityDistribution) {
 			extraDeckAtEnd = false;
 			validateOptions?.();
@@ -59,6 +55,7 @@
 				class="tab"
 				value={false}
 				bind:group={useRarityRates}
+				onchange={validateOptions}
 				name="rarity-mode"
 				aria-label="Fixed Card Counts"
 			/>
@@ -71,6 +68,7 @@
 					</label>
 					<input
 						type="number"
+						onchange={validateOptions}
 						id="common-per-pack"
 						bind:value={commonPerPack}
 						min="0"
@@ -83,6 +81,7 @@
 					</label>
 					<input
 						type="number"
+						onchange={validateOptions}
 						id="rare-per-pack"
 						bind:value={rarePerPack}
 						min="0"
@@ -95,6 +94,7 @@
 					</label>
 					<input
 						type="number"
+						onchange={validateOptions}
 						id="super-rare-per-pack"
 						bind:value={superRarePerPack}
 						min="0"
@@ -107,6 +107,7 @@
 					</label>
 					<input
 						type="number"
+						onchange={validateOptions}
 						id="ultra-rare-per-pack"
 						bind:value={ultraRarePerPack}
 						min="0"
@@ -126,6 +127,7 @@
 				class="tab"
 				value={true}
 				bind:group={useRarityRates}
+				onchange={validateOptions}
 				name="rarity-mode"
 				aria-label="Rarity Rates"
 			/>
@@ -137,6 +139,7 @@
 					</label>
 					<input
 						type="number"
+						onchange={validateOptions}
 						id="common-rate"
 						bind:value={commonRate}
 						min="0"
@@ -150,6 +153,7 @@
 					</label>
 					<input
 						type="number"
+						onchange={validateOptions}
 						id="rare-rate"
 						bind:value={rareRate}
 						min="0"
@@ -163,6 +167,7 @@
 					</label>
 					<input
 						type="number"
+						onchange={validateOptions}
 						id="super-rare-rate"
 						bind:value={superRareRate}
 						min="0"
@@ -176,6 +181,7 @@
 					</label>
 					<input
 						type="number"
+						onchange={validateOptions}
 						id="ultra-rare-rate"
 						bind:value={ultraRareRate}
 						min="0"
