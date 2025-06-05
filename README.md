@@ -95,6 +95,15 @@ In Grid Draft:
 3. Replenish rows/columns with new cards from the pool
 4. Continue until each player has desired number of cards
 
+### Asynchronous Draft
+
+In Asynchronous Draft:
+1. Players draft independently at their own pace without needing to coordinate schedules
+2. Each player opens their own packs and selects cards
+3. Once a card is drafted by a player, it's no longer available to others (unless you enable `Allow overlap in player packs`)
+4. Players can join and make picks whenever they have time
+5. Draft continues until all players have completed their selections
+
 ## Technologies
 
 - [Svelte](https://svelte.dev/) and [SvelteKit](https://kit.svelte.dev/) - Frontend framework
@@ -105,6 +114,7 @@ In Grid Draft:
 - [Fuzzy-search](https://github.com/wouterrutgers/fuzzy-search) - Fuzzy searching for card names/descriptions
 - [Feather icons](https://feathericons.com/) - Beautiful, open source icons
 - [Swiper](https://swiperjs.com/) - Card carousel display
+- [TippyJS](https://atomiks.github.io/tippyjs/) - Fancy tooltips
 
 ## Contributing
 
