@@ -926,7 +926,12 @@
 
 		<!-- Option Validation Error -->
 		{#if optionErrorMessage}
-			<p class="text-error mt-2 text-sm">{optionErrorMessage}</p>
+			<div class="alert alert-error align-middle">
+				{@html feather.icons['alert-circle'].toSvg({ width: 24, height: 24 })}
+				<span>
+					{optionErrorMessage}
+				</span>
+			</div>
 		{/if}
 
 		<!-- Uneven Pool Warning -->
