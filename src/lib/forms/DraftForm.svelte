@@ -147,6 +147,14 @@
 		}
 	});
 
+	$effect(() =>{
+		// When we change the draft method we may need to reset some options
+		if (!['rochester', 'asynchronous'].includes(draftMethod)) {
+			useRarityDistribution = false; // Reset rarity distribution for these methods
+		}
+	}
+	)
+
 	function handleFileUpload(event: Event) {
 		const target = event.target as HTMLInputElement;
 		cubeFile = target.files?.[0] || null;
