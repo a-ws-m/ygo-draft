@@ -9,7 +9,10 @@
 		clickable = false,
 		onSelect = () => {},
 		imageUrl = '',
-		smallImageUrl = ''
+		smallImageUrl = '',
+		isSelected = false,
+		enableMultiSelect = false,
+		disableSelect = false
 	} = $props<{
 		card: {
 			name: string;
@@ -31,6 +34,9 @@
 		onSelect?: () => void;
 		imageUrl?: string;
 		smallImageUrl?: string;
+		isSelected?: boolean;
+		enableMultiSelect?: boolean;
+		disableSelect?: boolean;
 	}>();
 
 	// Map card types to colors
@@ -58,7 +64,7 @@
 </script>
 
 <div
-	class={`collapse-arrow collapse border-l-4 ${cardTypeColor} bg-base-100 rounded-box shadow-sm`}
+	class={`collapse-arrow collapse border-l-4 ${cardTypeColor} bg-base-100 rounded-box shadow-sm ${isSelected ? 'border-primary border-l-primary' : ''} ${disableSelect && clickable ? 'opacity-50' : ''}`}
 	data-expanded={showDescription ? 'true' : undefined}
 >
 	<input type="checkbox" checked={showDescription} />
@@ -68,6 +74,11 @@
 			{#if card.quantity && card.quantity > 1}
 				<span class="badge badge-outline">x{card.quantity}</span>
 			{/if}
+			{#if enableMultiSelect && !disableSelect && isSelected}
+				<span class="badge badge-primary">
+					{@html feather.icons.check.toSvg({ width: '1em', height: '1em' })}
+				</span>
+			{/if}
 		</div>
 		<div class="flex-shrink-0">
 			<!-- Dropdown arrow controlled by collapse -->
@@ -75,7 +86,15 @@
 	</div>
 	<div class="collapse-content pb-4">
 		<div class="mt-2">
-			<CardDetails {card} {imageUrl} {smallImageUrl} compact={true} {clickable} {onSelect} />
+			<CardDetails
+				{card}
+				{imageUrl}
+				{smallImageUrl}
+				compact={true}
+				{clickable}
+				{onSelect}
+				{isSelected}
+			/>
 		</div>
 	</div>
 </div>

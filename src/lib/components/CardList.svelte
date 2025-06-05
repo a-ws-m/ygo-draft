@@ -7,7 +7,7 @@
 	import { onMount } from 'svelte';
 	import FuzzySearch from 'fuzzy-search';
 	import feather from 'feather-icons';
-	import { calculatePopupPosition } from '$lib/utils/cardPopupPositioning';
+	import tippy from 'tippy.js';
 
 	// Props using $props rune
 	const {
@@ -18,7 +18,9 @@
 		showChart = false,
 		clickable = false,
 		onCardClick = undefined,
-		preferredViewMode = 'tile'
+		preferredViewMode = 'tile',
+		selectMultiple = 0,
+		onSelectionConfirm = (selectedIndices: number[]) => {}
 	} = $props<{
 		cube: any[];
 		border?: boolean;
@@ -28,17 +30,15 @@
 		clickable?: boolean;
 		onCardClick?: (index: number) => void;
 		preferredViewMode?: 'list' | 'tile' | 'carousel';
+		selectMultiple?: number;
+		onSelectionConfirm?: (selectedIndices: number[]) => void;
 	}>();
 
 	// Reactive state
 	let viewMode = $state<'list' | 'tile' | 'carousel'>(preferredViewMode); // Initialize with preferred mode
-	let hoveredCard = $state(null);
 	let matchDescription = $state(true);
-
-	// Create variables to track popup position
-	let popupX = $state(0);
-	let popupY = $state(0);
-	let popupPosition = $state('below'); // 'above', 'below', 'left', or 'right'
+	let selectedCardIndices = $state<number[]>([]);
+	let isConfirming = $state(false);
 
 	// Modal state
 	let showConfirmModal = $state(false);
@@ -60,10 +60,10 @@
 		// Initialize view mode based on screen width and preferred mode
 		// If preferredViewMode is 'list', always respect it regardless of screen size
 		// Otherwise, use responsive behavior based on screen width
-		if (preferredViewMode === 'list') {
-			viewMode = 'list';
+		if (preferredViewMode === 'list' || preferredViewMode === 'carousel') {
+			viewMode = preferredViewMode;
 		} else {
-			viewMode = window.innerWidth < 768 ? 'list' : preferredViewMode;
+			viewMode = window.innerWidth < 768 ? 'carousel' : preferredViewMode;
 		}
 
 		// Initialize the fuzzy searcher with the cube data
@@ -215,23 +215,57 @@
 		return small ? card.smallImageUrl : card.imageUrl;
 	}
 
-	// Handle mouse events for tile view
-	function handleMouseEnter(card, event) {
-		hoveredCard = card;
+	function tooltip() {
+		// Mount the card details component to the tooltip
 
-		// Use the shared positioning utility
-		const popupData = calculatePopupPosition(event);
-		popupPosition = popupData.position;
-		popupX = popupData.x;
-		popupY = popupData.y;
+		// Create a tooltip instance
+		return (element) => {
+			const tooltipInstance = tippy(element, {
+				content: element.querySelector('.card-details-content')?.innerHTML,
+				allowHTML: true,
+				maxWidth: 500,
+				interactive: false,
+				trigger: 'mouseenter focus',
+				arrow: false,
+				hideOnClick: false,
+				placement: 'auto',
+				duration: [200, 0],
+				animation: 'shift-away',
+				theme: 'daisy',
+			});
+			return tooltipInstance.destroy;
+		};
 	}
 
-	function handleMouseLeave() {
-		hoveredCard = null;
+	// Handle card selection for multiselect mode
+	function toggleCardSelection(card) {
+		const cardIndex = card.card_index || card.index || cube.indexOf(card);
+
+		// Check if card is already selected
+		const isSelected = selectedCardIndices.includes(cardIndex);
+
+		if (isSelected) {
+			// Remove card from selection
+			selectedCardIndices = selectedCardIndices.filter((index) => index !== cardIndex);
+		} else {
+			// Add card to selection if we haven't reached the maximum
+			if (selectedCardIndices.length < selectMultiple) {
+				selectedCardIndices = [...selectedCardIndices, cardIndex];
+			}
+		}
 	}
 
+	// Check if a card is selected
+	function isCardSelected(card) {
+		const cardIndex = card.card_index || card.index || cube.indexOf(card);
+		return selectedCardIndices.includes(cardIndex);
+	}
+
+	// Handle card click based on selection mode
 	function handleCardClick(card) {
-		if (clickable) {
+		if (selectMultiple > 0) {
+			toggleCardSelection(card);
+		} else if (clickable) {
 			selectedCard = card;
 			showConfirmModal = true;
 		}
@@ -248,6 +282,27 @@
 		showConfirmModal = false;
 	}
 
+	// Confirm multiple selections
+	async function confirmSelections() {
+		if (selectedCardIndices.length > selectMultiple) {
+			// Could show an error message here
+			return;
+		}
+
+		isConfirming = true;
+		try {
+			// Call the provided callback with selected indices
+			await onSelectionConfirm(selectedCardIndices);
+
+			// Clear selection after confirming
+			selectedCardIndices = [];
+		} catch (error) {
+			console.error('Error confirming selections:', error);
+		} finally {
+			isConfirming = false;
+		}
+	}
+
 	// Set view mode
 	function setViewMode(mode: 'list' | 'tile' | 'carousel') {
 		viewMode = mode;
@@ -257,6 +312,11 @@
 	function handleYdkDownload() {
 		const ydkContent = convertToYdk(cube);
 		downloadYdkFile(ydkContent, 'ygo_draft_deck.ydk');
+	}
+
+	// Clear all selections
+	function clearAllSelections() {
+		selectedCardIndices = [];
 	}
 
 	// Derived values
@@ -271,9 +331,28 @@
 	<!-- Header with all controls aligned on same centerline -->
 	<div class="flex flex-col space-y-2 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
 		<div class="flex items-center space-x-4">
-			<p class="text-lg font-medium">
-				Total Cards: {totalCards}
-			</p>
+			{#if selectMultiple > 0}
+				<div class="flex items-center gap-2">
+					<p class="text-lg font-medium">
+						Picked: <span class="text-primary font-bold">{selectedCardIndices.length}</span> of {selectMultiple}
+					</p>
+					<!-- Clear selections button - only show when at least one card is selected -->
+					{#if selectedCardIndices.length > 0}
+						<button
+							onclick={clearAllSelections}
+							class="btn btn-sm btn-ghost"
+							title="Clear all selections"
+						>
+							<span>{@html feather.icons.trash.toSvg({ width: 16, height: 16 })}</span>
+							<span class="ml-1 hidden sm:inline">Clear</span>
+						</button>
+					{/if}
+				</div>
+			{:else}
+				<p class="text-lg font-medium">
+					Total Cards: {totalCards}
+				</p>
+			{/if}
 
 			{#if showYdkDownload}
 				<button onclick={handleYdkDownload} class="btn btn-primary btn-sm">
@@ -301,7 +380,7 @@
 			</button>
 			<button
 				type="button"
-				class={`px-2! btn join-item ${viewMode === 'carousel' ? 'btn-active' : ''}`}
+				class={`btn join-item px-2! ${viewMode === 'carousel' ? 'btn-active' : ''}`}
 				onclick={() => setViewMode('carousel')}
 			>
 				<div class="flex items-center">
@@ -314,6 +393,20 @@
 			</button>
 		</div>
 	</div>
+
+	<!-- Selection info when in multi-select mode -->
+	{#if selectMultiple > 0 && !isConfirming}
+		<div class="alert alert-info">
+			<div class="flex-none">
+				{@html feather.icons['info'].toSvg({ class: 'h-5 w-5' })}
+			</div>
+			<div>
+				<p>
+					Select {selectMultiple} cards from this list, then confirm your selection.
+				</p>
+			</div>
+		</div>
+	{/if}
 
 	<!-- Search and filter bar -->
 	<fieldset class="fieldset">
@@ -413,7 +506,9 @@
 	<!-- Container for cards and details -->
 	<div class="relative flex {containerHeightClass} flex-col">
 		<!-- Card Previews -->
-		<div class={`flex-1 ${viewMode === 'carousel' ? 'overflow-y-visible' : 'overflow-y-auto'} ${border ? 'card card-bordered card-compact' : ''}`}>
+		<div
+			class={`flex-1 ${viewMode === 'carousel' ? 'overflow-y-visible' : 'overflow-y-auto'} ${border ? 'card card-bordered card-compact' : ''}`}
+		>
 			{#if filteredCube.length === 0}
 				<div class="flex h-full items-center justify-center p-8 text-center">
 					<div class="flex flex-col items-center">
@@ -430,9 +525,10 @@
 			{:else if viewMode === 'carousel'}
 				<CardCarousel
 					{filteredCube}
-					{clickable}
+					clickable={selectMultiple > 0 || clickable}
 					{showDescription}
 					onCardClick={handleCardClick}
+					{selectedCardIndices}
 				/>
 			{:else if viewMode === 'tile'}
 				<div
@@ -442,14 +538,22 @@
 					{#each filteredCube as card}
 						<div class="flex w-full max-w-[271px] flex-col items-center">
 							<button
-								class="card relative w-full transition-shadow hover:shadow-lg {clickable
+								class="card relative w-full transition-shadow hover:shadow-lg {clickable ||
+								selectMultiple > 0
 									? 'hover:ring-primary ring-opacity-50 cursor-pointer hover:ring'
+									: ''} 
+                                {isCardSelected(card)
+									? 'bg-primary bg-opacity-20 ring-primary ring'
+									: ''}
+                                {selectedCardIndices.length >= selectMultiple &&
+								!isCardSelected(card) &&
+								selectMultiple > 0
+									? 'opacity-50'
 									: ''}"
 								type="button"
-								onmouseenter={(e) => handleMouseEnter(card, e)}
-								onmouseleave={handleMouseLeave}
 								onclick={() => handleCardClick(card)}
 								onkeydown={(e) => e.key === 'Enter' && handleCardClick(card)}
+								{@attach tooltip()}
 							>
 								<!-- Card Image -->
 								<div class="relative aspect-[813/1185] w-full max-w-[271px]">
@@ -468,6 +572,9 @@
 												class="h-full w-full rounded object-cover shadow"
 											/>
 										</picture>
+										<div class="hidden card-details-content">
+											<CardDetails {card} />
+										</div>
 									{:catch error}
 										<div
 											class="bg-base-200 absolute inset-0 flex items-center justify-center rounded"
@@ -478,6 +585,17 @@
 										</div>
 									{/await}
 								</div>
+
+								<!-- Selection indicator for multi-select mode -->
+								{#if selectMultiple > 0}
+									<div class="absolute top-2 right-2 z-10">
+										<div class="badge badge-primary badge-lg">
+											{#if isCardSelected(card)}
+												<span>{@html feather.icons.check.toSvg({ width: 16, height: 16 })}</span>
+											{/if}
+										</div>
+									</div>
+								{/if}
 							</button>
 							<!-- Card Name and Quantity -->
 							<p class="mt-1 text-center text-sm">{card.name}</p>
@@ -493,7 +611,10 @@
 						<TextCard
 							{card}
 							{showDescription}
-							{clickable}
+							clickable={selectMultiple > 0 || clickable}
+							isSelected={isCardSelected(card)}
+							enableMultiSelect={selectMultiple > 0}
+							disableSelect={selectedCardIndices.length >= selectMultiple && !isCardSelected(card)}
 							onSelect={() => handleCardClick(card)}
 							imageUrl={getCardImage(card)}
 							smallImageUrl={getCardImage(card, true)}
@@ -503,17 +624,21 @@
 			{/if}
 		</div>
 
-		<!-- Pop-up Details -->
-		{#if hoveredCard && viewMode === 'tile'}
-			<div
-				class="fixed z-50 transform"
-				class:translate-x-[-50%]={popupPosition === 'above' || popupPosition === 'below'}
-				class:translate-y-[-50%]={popupPosition === 'left' || popupPosition === 'right'}
-				class:translate-y-[-100%]={popupPosition === 'above'}
-				class:translate-x-[-100%]={popupPosition === 'left'}
-				style="left: {popupX}px; top: {popupY}px;"
-			>
-				<CardDetails card={hoveredCard} />
+		<!-- Selection confirmation button (for multi-select mode) -->
+		{#if selectMultiple > 0}
+			<div class="mt-4 flex justify-end">
+				<button
+					class="btn btn-primary btn-lg"
+					disabled={selectedCardIndices.length !== selectMultiple || isConfirming}
+					onclick={confirmSelections}
+				>
+					{#if isConfirming}
+						<span class="loading loading-spinner loading-sm"></span>
+						Confirming...
+					{:else}
+						Confirm Selection ({selectedCardIndices.length}/{selectMultiple})
+					{/if}
+				</button>
 			</div>
 		{/if}
 

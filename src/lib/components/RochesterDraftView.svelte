@@ -107,7 +107,7 @@
 							showDescription={true}
 							clickable={!draftStore.store.hasSelected}
 							onCardClick={selectCard}
-							preferredViewMode="carousel"
+							preferredViewMode='tile'
 						/>
 					</div>
 				{:else if !draftStore.store.allFinished}

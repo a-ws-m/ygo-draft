@@ -12,19 +12,28 @@
 	const {
 		filteredCube = [],
 		clickable = false,
-		onCardClick = (card: any) => {}
+		onCardClick = (card: any) => {},
+		selectedCardIndices = []
 	} = $props<{
 		filteredCube: any[];
 		clickable?: boolean;
 		onCardClick?: (card: any) => void;
+		selectedCardIndices?: number[];
 	}>();
 
 	// Reactive state
 	let swiperContainer = $state<HTMLElement | null>(null);
-	let swiperInstance: Swiper | null = $state(null);
+	let swiperInstance: Swiper | null = null;
 	let activeCardIndex = $state(0);
 
+	// Function to check if a card is selected
+	function isCardSelected(card, index) {
+		const cardIndex = card.card_index || card.index || index;
+		return selectedCardIndices.includes(cardIndex);
+	}
+
 	$effect(() => {
+		selectedCardIndices; // Ensure this effect runs when selectedCardIndices changes
 		if (swiperInstance && filteredCube) {
 			// Update virtual slides when filteredCube changes
 			swiperInstance.removeAllSlides();
@@ -67,17 +76,29 @@
 					addSlidesAfter: 10,
 					addSlidesBefore: 10,
 					renderSlide: (card, index) => {
+						// Check if card is selected
+						const isSelected = isCardSelected(card, index);
+						
 						// Create a template string to render each slide
 						return `
 							<div class="swiper-slide">
 								<div
 									class="card transition-shadow hover:shadow-lg ${
 										clickable ? 'hover:ring-primary ring-opacity-50 cursor-pointer hover:ring' : ''
+									} ${
+										isSelected ? 'bg-primary bg-opacity-20 ring-primary ring-2 ring-opacity-70' : ''
 									}"
 									data-card-index="${index}"
 									style="max-width: 813px; height: auto; aspect-ratio: 421/614;"
 								>
 									<div class="relative h-full w-full">
+										${isSelected ? 
+											`<div class="absolute top-2 right-2 z-10">
+												<div class="badge badge-primary badge-lg">
+													<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-check"><polyline points="20 6 9 17 4 12"></polyline></svg>
+												</div>
+											</div>` : 
+											''}
 										<picture>
 											<source media="(max-width: 296px)" srcset="${card.smallImageUrl || ''}" />
 											<source media="(min-width: 297px)" srcset="${card.imageUrl || ''}" />

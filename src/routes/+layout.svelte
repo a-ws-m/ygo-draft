@@ -11,6 +11,7 @@
 	import { base } from '$app/paths';
 	import PrivacyPolicyModal from '$lib/components/PrivacyPolicyModal.svelte';
 	import feather from 'feather-icons';
+	import 'tippy.js/animations/shift-away.css';
 
 	let { children } = $props();
 	let showPrivacyPolicy = $state(false);

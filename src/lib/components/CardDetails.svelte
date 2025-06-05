@@ -7,7 +7,8 @@
 		compact = false,
 		clickable = false,
 		onSelect = () => {},
-		useMaxWidth = true
+		useMaxWidth = true,
+		isSelected = false,
 	} = $props<{
 		card: {
 			name?: string;
@@ -29,6 +30,7 @@
 		clickable?: boolean;
 		onSelect?: () => void;
 		useMaxWidth?: boolean;
+		isSelected?: boolean;
 	}>();
 
 	// Derived values
@@ -82,21 +84,24 @@
 	const levelIcon = feather.icons.star.toSvg({ width: 16, height: 16 });
 	const raceIcon = feather.icons.users.toSvg({ width: 16, height: 16, class: 'ml-0.5' });
 	const attributeIcon = feather.icons.droplet.toSvg({ width: 16, height: 16 });
-	const checkIcon = feather.icons.check.toSvg({ width: 14, height: 14 });
+	let selectionIcon = $derived.by(() => {
+		const icon = isSelected ? 'x' : 'check';
+		return feather.icons[icon].toSvg({ width: 14, height: 14 });
+	});
 </script>
 
-<div class={compact ? 'p-2' : 'card bg-base-100 shadow-md'}>
+<div class='p2'>
 	<div class={compact ? '' : 'card-body p-4'}>
 		{#if !compact && card.name}
 			<div class="flex w-full items-center justify-between">
 				<h3 class="card-title break-words">{card.name}</h3>
 				{#if clickable}
 					<button
-						class="btn btn-success btn-circle btn-xs ml-2"
+						class={["btn btn-circle btn-xs ml-2", isSelected ? 'btn-error' : 'btn-success']}
 						aria-label="Select card"
 						onclick={handleSelect}
 					>
-						<span>{@html checkIcon}</span>
+						<span>{@html selectionIcon}</span>
 					</button>
 				{/if}
 			</div>
@@ -169,11 +174,11 @@
 				<p class="pr-6 text-sm">{card.apiData.desc}</p>
 				{#if clickable}
 					<button
-						class="btn btn-success btn-circle btn-xs absolute right-0 bottom-0"
+						class={["btn  btn-circle btn-xs absolute right-0 bottom-0", isSelected ? 'btn-error' : 'btn-success']}
 						aria-label="Select card"
 						onclick={handleSelect}
 					>
-						<span>{@html checkIcon}</span>
+						<span>{@html selectionIcon}</span>
 					</button>
 				{/if}
 			</div>
