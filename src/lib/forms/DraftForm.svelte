@@ -7,6 +7,7 @@
 	import RarityDistribution from '$lib/components/RarityDistribution.svelte';
 	import feather from 'feather-icons';
 	import tippy from 'tippy.js';
+	import CardList from '$lib/components/CardList.svelte';
 
 	// Define a callback prop for handling cube uploads
 	let { onCubeUploaded }: { onCubeUploaded: (cube: any[]) => void } = $props();
@@ -1089,61 +1090,8 @@
 					draft if you use rarity distribution:
 				</p>
 			{/if}
-			<div class="mt-4 max-h-96 overflow-auto">
-				<div class="space-y-2 p-2">
-					{#each cardsWithoutRarity as card}
-						<div
-							class="flex items-center rounded border p-2"
-							class:border-error={hasCustomRarities &&
-								!card?.custom_rarity &&
-								!card?.apiData?.rarity}
-							class:bg-error={hasCustomRarities && !card?.custom_rarity && !card?.apiData?.rarity}
-						>
-							{#if card.smallImageUrl instanceof Promise || card.imageUrl instanceof Promise}
-								{#await card.smallImageUrl instanceof Promise ? card.smallImageUrl : card.imageUrl}
-									<div class="bg-base-200 mr-2 flex h-12 w-12 items-center justify-center rounded">
-										<span class="loading loading-spinner loading-xs text-base-content"></span>
-									</div>
-								{:then imageUrl}
-									<img
-										src={imageUrl}
-										alt={card.name}
-										class="mr-2 h-12 w-12 rounded object-cover"
-										onerror={(e) => {
-											e.target.src = 'https://via.placeholder.com/400x586?text=Image+Not+Found';
-										}}
-									/>
-								{:catch}
-									<img
-										src="https://via.placeholder.com/400x586?text=Image+Not+Found"
-										alt={card.name}
-										class="mr-2 h-12 w-12 rounded object-cover"
-									/>
-								{/await}
-							{:else}
-								<img
-									src={card.smallImageUrl || card.imageUrl}
-									alt={card.name}
-									class="mr-2 h-12 w-12 rounded object-cover"
-									onerror={(e) => {
-										e.target.src = 'https://via.placeholder.com/400x586?text=Image+Not+Found';
-									}}
-								/>
-							{/if}
-							<span
-								class="text-sm"
-								class:text-error={hasCustomRarities &&
-									!card?.custom_rarity &&
-									!card?.apiData?.rarity}
-							>
-								{card.name}
-								{#if hasCustomRarities && !card?.custom_rarity && !card?.apiData?.rarity}
-									<span class="ml-2 text-xs font-medium">(No Master Duel rarity)</span>
-								{/if}
-							</span>
-						</div>
-					{/each}
-				</div>
+			<div class="m-6">
+				<CardList cube={cardsWithoutRarity} />
 			</div>
 			<div class="modal-action">
 				<button
