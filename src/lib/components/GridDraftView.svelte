@@ -42,8 +42,10 @@
 	let turnCheckInterval: number;
 
 	// Function to create tooltips for card details
-	function tooltip() {
+	function tooltip(card) {
 		return (element) => {
+			card; // Trigger reactivity for card details
+
 			const tooltipInstance = tippy(element, {
 				content: element.querySelector('.card-details-content')?.innerHTML,
 				allowHTML: true,
@@ -199,7 +201,7 @@
 												{#if card}
 													<div
 														class="aspect-[813/1185] cursor-pointer overflow-hidden rounded shadow-md transition-transform hover:scale-105"
-														{@attach tooltip()}
+														{@attach tooltip(card)}
 														role="img"
 														aria-label={card.name}
 													>
