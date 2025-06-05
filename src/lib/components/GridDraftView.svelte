@@ -49,11 +49,13 @@
 				allowHTML: true,
 				maxWidth: 500,
 				interactive: false,
+				arrow: false,
 				trigger: 'mouseenter focus',
 				hideOnClick: false,
 				placement: 'auto',
 				duration: [200, 0],
-				animation: 'shift-away'
+				animation: 'shift-away',
+				theme: 'daisy'
 			});
 			return tooltipInstance.destroy;
 		};

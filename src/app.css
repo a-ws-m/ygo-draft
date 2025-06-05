@@ -4,3 +4,7 @@
 @plugin 'daisyui' {
     themes: light --default, dracula --prefersdark;
 }
+
+.tippy-box[data-theme~='daisy'] {
+    @apply bg-base-100 shadow-md rounded-lg
+}

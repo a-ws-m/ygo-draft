@@ -83,12 +83,14 @@
 				allowHTML: true,
 				maxWidth:300,
 				interactive: true,
+				arrow: false,
 				trigger: 'mouseenter focus',
 				hideOnClick: false,
 				placement: 'auto',
 				duration: [200, 0],
 				animation: 'shift-away',
 				appendTo: document.body,
+				theme: 'daisy',
 				// popperOptions: {
 				// 	strategy: 'fixed',
 				// }

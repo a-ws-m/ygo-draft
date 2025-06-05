@@ -64,7 +64,7 @@
 </script>
 
 <div
-	class={`collapse-arrow collapse border-l-4 ${cardTypeColor} bg-base-100 rounded-box shadow-sm ${isSelected ? 'border-primary border-l-primary' : ''} ${disableSelect ? 'opacity-50' : ''}`}
+	class={`collapse-arrow collapse border-l-4 ${cardTypeColor} bg-base-100 rounded-box shadow-sm ${isSelected ? 'border-primary border-l-primary' : ''} ${disableSelect && clickable ? 'opacity-50' : ''}`}
 	data-expanded={showDescription ? 'true' : undefined}
 >
 	<input type="checkbox" checked={showDescription} />

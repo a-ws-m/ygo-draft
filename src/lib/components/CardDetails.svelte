@@ -85,7 +85,7 @@
 	const checkIcon = feather.icons.check.toSvg({ width: 14, height: 14 });
 </script>
 
-<div class={compact ? 'p-2' : 'card bg-base-100 shadow-md'}>
+<div class='p2'>
 	<div class={compact ? '' : 'card-body p-4'}>
 		{#if !compact && card.name}
 			<div class="flex w-full items-center justify-between">

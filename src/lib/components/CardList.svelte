@@ -226,10 +226,12 @@
 				maxWidth: 500,
 				interactive: false,
 				trigger: 'mouseenter focus',
+				arrow: false,
 				hideOnClick: false,
 				placement: 'auto',
 				duration: [200, 0],
-				animation: 'shift-away'
+				animation: 'shift-away',
+				theme: 'daisy',
 			});
 			return tooltipInstance.destroy;
 		};
