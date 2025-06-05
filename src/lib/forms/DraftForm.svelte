@@ -147,13 +147,12 @@
 		}
 	});
 
-	$effect(() =>{
+	$effect(() => {
 		// When we change the draft method we may need to reset some options
 		if (!['rochester', 'asynchronous'].includes(draftMethod)) {
 			useRarityDistribution = false; // Reset rarity distribution for these methods
 		}
-	}
-	)
+	});
 
 	function handleFileUpload(event: Event) {
 		const target = event.target as HTMLInputElement;
@@ -851,47 +850,45 @@
 			<!-- New option for allowing overlap in packs with tooltip -->
 			<div class="form-control">
 				<label class="label cursor-pointer">
-					<span class="flex items-center">
-						<input
-							type="checkbox"
-							id="allow-overlap"
-							bind:checked={allowOverlap}
-							onchange={validateOptions}
-							class="checkbox checkbox-primary"
-						/>
-						<span class="label-text ml-2">Allow overlap in player packs</span>
-						<div class="relative ml-2">
-							<button
-								type="button"
-								class="btn btn-xs btn-circle btn-ghost"
-								aria-label="Overlap option information"
-								{@attach tooltip()}
-							>
-								?
-								<div class="tooltip-content hidden">
-									<div class="card bg-base-100">
-										<div class="card-body p-4">
-											<div class="flex flex-col space-y-2">
-												<h4 class="text-base-content text-sm font-medium">Overlap Option</h4>
-												<p class="text-base-content/70 text-xs">
-													When enabled, each player gets their own independent card pool. This means
-													players might see some of the same cards as other players.
-												</p>
-												<p class="text-base-content/70 text-xs">
-													When disabled, players will only see cards from their portion of the
-													overall pool, ensuring no cards are duplicated between players.
-												</p>
-												<p class="text-base-content/70 text-xs">
-													Enable this option when your cube is smaller than the total required pool
-													size or when you want players to have equal access to powerful cards.
-												</p>
-											</div>
+					<input
+						type="checkbox"
+						id="allow-overlap"
+						bind:checked={allowOverlap}
+						onchange={validateOptions}
+						class="checkbox checkbox-primary"
+					/>
+					<span class="label-text ml-2">Allow overlap in player packs</span>
+					<div class="relative ml-2">
+						<button
+							type="button"
+							class="btn btn-xs btn-circle btn-ghost"
+							aria-label="Overlap option information"
+							{@attach tooltip()}
+						>
+							?
+							<div class="tooltip-content hidden">
+								<div class="card bg-base-100">
+									<div class="card-body p-4">
+										<div class="flex flex-col space-y-2">
+											<h4 class="text-base-content text-sm font-medium">Overlap Option</h4>
+											<p class="text-base-content/70 text-xs">
+												When enabled, each player gets their own independent card pool. This means
+												players might see some of the same cards as other players.
+											</p>
+											<p class="text-base-content/70 text-xs">
+												When disabled, players will only see cards from their portion of the overall
+												pool, ensuring no cards are duplicated between players.
+											</p>
+											<p class="text-base-content/70 text-xs">
+												Enable this option when your cube is smaller than the total required pool
+												size or when you want players to have equal access to powerful cards.
+											</p>
 										</div>
 									</div>
 								</div>
-							</button>
-						</div>
-					</span>
+							</div>
+						</button>
+					</div>
 				</label>
 				{#if allowOverlap}
 					<p class="text-base-content/60 mt-2 ml-8 text-sm">

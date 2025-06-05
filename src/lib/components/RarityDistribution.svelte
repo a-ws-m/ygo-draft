@@ -47,7 +47,7 @@
 
 <!-- Rarity Distribution Settings -->
 {#if useRarityDistribution}
-	<div class="border-primary/20 bg-primary/5 ml-6 space-y-3 rounded-md border p-4">
+	<fieldset class="w-full fieldset bg-base-200 border-base-300 rounded-box border p-4 space-y-2">
 		<!-- Distribution Mode Tabs -->
 		<div class="tabs tabs-border">
 			<input
@@ -196,7 +196,5 @@
 				</div>
 			</div>
 		</div>
-
-		{#if !useRarityRates}{:else}{/if}
-	</div>
+	</fieldset>
 {/if}
