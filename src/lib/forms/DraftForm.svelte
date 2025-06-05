@@ -133,6 +133,13 @@
 		asynchronous: `In Asynchronous Draft, each player opens "packs" with a set number of cards drawn from the cube. Players can pick a specified number of cards from each pack before moving to the next one. This draft can be completed at your own pace, with no real-time player interaction required.`
 	};
 
+	$effect(() => {
+		// When we change the draft method away from asynchronous, we need to make sure number of players > 1
+		if (draftMethod !== 'asynchronous' && numberOfPlayers < 2) {
+			numberOfPlayers = 2;
+		}
+	});
+
 	function handleFileUpload(event: Event) {
 		const target = event.target as HTMLInputElement;
 		cubeFile = target.files?.[0] || null;
@@ -701,7 +708,7 @@
 				type="number"
 				id="number-of-players"
 				bind:value={numberOfPlayers}
-				min="2"
+				min={draftMethod === 'asynchronous' ? 1 : 2}
 				max={MAX_PLAYERS}
 				oninput={validateOptions}
 				class="input input-bordered w-full"
