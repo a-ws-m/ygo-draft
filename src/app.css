@@ -10,3 +10,7 @@
 .tippy-box[data-theme~='daisy'] {
     @apply bg-base-100 shadow-md rounded-lg text-base-content
 }
+
+.icon {
+    @apply inline-block align-middle
+}

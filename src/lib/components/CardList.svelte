@@ -582,7 +582,7 @@
 											class="bg-base-200 absolute inset-0 flex items-center justify-center rounded"
 										>
 											<span>
-												{@html feather.icons['image-off'].toSvg({ width: 24, height: 24 })}
+												{@html feather.icons['image-off'].toSvg({ width: '1rem', height: '1rem' })}
 											</span>
 										</div>
 									{/await}
@@ -662,7 +662,7 @@
 									class="bg-base-200 flex aspect-[813/1185] h-full items-center justify-center rounded"
 								>
 									<span>
-										{@html feather.icons['image-off'].toSvg({ width: 24, height: 24 })}
+										{@html feather.icons['image-off'].toSvg({ width: '1rem', height: '1rem' })}
 									</span>
 								</div>
 							{/await}
