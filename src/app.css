@@ -1,8 +1,12 @@
 @import 'tailwindcss';
+@plugin '@tailwindcss/typography';
 @plugin 'daisyui' {
     themes: light --default, dracula --prefersdark;
+    base: true;
+    styled: true;
+    utils: true;
 }
 
 .tippy-box[data-theme~='daisy'] {
-    @apply bg-base-100 shadow-md rounded-lg
+    @apply bg-base-100 shadow-md rounded-lg text-base-content
 }
