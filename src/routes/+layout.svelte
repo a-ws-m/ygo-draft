@@ -12,6 +12,7 @@
 	import PrivacyPolicyModal from '$lib/components/PrivacyPolicyModal.svelte';
 	import feather from 'feather-icons';
 	import 'tippy.js/animations/shift-away.css';
+	import ThemeChanger from '$lib/components/ThemeChanger.svelte';
 
 	let { children } = $props();
 	let showPrivacyPolicy = $state(false);
@@ -97,6 +98,9 @@
 							role="menu"
 						>
 							<li role="menuitem">
+								<ThemeChanger />
+							</li>
+							<li role="menuitem">
 								<a href="https://github.com/a-ws-m/ygo-draft/issues" target="_blank">
 									{@html feather.icons['alert-circle'].toSvg({
 										width: 16,
@@ -123,6 +127,7 @@
 
 					<!-- Desktop navigation options -->
 					<div class="hidden items-center md:flex">
+						<ThemeChanger />
 						<a
 							href="https://github.com/a-ws-m/ygo-draft/issues"
 							target="_blank"
