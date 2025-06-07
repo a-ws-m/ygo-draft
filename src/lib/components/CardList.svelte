@@ -176,20 +176,11 @@
 		previousFilterProperty = selectedFilterProperty;
 	});
 
-	// Handle chart segment click
-	function handleChartClick(property, value) {
-		// Don't apply filter if "Other" is clicked
-		if (value === 'Other') {
-			// Show a message or toast notification here if desired
-			// Alternatively, you could implement a special filter that shows
-			// all items NOT in the main categories
-			return;
+	$effect(() => {
+		if (selectedFilterProperty && selectedFilterValue) {
+			showFilterDropdown = false;
 		}
-
-		selectedFilterProperty = property;
-		selectedFilterValue = value;
-		showFilterDropdown = false;
-	}
+	});
 
 	// Clear all filters
 	function clearFilters() {
@@ -232,7 +223,7 @@
 				placement: 'auto',
 				duration: [200, 0],
 				animation: 'shift-away',
-				theme: 'daisy',
+				theme: 'daisy'
 			});
 			return tooltipInstance.destroy;
 		};
@@ -502,7 +493,11 @@
 	{#if showChart}
 		<!-- Card Distribution Chart with property selector moved into the chart component -->
 		<!-- <CardDistributionChart cube={filteredCube} on:chartClick={handleChartClick} /> -->
-		 <CardChart cube={filteredCube} onChartClick={handleChartClick} />
+		<CardChart
+			{cube}
+			bind:filteredProperty={selectedFilterProperty}
+			bind:filteredValue={selectedFilterValue}
+		/>
 	{/if}
 
 	<!-- Container for cards and details -->
@@ -528,7 +523,6 @@
 				<CardCarousel
 					{filteredCube}
 					clickable={selectMultiple > 0 || clickable}
-					{showDescription}
 					onCardClick={handleCardClick}
 					{selectedCardIndices}
 				/>
@@ -574,7 +568,7 @@
 												class="h-full w-full rounded object-cover shadow"
 											/>
 										</picture>
-										<div class="hidden card-details-content">
+										<div class="card-details-content hidden">
 											<CardDetails {card} />
 										</div>
 									{:catch error}

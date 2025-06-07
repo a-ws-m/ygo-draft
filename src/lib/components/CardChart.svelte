@@ -3,17 +3,17 @@
 	import feather from 'feather-icons';
 	import { store as themeStore } from '$lib/stores/themeStore.svelte';
 	import { Chart, ArcElement, Tooltip, Legend, DoughnutController, Colors } from 'chart.js';
+	import { circIn } from 'svelte/easing';
 
 	// Register required Chart.js components
 	Chart.register(ArcElement, Tooltip, Legend, DoughnutController, Colors);
 
-	const {
+	let {
 		cube = [],
 		property = 'type',
 		title = 'Card Distribution',
 		maxSlices = 10,
 		showLegend = true,
-		onChartClick = undefined,
 		chartProperties = [
 			{ value: 'type', label: 'Card Type' },
 			{ value: 'archetype', label: 'Archetype' },
@@ -21,21 +21,32 @@
 			{ value: 'race', label: 'Race/Spell Type' },
 			{ value: 'level', label: 'Level/Rank' },
 			{ value: 'rarity', label: 'Rarity' }
-		]
+		],
+		filteredProperty = $bindable(''),
+		filteredValue = $bindable('')
 	} = $props<{
 		cube: any[];
 		property?: string;
 		title?: string;
 		maxSlices?: number;
 		showLegend?: boolean;
-		onChartClick?: (event: { property: string; value: string }) => void;
 		chartProperties?: Array<{ value: string; label: string }>;
+		filteredProperty?: string;
+		filteredValue?: string;
 	}>();
 
 	let chartCanvas = $state<HTMLCanvasElement | null>(null);
 	let chartInstance = $state<Chart | null>(null);
 	let selectedProperty = $state(property);
-	let currentData;
+	let distributionData = $derived(getDistribution(cube, selectedProperty));
+	let chartData = $derived({
+		labels: distributionData.map((item) => item.category),
+		datasets: [
+			{
+				data: distributionData.map((item) => item.count)
+			}
+		]
+	});
 
 	// Process data to get distribution based on the selected property
 	function getDistribution(cards: any[], prop: string) {
@@ -65,12 +76,36 @@
 		});
 
 		// Convert to array for Chart.js
-		let result = Object.entries(distribution)
-			.map(([category, count]) => ({
-				category,
-				count: Number(count)
-			}))
-			.sort((a, b) => b.count - a.count); // Sort by count descending
+		let result = Object.entries(distribution).map(([category, count]) => ({
+			category,
+			count: Number(count)
+		}));
+
+		// If we're filtering by level, sort by level
+		if (prop === 'level') {
+			result.sort((a, b) => {
+				const levelA = parseInt(a.category, 10);
+				const levelB = parseInt(b.category, 10);
+				return levelA - levelB; // Sort by level ascending
+			});
+		}
+		// If we're filtering by rarity, sort by rarity
+		else if (prop === 'rarity') {
+			const rarityOrder = {
+				Common: 1,
+				Uncommon: 2,
+				Rare: 3,
+				'Super Rare': 4,
+				'Ultra Rare': 5
+			};
+			result.sort(
+				(a, b) =>
+					(rarityOrder[a.category as keyof typeof rarityOrder] || 0) -
+					(rarityOrder[b.category as keyof typeof rarityOrder] || 0)
+			);
+		} else {
+			result.sort((a, b) => b.count - a.count); // Sort by count descending
+		}
 
 		// Limit the number of slices by combining smaller categories into "Other"
 		if (result.length > maxSlices) {
@@ -91,22 +126,9 @@
 		const ctx = chartCanvas.getContext('2d');
 		if (!ctx) return;
 
-		currentData = getDistribution(cube, selectedProperty);
-		const data = currentData;
-
 		const textColor = getComputedStyle(document.documentElement)
 			.getPropertyValue('--color-base-content')
 			.trim();
-
-		// Prepare data for Chart.js
-		const chartData = {
-			labels: data.map((item) => item.category),
-			datasets: [
-				{
-					data: data.map((item) => item.count)
-				}
-			]
-		};
 
 		chartInstance = new Chart(ctx, {
 			type: 'doughnut',
@@ -120,35 +142,47 @@
 						position: 'bottom',
 						labels: {
 							color: textColor
-						}
-					},
-					tooltip: {
-						callbacks: {
-							label: (context) => {
-								const label = context.label || '';
-								const value = context.raw as number;
-								const total = context.dataset.data.reduce(
-									(sum: number, val: number) => sum + val,
-									0
-								);
-								const percentage = Math.round((value / total) * 100);
-								return `${label}: ${value} (${percentage}%)`;
+						},
+						onClick: (event, legendItem, legend) => {
+							if (legendItem && legendItem.datasetIndex !== undefined) {
+								const label = legendItem.text;
+								filteredValue = label;
 							}
 						}
 					}
 				},
 				onClick: (event, elements) => {
-					if (elements && elements.length > 0 && onChartClick) {
+					if (elements && elements.length > 0) {
 						const index = elements[0].index;
-						onChartClick({
-							property: selectedProperty,
-							value: currentData[index].category
-						});
+						filteredValue = distributionData[index].category;
 					}
 				}
 			}
 		});
 	}
+
+	$effect(() => {
+		if (chartInstance && (filteredProperty === selectedProperty) && filteredValue) {
+			// Update visibility of chart segments based on filtered value
+			let meta = chartInstance.getDatasetMeta(0);
+			if (!meta) return;
+			const legendItems = chartInstance.legend?.legendItems;
+			if (!legendItems) return;
+
+			// Set the hidden property for each data point
+			legendItems.forEach((item, index) => {
+				const labelValue = item.text;
+				console.log(`Setting visibility for ${labelValue}: ${filteredValue}`);
+
+				const isHidden = labelValue !== filteredValue;
+				console.log(`Index: ${item.index}, Hidden: ${isHidden}`);
+
+				meta.data[index].hidden = isHidden;
+			});
+
+			chartInstance.update();
+		}
+	});
 
 	onMount(() => {
 		initializeChart();
@@ -161,6 +195,7 @@
 
 	// Icon for dropdown
 	const chartIcon = feather.icons['pie-chart'].toSvg({ width: 18, height: 18 });
+	$inspect(chartInstance, 'chartInstance');
 </script>
 
 <div class="collapse-arrow bg-base-200 rounded-box collapse w-full">
@@ -178,10 +213,7 @@
 				<div class="chart-title mb-4 text-center">
 					<fieldset class="fieldset">
 						<span class="label">View by</span>
-						<select
-							bind:value={selectedProperty}
-							class="select select-lg h-full w-full"
-						>
+						<select bind:value={selectedProperty} class="select select-lg h-full w-full">
 							{#each chartProperties as option}
 								<option value={option.value}>{option.label}</option>
 							{/each}
