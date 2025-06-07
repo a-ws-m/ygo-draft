@@ -41,7 +41,7 @@
 			{#if isAuthenticated && cube.length > 0}
 				<div class="card bg-base-100 w-full max-w-lg shadow-xl">
 					<div class="card-body">
-						<CardList {cube} showYdkDownload={true} showChart={true} />
+						<CardList {cube} showYdkDownload={false} showChart={true} />
 					</div>
 				</div>
 			{/if}

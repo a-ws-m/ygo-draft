@@ -38,18 +38,41 @@
 	let chartCanvas = $state<HTMLCanvasElement | null>(null);
 	let chartInstance = $state<Chart | null>(null);
 	let selectedProperty = $state(property);
-	let distributionData = $derived(getDistribution(cube, selectedProperty));
-	let chartData = $derived({
-		labels: distributionData.map((item) => item.category),
-		datasets: [
-			{
-				data: distributionData.map((item) => item.count)
-			}
-		]
+	let distributionData = $state<{
+		[k: string]: Promise<{ category: string; count: number }[]>;
+	}>({});
+	let chartData = $derived.by(() => {
+		const data = distributionData[selectedProperty];
+		if (!data) {
+			return Promise.resolve({ labels: [], datasets: [] });
+		}
+
+		return data.then((result) => {
+			return {
+				labels: result.map((item) => item.category),
+				datasets: [
+					{
+						data: result.map((item) => item.count)
+					}
+				]
+			};
+		});
 	});
 
+	function calculateAllDistributions(): {
+		[k: string]: Promise<{ category: string; count: number }[]>;
+	} {
+		// Return property information with a promise for each distribution
+		return Object.fromEntries(
+			chartProperties.map((prop) => [prop.value, getDistribution(cube, prop.value)])
+		);
+	}
+
 	// Process data to get distribution based on the selected property
-	function getDistribution(cards: any[], prop: string) {
+	async function getDistribution(
+		cards: any[],
+		prop: string
+	): Promise<{ category: string; count: number }[]> {
 		const distribution: Record<string, number> = {};
 
 		cards.forEach((card) => {
@@ -120,7 +143,7 @@
 	}
 
 	// Create chart when data changes
-	function initializeChart() {
+	async function initializeChart() {
 		if (!chartCanvas) return;
 
 		const ctx = chartCanvas.getContext('2d');
@@ -132,7 +155,7 @@
 
 		chartInstance = new Chart(ctx, {
 			type: 'doughnut',
-			data: chartData,
+			data: await chartData,
 			options: {
 				responsive: true,
 				maintainAspectRatio: true,
@@ -162,7 +185,7 @@
 	}
 
 	$effect(() => {
-		if (chartInstance && (filteredProperty === selectedProperty) && filteredValue) {
+		if (chartInstance) {
 			// Update visibility of chart segments based on filtered value
 			let meta = chartInstance.getDatasetMeta(0);
 			if (!meta) return;
@@ -172,10 +195,7 @@
 			// Set the hidden property for each data point
 			legendItems.forEach((item, index) => {
 				const labelValue = item.text;
-				console.log(`Setting visibility for ${labelValue}: ${filteredValue}`);
-
-				const isHidden = labelValue !== filteredValue;
-				console.log(`Index: ${item.index}, Hidden: ${isHidden}`);
+				const isHidden = (filteredValue && filteredProperty && labelValue !== filteredValue);
 
 				meta.data[index].hidden = isHidden;
 			});
@@ -185,7 +205,9 @@
 	});
 
 	onMount(() => {
-		initializeChart();
+		distributionData = calculateAllDistributions();
+
+		distributionData[selectedProperty].then(initializeChart);
 		return () => {
 			if (chartInstance) {
 				chartInstance.destroy();
@@ -195,7 +217,6 @@
 
 	// Icon for dropdown
 	const chartIcon = feather.icons['pie-chart'].toSvg({ width: 18, height: 18 });
-	$inspect(chartInstance, 'chartInstance');
 </script>
 
 <div class="collapse-arrow bg-base-200 rounded-box collapse w-full">
