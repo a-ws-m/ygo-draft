@@ -1,6 +1,5 @@
 <script lang="ts">
 	import TextCard from '$lib/components/TextCard.svelte';
-	import CardDistributionChart from '$lib/components/CardDistributionChart.svelte';
 	import CardDetails from '$lib/components/CardDetails.svelte';
 	import CardCarousel from '$lib/components/CardCarousel.svelte';
 	import { convertToYdk, downloadYdkFile } from '$lib/utils/ydkExporter';
