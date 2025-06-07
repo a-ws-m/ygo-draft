@@ -17,7 +17,7 @@
 	<meta name="description" content="Create your custom Yu-Gi-Oh! draft experience." />
 </svelte:head>
 
-<div class="hero bg-base-200 min-h-screen">
+<div class="hero bg-base-100 min-h-screen">
 	<div class="hero-content flex-col gap-6 py-8">
 		<!-- Landing Page Text -->
 		<div class="text-center">
@@ -31,7 +31,7 @@
 
 		<div class="flex w-full flex-col items-start justify-center gap-6 lg:flex-row">
 			<!-- Draft Form - using callback prop instead of event -->
-			<div class="card bg-base-100 w-full max-w-lg shadow-xl">
+			<div class="card bg-base-200 w-full max-w-lg shadow-xl">
 				<div class="card-body">
 					<DraftForm onCubeUploaded={handleCubeUploaded} />
 				</div>
@@ -39,7 +39,7 @@
 
 			<!-- Cube Preview - only show if authenticated and cube has cards -->
 			{#if isAuthenticated && cube.length > 0}
-				<div class="card bg-base-100 w-full max-w-lg shadow-xl">
+				<div class="card bg-base-200 w-full max-w-lg shadow-xl">
 					<div class="card-body">
 						<CardList {cube} showYdkDownload={false} showChart={true} />
 					</div>

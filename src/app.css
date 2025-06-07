@@ -1,7 +1,7 @@
 @import 'tailwindcss';
 @plugin '@tailwindcss/typography';
 @plugin 'daisyui' {
-    themes: light --default, dracula --prefersdark;
+    themes: fantasy --default, dracula --prefersdark;
     base: true;
     styled: true;
     utils: true;

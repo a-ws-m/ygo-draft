@@ -549,7 +549,7 @@
 					>
 						?
 						<div class="tooltip-content hidden">
-							<div class="card bg-base-100">
+							<div class="card bg-base-200">
 								<div class="card-body p-4">
 									<div class="flex flex-col space-y-2">
 										<h4 class="text-base-content text-sm font-medium">Cube File Format</h4>
@@ -609,7 +609,7 @@
 			{#if isProcessing}
 				<!-- Spinner with loading message - properly positioned over upload section -->
 				<div
-					class="bg-opacity-75 bg-base-100 absolute inset-0 z-10 flex items-center justify-center rounded"
+					class="bg-opacity-75 bg-base-200 absolute inset-0 z-10 flex items-center justify-center rounded"
 				>
 					<span class="loading loading-spinner loading-lg text-primary mr-3"></span>
 					<span class="text-primary text-sm">Fetching card data (this may take a while)</span>
@@ -634,7 +634,7 @@
 					>
 						?
 						<div class="tooltip-content hidden">
-							<div class="card bg-base-100">
+							<div class="card bg-base-200">
 								<div class="card-body p-4">
 									<div class="flex flex-col space-y-2">
 										<h4 class="text-base-content text-sm font-medium">Draft Methods</h4>
@@ -856,7 +856,7 @@
 						>
 							?
 							<div class="tooltip-content hidden">
-								<div class="card bg-base-100">
+								<div class="card bg-base-200">
 									<div class="card-body p-4">
 										<div class="flex flex-col space-y-2">
 											<h4 class="text-base-content text-sm font-medium">Overlap Option</h4>

@@ -232,7 +232,7 @@
 		</span>
 	</div>
 	<div class="collapse-content">
-		<div class="card-distribution bg-base-100 w-full rounded-lg p-4 shadow">
+		<div class="card-distribution bg-base-200 w-full rounded-lg p-4 shadow">
 			<!-- Chart Title with Property Selector -->
 			{#if chartProperties && chartProperties.length > 0}
 				<div class="chart-title mb-4 text-center">

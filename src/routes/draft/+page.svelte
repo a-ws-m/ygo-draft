@@ -290,7 +290,7 @@
 			<button class="btn btn-error btn-sm" onclick={loadDraftData}> Retry </button>
 		</div>
 	{:else if !authStore.session}
-		<div class="card bg-base-100 m-6 shadow-xl">
+		<div class="card bg-base-200 m-6 shadow-xl">
 			<div class="card-body">
 				<h1 class="card-title text-3xl">Draft Room: {draftId}</h1>
 				<p class="text-xl">Please login to join this draft</p>
@@ -366,7 +366,7 @@
 			</div>
 		</div>
 	{:else}
-		<div class="navbar bg-base-100 shadow-md">
+		<div class="navbar bg-base-200 shadow-md">
 			<div class="navbar-start">
 				<p class="text-lg">Draft ID: {draftId}</p>
 			</div>
@@ -395,7 +395,7 @@
 					</div>
 					<span>Draft Finished!</span>
 				</div>
-				<div class="card bg-base-100 w-full shadow-xl md:w-2/3 lg:w-1/3">
+				<div class="card bg-base-200 w-full shadow-xl md:w-2/3 lg:w-1/3">
 					<div class="card-body">
 						<h2 class="card-title">Your Drafted Deck</h2>
 						<CardList cube={draftStore.store.draftedDeck} showYdkDownload={true} showChart={true} />
@@ -414,7 +414,7 @@
 			</div>
 		{:else}
 			<div class="flex w-full flex-row p-4">
-				<div class="card bg-base-100 flex-1 shadow-xl">
+				<div class="card bg-base-200 flex-1 shadow-xl">
 					<div class="card-body">
 						<h2 class="card-title">Unsupported Draft Type</h2>
 						<p>The draft type "{draftStore.store.draftMethod}" is not currently supported.</p>

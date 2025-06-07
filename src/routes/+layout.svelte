@@ -44,7 +44,7 @@
 	{#if !authStore.loading}
 		<!-- Display the navigation bar if user is authenticated -->
 		{#if authStore.session}
-			<header class="navbar bg-base-100 shadow flex items-center">
+			<header class="navbar bg-base-200 shadow flex items-center">
 				<div class="navbar-start">
 					<a href={`${base}/`} class="btn btn-ghost text-primary font-bold">
 						<!-- Show home icon on mobile, text on larger screens -->
@@ -63,7 +63,7 @@
 								Account
 							</div>
 						</summary>
-						<ul class="menu dropdown-content bg-base-100 rounded-box z-[1] mt-3 w-52 p-2 shadow">
+						<ul class="menu dropdown-content bg-base-200 rounded-box z-[1] mt-3 w-52 p-2 shadow">
 							{#if authStore.session.user.email}
 								<li class="menu-title text-base-content/70 px-4 py-2 text-xs">
 									{authStore.session.user.email}
@@ -102,7 +102,7 @@
 							{@html feather.icons.menu.toSvg({ width: '1rem', height: '1rem' })}
 						</summary>
 						<ul
-							class="menu menu-sm dropdown-content bg-base-100 rounded-box z-[1] mt-3 w-52 p-2 shadow"
+							class="menu menu-sm dropdown-content bg-base-200 rounded-box z-[1] mt-3 w-52 p-2 shadow"
 							role="menu"
 						>
 							<li role="menuitem">

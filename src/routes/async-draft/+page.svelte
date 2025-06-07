@@ -341,7 +341,7 @@
 			<button class="btn btn-error btn-sm" onclick={loadDraftData}> Retry </button>
 		</div>
 	{:else if !authStore.session}
-		<div class="card bg-base-100 m-6 shadow-xl">
+		<div class="card bg-base-200 m-6 shadow-xl">
 			<div class="card-body">
 				<h1 class="card-title text-3xl">Async Draft Room: {draftId}</h1>
 				<p class="text-xl">Please login to join this draft</p>
@@ -349,7 +349,7 @@
 			</div>
 		</div>
 	{:else if !isParticipant}
-		<div class="card bg-base-100 m-6 shadow-xl">
+		<div class="card bg-base-200 m-6 shadow-xl">
 			<div class="card-body">
 				<h1 class="card-title text-3xl">Async Draft Room: {draftId}</h1>
 				<p class="text-xl">You are not a participant in this draft</p>
@@ -371,7 +371,7 @@
 			</div>
 		</div>
 	{:else}
-		<div class="navbar bg-base-100 shadow-md">
+		<div class="navbar bg-base-200 shadow-md">
 			<div class="navbar-start">
 				<p class="text-lg">Draft ID: {draftId}</p>
 			</div>
@@ -424,7 +424,7 @@
 							<div class="text-xs">You have successfully completed your asynchronous draft.</div>
 						</div>
 					</div>
-					<div class="card bg-base-100 w-full shadow-xl md:w-2/3">
+					<div class="card bg-base-200 w-full shadow-xl md:w-2/3">
 						<div class="card-body">
 							<h2 class="card-title">
 								Your Drafted Deck ({draftStore.store.draftedDeck.length} cards)
@@ -441,7 +441,7 @@
 			{:else}
 				<div class="grid grid-cols-1 gap-6 md:grid-cols-2">
 					<!-- Current Pack -->
-					<div class="card bg-base-100 shadow-xl">
+					<div class="card bg-base-200 shadow-xl">
 						<div class="card-body">
 							<h2 class="card-title">
 								Current Pack ({currentPack.length} cards)
@@ -482,7 +482,7 @@
 					</div>
 
 					<!-- Drafted Deck -->
-					<div class="card bg-base-100 shadow-xl">
+					<div class="card bg-base-200 shadow-xl">
 						<div class="card-body">
 							<h2 class="card-title">
 								Your Drafted Cards

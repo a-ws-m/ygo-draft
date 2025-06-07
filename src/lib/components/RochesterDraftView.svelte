@@ -41,14 +41,14 @@
 
 {#if draftStore.store.playerFinished || draftStore.store.allFinished}
 	<div class="flex flex-col gap-4">
-		<div class="card bg-base-100 shadow-xl">
+		<div class="card bg-base-200 shadow-xl">
 			<div class="card-body">
 				<h2 class="card-title text-success">Draft Finished!</h2>
 				<p class="text-base-content">
 					You have completed your draft. You can now view your full drafted deck below.
 				</p>
 
-				<div class="card bg-base-100 shadow-md">
+				<div class="card bg-base-200 shadow-md">
 					<div class="card-body">
 						<h3 class="card-title text-lg">
 							Your Drafted Deck ({draftStore.store.draftedDeck.length} cards)
@@ -66,7 +66,7 @@
 	</div>
 {:else}
 	<div class="flex flex-col gap-4">
-		<div class="card bg-base-100 shadow-xl">
+		<div class="card bg-base-200 shadow-xl">
 			<div class="card-body">
 				<div class="mb-4 flex items-center justify-between">
 					<div class="flex items-center">
@@ -119,7 +119,7 @@
 		</div>
 
 		<!-- Drafted Deck -->
-		<div class="card bg-base-100 shadow-xl">
+		<div class="card bg-base-200 shadow-xl">
 			<div class="card-body">
 				<h3 class="card-title text-lg">
 					Your Drafted Deck ({draftStore.store.draftedDeck.length} cards)

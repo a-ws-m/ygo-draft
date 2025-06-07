@@ -48,7 +48,7 @@
 	</div>
 
 	<div class="mt-4 w-full lg:mt-0 lg:w-1/4 lg:pl-4">
-		<div class="card bg-base-100 shadow-lg">
+		<div class="card bg-base-200 shadow-lg">
 			<div class="card-body">
 				<h2 class="card-title">Your Drafted Deck</h2>
 				<CardList

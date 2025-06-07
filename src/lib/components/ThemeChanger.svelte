@@ -40,7 +40,7 @@
 	$effect(() => {
 		document.documentElement.setAttribute(
 			'data-theme',
-			themeStore.useDarkMode ? 'dracula' : 'light'
+			themeStore.useDarkMode ? 'dracula' : 'fantasy'
 		);
 		setRgbBaseContentColor();
 	});
