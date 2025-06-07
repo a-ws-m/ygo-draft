@@ -2,10 +2,10 @@
 	import { onMount } from 'svelte';
 	import feather from 'feather-icons';
 	import { store as themeStore, lightChartColors, darkChartColors } from '$lib/stores/themeStore.svelte';
-	import { Chart, ArcElement, Tooltip, Legend, DoughnutController } from 'chart.js';
+	import { Chart, ArcElement, Tooltip, Legend, PieController } from 'chart.js';
 
 	// Register required Chart.js components
-	Chart.register(ArcElement, Tooltip, Legend, DoughnutController);
+	Chart.register(ArcElement, Tooltip, Legend, PieController);
 
 	let {
 		cube = [],
@@ -153,7 +153,7 @@
 		if (!ctx) return;
 
 		chartInstance = new Chart(ctx, {
-			type: 'doughnut',
+			type: 'pie',
 			data: await chartData,
 			options: {
 				responsive: true,
