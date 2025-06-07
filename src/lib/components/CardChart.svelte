@@ -12,7 +12,6 @@
 		ArcElement,
 		Tooltip,
 		Legend,
-		PieController,
 		DoughnutController,
 		type ChartType,
 		type ChartDataset,
@@ -20,7 +19,7 @@
 	} from 'chart.js';
 
 	// Register required Chart.js components
-	Chart.register(ArcElement, Tooltip, Legend, PieController, DoughnutController);
+	Chart.register(ArcElement, Tooltip, Legend, DoughnutController);
 
 	let {
 		cube = [],
@@ -388,7 +387,7 @@
 										const style = meta.controller.getStyle(index);
 
 										return {
-											text: item.category,
+											text: `${item.category} (${item.count})`,
 											fillStyle: chartColors[index % chartColors.length],
 											strokeStyle: style.borderColor,
 											fontColor: color,
@@ -406,7 +405,7 @@
 										const meta = chart.getDatasetMeta(1);
 										const style = meta.controller.getStyle(index);
 										return {
-											text: item.category,
+											text: `${item.category} (${item.count})`,
 											fillStyle: secondaryChartColors[index % secondaryChartColors.length],
 											fontColor: color,
 											strokeStyle: style.borderColor,
@@ -423,12 +422,32 @@
 
 								// Use default legend generation for single series charts
 								// @ts-ignore - Chart.js types are incomplete
-								return Chart.overrides['doughnut'].plugins.legend.labels.generateLabels(chart);
+								let labels =
+									Chart.overrides['doughnut'].plugins.legend.labels.generateLabels(chart);
+								labels = labels.map((label, index) => {
+									// Get the count value from the dataset
+									const count = chart.data.datasets[0].data[index];
+									return {
+										...label,
+										text: `${label.text} (${count})`
+									};
+								});
+								return labels;
 							}
 						},
 						onClick: (event: any, legendItem: any, legend: any) => {
 							if (legendItem && legendItem.text) {
-								filteredValue = legendItem.text;
+								// For multi-series charts, check if we're clicking on main category legend item
+								const isMultiSeries = selectedProperty === 'type' || selectedProperty === 'race';
+
+								if (isMultiSeries && legendItem.datasetIndex === 0) {
+									// Don't apply filtering for main categories (outer ring)
+									return;
+								}
+
+								// Extract the category name without the count
+								const categoryName = legendItem.text.replace(/\s*\(\d+\)$/, '');
+								filteredValue = categoryName;
 								filteredProperty = selectedProperty;
 
 								// Update chart visibility
@@ -511,16 +530,22 @@
 		config.options.onClick = async (event: any, elements: any) => {
 			if (elements && elements.length > 0) {
 				const index = elements[0].index;
+				const datasetIndex = elements[0].datasetIndex;
 				filteredProperty = selectedProperty;
 
 				if (isMultiSeries) {
-					// For multi-series charts, get the label directly from chart data
-					// Only apply the filter if it's a valid data point (non-zero value)
-					const datasetIndex = elements[0].datasetIndex;
-					const value = chartInstance?.data.datasets[datasetIndex].data[index];
-					if (value && Number(value) > 0) {
-						filteredValue = chartInstance?.data.labels?.[index] || '';
+					// For multi-series charts, check if we're clicking on main category (outer ring)
+					// or specific type (inner ring)
+
+					// Main categories are in datasetIndex 0 and specific types are in datasetIndex 1
+					// Only apply filter if clicking on specific types (inner ring, datasetIndex 1)
+					if (datasetIndex === 1) {
+						const value = chartInstance?.data.datasets[datasetIndex].data[index];
+						if (value && Number(value) > 0) {
+							filteredValue = chartInstance?.data.labels?.[index] || '';
+						}
 					}
+					// Clicking on main categories (outer ring) doesn't do anything
 				} else {
 					// For regular pie charts, get the value from distributionData
 					const propertyData = await distributionData[selectedProperty];
@@ -587,8 +612,10 @@
 
 				// Set the hidden property for each data point
 				legendItems.forEach((item, index) => {
-					const labelValue = item.text;
-					const isHidden = filteredValue && filteredProperty && labelValue !== filteredValue;
+					const labelText = item.text;
+					// Extract the category name without the count for comparison
+					const categoryName = labelText.replace(/\s*\(\d+\)$/, '');
+					const isHidden = filteredValue && filteredProperty && categoryName !== filteredValue;
 
 					// @ts-ignore - Chart.js types don't properly expose the hidden property
 					meta.data[index].hidden = isHidden;
@@ -602,7 +629,7 @@
 			}
 
 			chart.options.borderColor = themeStore.baseContentColor;
-			chart.update('none');
+			chart.update();
 		};
 
 		updateChart();
