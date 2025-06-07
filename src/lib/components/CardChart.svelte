@@ -17,9 +17,10 @@
 		type ChartDataset,
 		type ChartData
 	} from 'chart.js';
+	import autocolors from 'chartjs-plugin-autocolors';
 
 	// Register required Chart.js components
-	Chart.register(ArcElement, Tooltip, Legend, DoughnutController);
+	Chart.register(ArcElement, Tooltip, Legend, DoughnutController, autocolors);
 
 	let {
 		cube = [],
@@ -381,18 +382,25 @@
 
 								return labels.map((label, index) => {
 									// Get the count value from the dataset
-									const count = chart.data.datasets[0].data[index];
+									let count = 0;
 									if (isMultiSeries) {
 										// For multi-series, we need to check both datasets
-										if (chart.data.datasets.length > 1) {
-											return {
-												...label,
-												fillStyle:
-													index < mainCategoryData.length
-														? chartColors[index % chartColors.length]
-														: secondaryChartColors[index - mainCategoryData.length]
-											};
+										if (index >= mainCategoryData.length) {
+											// This is a specific type label
+											const specificIndex = index - mainCategoryData.length;
+											if (specificIndex >= 0 && specificIndex < specificTypeData.length) {
+												const specificType = specificTypeData[specificIndex];
+												return {
+													...label,
+													text: `${specificType.category} (${specificType.count})`
+												};
+											}
+										} else {
+											// This is a main category label
+											count = chart.data.datasets[0].data[index];
 										}
+									} else {
+										count = chart.data.datasets[0].data[index];
 									}
 
 									return {
@@ -462,6 +470,9 @@
 								return `Count: ${value}`;
 							}
 						}
+					},
+					autocolors: {
+						mode: 'data'
 					}
 				}
 			}
