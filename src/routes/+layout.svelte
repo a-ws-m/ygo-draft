@@ -14,7 +14,7 @@
 	import 'tippy.js/animations/shift-away.css';
 	import ThemeChanger from '$lib/components/ThemeChanger.svelte';
 	import { store as themeStore } from '$lib/stores/themeStore.svelte';
-	import { setRgbBaseContentColor } from '$lib/utils/setContentColor.svelte';
+	import { setContentColors } from '$lib/utils/setContentColor.svelte';
 
 	let { children } = $props();
 	let showPrivacyPolicy = $state(false);
@@ -41,7 +41,7 @@
 			} else {
 				themeStore.useDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
 			}
-			setRgbBaseContentColor();
+			setContentColors();
 		}
 
 		return () => {

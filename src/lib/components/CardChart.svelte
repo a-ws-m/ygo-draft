@@ -36,7 +36,8 @@
 			{ value: 'rarity', label: 'Rarity' }
 		],
 		filteredProperty = $bindable(''),
-		filteredValue = $bindable('')
+		filteredValue = $bindable(''),
+		filteredIndices = $bindable([])
 	} = $props<{
 		cube: any[];
 		property?: string;
@@ -46,16 +47,19 @@
 		chartProperties?: Array<{ value: string; label: string }>;
 		filteredProperty?: string;
 		filteredValue?: string;
+		filteredIndices?: number[];
 	}>();
 
 	let chartCanvas = $state<HTMLCanvasElement | null>(null);
 	let chartInstance = $state<Chart | null>(null);
 	let selectedProperty = $state(property);
 	let oldProperty = $state(property);
-	let distributionData = $state<{
-		[k: string]: Promise<{ category: string; count: number }[]>;
-	}>({});
 	let chartColors = $derived(themeStore.useDarkMode ? darkChartColors : lightChartColors);
+
+	let distributionData = $derived<{
+		[k: string]: Promise<{ category: string; count: number }[]>;
+	}>(calculateAllDistributions());
+
 	let chartData = $derived.by(async () => {
 		const data = distributionData[selectedProperty];
 		if (!data) {
@@ -85,6 +89,9 @@
 		});
 	});
 
+	let mainCategoryData: { category: string; count: number }[] = [];
+	let specificTypeData: { category: string; count: number; mainCategory: string }[] = [];
+
 	// Process data for multi-series pie/doughnut chart (type and race)
 	async function getMultiSeriesChartData(prop: string) {
 		// Map to track card counts for both main categories and specific types
@@ -95,7 +102,8 @@
 		> = {};
 
 		// Process cards
-		cube.forEach((card: any) => {
+		const filteredCube = filteredIndices.length > 0 ? filteredIndices.map((i) => cube[i]) : cube;
+		filteredCube.forEach((card: any) => {
 			const cardType = card.apiData?.type || card.type;
 			if (!cardType) return;
 
@@ -136,7 +144,7 @@
 		});
 
 		// Convert to arrays for Chart.js
-		const mainCategoryData = Object.entries(mainCategoryCounts)
+		mainCategoryData = Object.entries(mainCategoryCounts)
 			.map(([category, count]) => ({ category, count }))
 			.sort((a, b) => b.count - a.count);
 
@@ -167,7 +175,7 @@
 		});
 
 		// Now specificTypeData is ordered to match main categories
-		const specificTypeData = orderedSpecificTypeData;
+		specificTypeData = orderedSpecificTypeData;
 
 		// Prepare colors based on main categories
 		const mainCategoryColors = mainCategoryData.map((item, index) => {
@@ -215,7 +223,10 @@
 		return Object.fromEntries(
 			chartProperties.map((prop: { value: string; label: string }) => [
 				prop.value,
-				getDistribution(cube, prop.value)
+				getDistribution(
+					filteredIndices.map((i) => cube[i]),
+					prop.value
+				)
 			])
 		);
 	}
@@ -310,24 +321,13 @@
 			chartInstance.destroy();
 		}
 
-		// Get the data for multi-series charts
-		let mainCategoryData: { category: string; count: number }[] = [];
-		let specificTypeData: { category: string; count: number; mainCategory: string }[] = [];
-
 		if (isMultiSeries) {
 			// Pre-fetch the multi-series data for tooltip access
 			const multiSeriesData = await getMultiSeriesChartData(selectedProperty);
 			// Extract the main categories and specific types
-			const totalLabels = multiSeriesData.labels.length;
 			const mainCategoryCount = multiSeriesData.datasets[0].data.filter(
 				(v) => Number(v) > 0
 			).length;
-
-			// Extract main categories (from first half of labels)
-			mainCategoryData = multiSeriesData.labels.slice(0, mainCategoryCount).map((label, index) => ({
-				category: label as string,
-				count: Number(multiSeriesData.datasets[0].data[index])
-			}));
 
 			// Extract specific types (from second half of labels)
 			const rawSpecificTypes = multiSeriesData.labels
@@ -362,6 +362,9 @@
 			type: chartType,
 			data: await chartData,
 			options: {
+				animation: {
+					duration: 0
+				},
 				responsive: true,
 				maintainAspectRatio: true,
 				borderColor: themeStore.baseContentColor,
@@ -372,67 +375,31 @@
 						labels: {
 							color: themeStore.baseContentColor,
 							generateLabels: function (chart) {
-								// Custom legend labels for multi-series charts
-								if (isMultiSeries) {
-									const {
-										labels: { pointStyle, color }
-									} = chart.legend.options;
-
-									// Create legend items for main categories (outer ring)
-									const mainLabels = mainCategoryData.map((item, index) => {
-										const isHidden =
-											filteredValue && filteredProperty && item.category !== filteredValue;
-
-										const meta = chart.getDatasetMeta(0);
-										const style = meta.controller.getStyle(index);
-
-										return {
-											text: `${item.category} (${item.count})`,
-											fillStyle: chartColors[index % chartColors.length],
-											strokeStyle: style.borderColor,
-											fontColor: color,
-											lineWidth: 1,
-											hidden: isHidden,
-											index: index,
-											datasetIndex: 0
-										};
-									});
-
-									// Create legend items for specific types (inner ring)
-									const specificLabels = specificTypeData.map((item, index) => {
-										const isHidden =
-											filteredValue && filteredProperty && item.category !== filteredValue;
-										const meta = chart.getDatasetMeta(1);
-										const style = meta.controller.getStyle(index);
-										return {
-											text: `${item.category} (${item.count})`,
-											fillStyle: secondaryChartColors[index % secondaryChartColors.length],
-											fontColor: color,
-											strokeStyle: style.borderColor,
-											lineWidth: 1,
-											hidden: isHidden,
-											index: index + mainCategoryData.length,
-											datasetIndex: 1
-										};
-									});
-
-									// Return combined legend items
-									return [...mainLabels, ...specificLabels];
-								}
-
-								// Use default legend generation for single series charts
 								// @ts-ignore - Chart.js types are incomplete
 								let labels =
 									Chart.overrides['doughnut'].plugins.legend.labels.generateLabels(chart);
-								labels = labels.map((label, index) => {
+
+								return labels.map((label, index) => {
 									// Get the count value from the dataset
 									const count = chart.data.datasets[0].data[index];
+									if (isMultiSeries) {
+										// For multi-series, we need to check both datasets
+										if (chart.data.datasets.length > 1) {
+											return {
+												...label,
+												fillStyle:
+													index < mainCategoryData.length
+														? chartColors[index % chartColors.length]
+														: secondaryChartColors[index - mainCategoryData.length]
+											};
+										}
+									}
+
 									return {
 										...label,
 										text: `${label.text} (${count})`
 									};
 								});
-								return labels;
 							}
 						},
 						onClick: (event: any, legendItem: any, legend: any) => {
@@ -500,33 +467,7 @@
 			}
 		};
 
-		// Apply doughnut chart settings for all charts
-		config.options.cutout = '35%'; // Inner cutout percentage
-		config.options.radius = '90%'; // Overall chart radius
-
 		// Special settings for multi-series charts
-		if (isMultiSeries) {
-			// Set up tooltip colors directly via the tooltip properties
-			config.options.plugins.tooltip.boxWidth = 12;
-			config.options.plugins.tooltip.boxHeight = 12;
-			config.options.plugins.tooltip.boxPadding = 3;
-			config.options.plugins.tooltip.usePointStyle = true; // Enable point style
-
-			// Setup tooltip color boxes for dataset items
-			// These will be used as the color boxes in tooltips
-			config.options.plugins.tooltip.itemSort = function (a, b) {
-				// Sort items to ensure main categories come first, then specific types
-				return a.datasetIndex - b.datasetIndex;
-			};
-
-			// Set the tooltip backgroundColor property to use these colors
-			config.options.plugins.tooltip.backgroundColor = themeStore.useDarkMode
-				? 'rgba(0, 0, 0, 0.8)'
-				: 'rgba(255, 255, 255, 0.8)';
-			config.options.plugins.tooltip.titleColor = themeStore.baseContentColor;
-			config.options.plugins.tooltip.bodyColor = themeStore.baseContentColor;
-			config.options.plugins.tooltip.padding = 10;
-		} // Add click handler for chart segments
 		config.options.onClick = async (event: any, elements: any) => {
 			if (elements && elements.length > 0) {
 				const index = elements[0].index;
@@ -571,12 +512,16 @@
 			// At this point we know chartInstance is not null
 			const chart = chartInstance!;
 
+			// Update the chart data
+			chart.data = await chartData;
+			chart.update();
+
 			// For multi-series charts (type and race), handle visibility differently
 			const isMultiSeries = selectedProperty === 'type' || selectedProperty === 'race';
 
 			if (isMultiSeries) {
 				// For multi-series, update visibility based on dataset and index
-				if (filteredValue && filteredProperty) {
+				if (filteredValue && filteredProperty === selectedProperty) {
 					// Find the index of the filtered value in the labels array
 					const labelIndex = chart.data.labels?.indexOf(filteredValue) ?? -1;
 
@@ -615,7 +560,8 @@
 					const labelText = item.text;
 					// Extract the category name without the count for comparison
 					const categoryName = labelText.replace(/\s*\(\d+\)$/, '');
-					const isHidden = filteredValue && filteredProperty && categoryName !== filteredValue;
+					const isHidden =
+						filteredValue && filteredProperty == selectedProperty && categoryName !== filteredValue;
 
 					// @ts-ignore - Chart.js types don't properly expose the hidden property
 					meta.data[index].hidden = isHidden;
@@ -636,8 +582,6 @@
 	});
 
 	onMount(() => {
-		distributionData = calculateAllDistributions();
-
 		// Initialize chart after data is loaded
 		if (selectedProperty === 'type' || selectedProperty === 'race') {
 			// For multi-series charts, we can initialize right away
