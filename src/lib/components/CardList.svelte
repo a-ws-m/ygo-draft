@@ -48,7 +48,6 @@
 	let searchText = $state('');
 	let selectedFilterProperty = $state('');
 	let selectedFilterValue = $state('');
-	let showFilterDropdown = $state(false);
 
 	// Track previous filter property to detect changes
 	let previousFilterProperty = $state('');
@@ -171,15 +170,8 @@
 	$effect(() => {
 		if (selectedFilterProperty !== previousFilterProperty && previousFilterProperty !== '') {
 			selectedFilterValue = '';
-			showFilterDropdown = false;
 		}
 		previousFilterProperty = selectedFilterProperty;
-	});
-
-	$effect(() => {
-		if (selectedFilterProperty && selectedFilterValue) {
-			showFilterDropdown = false;
-		}
 	});
 
 	// Clear all filters
@@ -187,17 +179,6 @@
 		searchText = '';
 		selectedFilterProperty = '';
 		selectedFilterValue = '';
-	}
-
-	// Toggle filter dropdown
-	function toggleFilterDropdown() {
-		showFilterDropdown = !showFilterDropdown;
-	}
-
-	// Apply filter value
-	function applyFilterValue(value) {
-		selectedFilterValue = value;
-		showFilterDropdown = false;
 	}
 
 	// Get resolved image URL for a card
@@ -449,37 +430,13 @@
 
 				<!-- Filter value dropdown -->
 				{#if selectedFilterProperty}
-					<div class="form-control relative max-w-xs min-w-[200px] flex-grow">
-						<div class="dropdown w-full">
-							<button
-								type="button"
-								onclick={toggleFilterDropdown}
-								class="btn btn-outline w-full justify-between"
-							>
-								<span class={!selectedFilterValue ? 'opacity-70' : ''}>
-									{selectedFilterValue || 'Select value'}
-								</span>
-								<span>{@html feather.icons['chevron-down'].toSvg({ width: 16, height: 16 })}</span>
-							</button>
-
-							{#if showFilterDropdown}
-								<div
-									class="dropdown-content menu bg-base-200 rounded-box z-10 max-h-60 w-full overflow-y-auto shadow-lg"
-								>
-									{#each availableFilterValues as value}
-										<li>
-											<button
-												type="button"
-												onclick={() => applyFilterValue(value)}
-												class="w-full text-left"
-											>
-												{value}
-											</button>
-										</li>
-									{/each}
-								</div>
-							{/if}
-						</div>
+					<div class="form-control max-w-xs min-w-[200px] flex-grow">
+						<select bind:value={selectedFilterValue} class="select select-bordered w-full">
+							<option value="">Select value</option>
+							{#each availableFilterValues as value}
+								<option {value}>{value}</option>
+							{/each}
+						</select>
 					</div>
 				{/if}
 			</div>
