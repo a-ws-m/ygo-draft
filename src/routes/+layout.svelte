@@ -13,6 +13,8 @@
 	import feather from 'feather-icons';
 	import 'tippy.js/animations/shift-away.css';
 	import ThemeChanger from '$lib/components/ThemeChanger.svelte';
+	import { store as themeStore } from '$lib/stores/themeStore.svelte';
+	import { setRgbBaseContentColor } from '$lib/utils/setContentColor.svelte';
 
 	let { children } = $props();
 	let showPrivacyPolicy = $state(false);
@@ -31,6 +33,16 @@
 		// Initialize auth and subscribe to changes
 		await initializeAuth();
 		const { data: authListener } = subscribeToAuthChanges();
+
+		if (typeof window !== 'undefined') {
+			const storedUseDark = window.localStorage.getItem('storedUseDark');
+			if (storedUseDark) {
+				themeStore.useDarkMode = storedUseDark === 'true';
+			} else {
+				themeStore.useDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
+			}
+			setRgbBaseContentColor();
+		}
 
 		return () => {
 			if (authListener) {

@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import {
-		store as authStore,
 		signInWithGitHub,
 		signInWithDiscord,
 		signInAnonymously
 	} from '$lib/stores/authStore.svelte';
+	import { store as themeStore } from '$lib/stores/themeStore.svelte';
 	import PrivacyPolicyModal from '$lib/components/PrivacyPolicyModal.svelte';
 	import feather from 'feather-icons';
 
@@ -23,7 +23,7 @@
 			try {
 				hcaptchaWidget = window.hcaptcha.render('hcaptcha-container', {
 					sitekey: HCAPTCHA_SITE_KEY,
-					theme: 'light',
+					theme: themeStore.useDarkMode ? 'dark' : 'light',
 					callback: (token: string) => {
 						hcaptchaToken = token;
 					},
