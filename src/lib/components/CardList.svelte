@@ -153,7 +153,8 @@
 			});
 		}
 
-		return filteredResults;
+		// Return indices instead of card objects
+		return filteredResults.map((card) => cube.indexOf(card));
 	}
 
 	// Update the fuzzy searcher when cube or matchDescription changes
@@ -248,6 +249,7 @@
 
 	// Check if a card is selected
 	function isCardSelected(card) {
+		if (!clickable) return false; // If not clickable, no selection
 		const cardIndex = card.card_index || card.index || cube.indexOf(card);
 		return selectedCardIndices.includes(cardIndex);
 	}
@@ -311,8 +313,11 @@
 	}
 
 	// Derived values
-	const filteredCube = $derived(filterCards(cube));
-	const totalCards = $derived(filteredCube.reduce((sum, card) => sum + (card.quantity || 1), 0));
+	const filteredIndices = $derived(filterCards(cube));
+	const isFiltered = $derived(filteredIndices.length < cube.length);
+	const totalCards = $derived(
+		filteredIndices.reduce((sum, index) => sum + (cube[index].quantity || 1), 0)
+	);
 	const hasFilters = $derived(!!searchText || !!selectedFilterValue);
 	// Add dynamic container height class based on view mode
 	const containerHeightClass = $derived(viewMode === 'carousel' ? 'min-h-[60vh]' : 'h-[60vh]');
@@ -504,7 +509,7 @@
 		<div
 			class={`flex-1 ${viewMode === 'carousel' ? 'overflow-y-visible' : 'overflow-y-auto'} ${border ? 'card card-bordered card-compact' : ''}`}
 		>
-			{#if filteredCube.length === 0}
+			{#if filteredIndices.length === 0}
 				<div class="flex h-full items-center justify-center p-8 text-center">
 					<div class="flex flex-col items-center">
 						<span class="text-opacity-40 flex justify-center">
@@ -519,7 +524,7 @@
 				</div>
 			{:else if viewMode === 'carousel'}
 				<CardCarousel
-					{filteredCube}
+					filteredCube={isFiltered ? filteredIndices.map((index) => cube[index]) : cube}
 					clickable={selectMultiple > 0 || clickable}
 					onCardClick={handleCardClick}
 					{selectedCardIndices}
@@ -529,8 +534,13 @@
 					class="grid auto-cols-max grid-cols-1 justify-items-center gap-4 p-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6"
 					style="grid-template-columns: repeat(auto-fill, minmax(min(calc(100% / 3 - 16px), 271px), 1fr));"
 				>
-					{#each filteredCube as card}
-						<div class="flex w-full max-w-[271px] flex-col items-center">
+					{#each cube as card, index}
+						<div
+							class={[
+								'flex w-full max-w-[271px] flex-col items-center',
+								isFiltered && !filteredIndices.includes(index) && 'hidden'
+							]}
+						>
 							<button
 								class="card relative w-full transition-shadow hover:shadow-lg {clickable ||
 								selectMultiple > 0
@@ -601,18 +611,19 @@
 				</div>
 			{:else}
 				<div class="space-y-2 p-2">
-					{#each filteredCube as card}
-						<TextCard
-							{card}
-							{showDescription}
-							clickable={selectMultiple > 0 || clickable}
-							isSelected={isCardSelected(card)}
-							enableMultiSelect={selectMultiple > 0}
-							disableSelect={selectedCardIndices.length >= selectMultiple && !isCardSelected(card)}
-							onSelect={() => handleCardClick(card)}
-							imageUrl={getCardImage(card)}
-							smallImageUrl={getCardImage(card, true)}
-						/>
+					{#each cube as card, index}
+						<div class={[isFiltered && !filteredIndices.includes(index) && 'hidden']}>
+							<TextCard
+								{card}
+								{showDescription}
+								clickable={selectMultiple > 0 || clickable}
+								isSelected={isCardSelected(card)}
+								enableMultiSelect={selectMultiple > 0}
+								disableSelect={selectedCardIndices.length >= selectMultiple &&
+									!isCardSelected(card)}
+								onSelect={() => handleCardClick(card)}
+							/>
+						</div>
 					{/each}
 				</div>
 			{/if}

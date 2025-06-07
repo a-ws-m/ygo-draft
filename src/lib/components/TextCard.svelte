@@ -8,8 +8,6 @@
 		showDescription = false,
 		clickable = false,
 		onSelect = () => {},
-		imageUrl = '',
-		smallImageUrl = '',
 		isSelected = false,
 		enableMultiSelect = false,
 		disableSelect = false
@@ -32,8 +30,6 @@
 		showDescription?: boolean;
 		clickable?: boolean;
 		onSelect?: () => void;
-		imageUrl?: string;
-		smallImageUrl?: string;
 		isSelected?: boolean;
 		enableMultiSelect?: boolean;
 		disableSelect?: boolean;
@@ -53,11 +49,6 @@
 		if (type.toLowerCase().includes('trap')) return typeColors.trap;
 		return 'border-base-300'; // Default color
 	};
-
-	function handleSelect(event) {
-		event.stopPropagation();
-		onSelect();
-	}
 
 	// Derived values
 	const cardTypeColor = $derived(getTypeColor(card.type));
@@ -88,8 +79,6 @@
 		<div class="mt-2">
 			<CardDetails
 				{card}
-				{imageUrl}
-				{smallImageUrl}
 				compact={true}
 				{clickable}
 				{onSelect}
