@@ -1,12 +1,11 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import feather from 'feather-icons';
-	import { store as themeStore } from '$lib/stores/themeStore.svelte';
-	import { Chart, ArcElement, Tooltip, Legend, DoughnutController, Colors } from 'chart.js';
-	import { circIn } from 'svelte/easing';
+	import { store as themeStore, lightChartColors, darkChartColors } from '$lib/stores/themeStore.svelte';
+	import { Chart, ArcElement, Tooltip, Legend, DoughnutController } from 'chart.js';
 
 	// Register required Chart.js components
-	Chart.register(ArcElement, Tooltip, Legend, DoughnutController, Colors);
+	Chart.register(ArcElement, Tooltip, Legend, DoughnutController);
 
 	let {
 		cube = [],
@@ -38,21 +37,27 @@
 	let chartCanvas = $state<HTMLCanvasElement | null>(null);
 	let chartInstance = $state<Chart | null>(null);
 	let selectedProperty = $state(property);
+	let oldProperty = $state(property);
 	let distributionData = $state<{
 		[k: string]: Promise<{ category: string; count: number }[]>;
 	}>({});
-	let chartData = $derived.by(() => {
+	let chartColors = $derived(themeStore.useDarkMode ? darkChartColors : lightChartColors);
+	let chartData = $derived.by(async () => {
 		const data = distributionData[selectedProperty];
 		if (!data) {
 			return Promise.resolve({ labels: [], datasets: [] });
 		}
 
-		return data.then((result) => {
+		const colors = chartColors;
+		return data.then((distribution) => {
 			return {
-				labels: result.map((item) => item.category),
+				labels: distribution.map((item) => item.category),
 				datasets: [
 					{
-						data: result.map((item) => item.count)
+						data: distribution.map((item) => item.count),
+						backgroundColor: distribution.map(
+							(item, index) => colors[index % chartColors.length]
+						)
 					}
 				]
 			};
@@ -172,35 +177,50 @@
 								filteredValue = label;
 							}
 						}
-					}
+					},
 				},
-				onClick: (event, elements) => {
+				onClick: async (event, elements) => {
 					if (elements && elements.length > 0) {
 						const index = elements[0].index;
-						filteredValue = distributionData[index].category;
+						filteredProperty = selectedProperty;
+						const propertyData = await distributionData[selectedProperty];
+						filteredValue = propertyData[index].category;
 					}
 				}
 			}
 		});
 	}
 
-	$effect(() => {
+	$effect(async () => {
 		if (chartInstance) {
-			// Update visibility of chart segments based on filtered value
-			let meta = chartInstance.getDatasetMeta(0);
-			if (!meta) return;
-			const legendItems = chartInstance.legend?.legendItems;
-			if (!legendItems) return;
 
-			// Set the hidden property for each data point
-			legendItems.forEach((item, index) => {
-				const labelValue = item.text;
-				const isHidden = (filteredValue && filteredProperty && labelValue !== filteredValue);
 
-				meta.data[index].hidden = isHidden;
-			});
+			if (selectedProperty !== oldProperty) {
+				oldProperty = selectedProperty;
+				chartInstance.data = await chartData;
+				chartInstance.update();
+			} else {
+				// Update visibility of chart segments based on filtered value
+				let meta = chartInstance.getDatasetMeta(0);
+				if (!meta) return;
+				const legendItems = chartInstance.legend?.legendItems;
+				if (!legendItems) return;
 
-			chartInstance.update();
+				const textColor = getComputedStyle(document.documentElement)
+					.getPropertyValue('--color-base-content')
+					.trim();
+
+				// Set the hidden property for each data point
+				legendItems.forEach((item, index) => {
+					const labelValue = item.text;
+					const isHidden = filteredValue && filteredProperty && labelValue !== filteredValue;
+
+					meta.data[index].hidden = isHidden;
+					item.color = textColor;
+				});
+
+				chartInstance.update('none');
+			}
 		}
 	});
 
