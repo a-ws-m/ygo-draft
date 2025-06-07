@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import feather from 'feather-icons';
-    import { store as themeStore } from '$lib/stores/themeStore.svelte';
+	import { store as themeStore } from '$lib/stores/themeStore.svelte';
 	import { Chart, ArcElement, Tooltip, Legend, DoughnutController, Colors } from 'chart.js';
 
 	// Register required Chart.js components
@@ -94,7 +94,9 @@
 		currentData = getDistribution(cube, selectedProperty);
 		const data = currentData;
 
-        const textColor = getComputedStyle(document.documentElement).getPropertyValue('--color-base-content').trim();
+		const textColor = getComputedStyle(document.documentElement)
+			.getPropertyValue('--color-base-content')
+			.trim();
 
 		// Prepare data for Chart.js
 		const chartData = {
@@ -170,21 +172,21 @@
 		</span>
 	</div>
 	<div class="collapse-content">
-		<div class="card-distribution bg-base-100 w-full rounded-lg p-4 shadow">
+		<div class="card-distribution w-full rounded-lg p-4">
 			<!-- Chart Title with Property Selector -->
 			{#if chartProperties && chartProperties.length > 0}
 				<div class="chart-title mb-4 text-center">
-					<div class="join items-center">
-						<span class="join-item btn btn-sm btn-ghost no-animation">View by:</span>
+					<fieldset class="fieldset">
+						<span class="label">View by</span>
 						<select
 							bind:value={selectedProperty}
-							class="select select-lg join-item flex h-full items-center py-0 text-base leading-normal focus:outline-none"
+							class="select select-lg h-full w-full"
 						>
 							{#each chartProperties as option}
-								<option value={option.value} class="text-base">{option.label}</option>
+								<option value={option.value}>{option.label}</option>
 							{/each}
 						</select>
-					</div>
+					</fieldset>
 				</div>
 			{:else}
 				<div class="chart-title mb-4 text-center">
