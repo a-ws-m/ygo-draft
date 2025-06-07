@@ -492,7 +492,6 @@
 
 	{#if showChart}
 		<!-- Card Distribution Chart with property selector moved into the chart component -->
-		<!-- <CardDistributionChart cube={filteredCube} on:chartClick={handleChartClick} /> -->
 		<CardChart
 			{cube}
 			bind:filteredProperty={selectedFilterProperty}

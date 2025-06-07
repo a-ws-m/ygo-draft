@@ -49,7 +49,6 @@
 		"@types/feather-icons": "^4.29.4",
 		"chart.js": "^4.4.9",
 		"chroma-js": "^3.1.2",
-		"d3": "^7.9.0",
 		"feather-icons": "^4.29.2",
 		"fuzzy-search": "^3.2.1",
 		"papaparse": "^5.5.3",
