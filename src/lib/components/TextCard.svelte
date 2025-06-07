@@ -8,8 +8,6 @@
 		showDescription = false,
 		clickable = false,
 		onSelect = () => {},
-		imageUrl = '',
-		smallImageUrl = '',
 		isSelected = false,
 		enableMultiSelect = false,
 		disableSelect = false
@@ -32,8 +30,6 @@
 		showDescription?: boolean;
 		clickable?: boolean;
 		onSelect?: () => void;
-		imageUrl?: string;
-		smallImageUrl?: string;
 		isSelected?: boolean;
 		enableMultiSelect?: boolean;
 		disableSelect?: boolean;
@@ -54,17 +50,12 @@
 		return 'border-base-300'; // Default color
 	};
 
-	function handleSelect(event) {
-		event.stopPropagation();
-		onSelect();
-	}
-
 	// Derived values
 	const cardTypeColor = $derived(getTypeColor(card.type));
 </script>
 
 <div
-	class={`collapse-arrow collapse border-l-4 ${cardTypeColor} bg-base-100 rounded-box shadow-sm ${isSelected ? 'border-primary border-l-primary' : ''} ${disableSelect && clickable ? 'opacity-50' : ''}`}
+	class={`collapse-arrow collapse border-l-4 ${cardTypeColor} bg-base-200 rounded-box shadow-sm ${isSelected ? 'border-primary border-l-primary' : ''} ${disableSelect && clickable ? 'opacity-50' : ''}`}
 	data-expanded={showDescription ? 'true' : undefined}
 >
 	<input type="checkbox" checked={showDescription} />
@@ -88,8 +79,6 @@
 		<div class="mt-2">
 			<CardDetails
 				{card}
-				{imageUrl}
-				{smallImageUrl}
 				compact={true}
 				{clickable}
 				{onSelect}

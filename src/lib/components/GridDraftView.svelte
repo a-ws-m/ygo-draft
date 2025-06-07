@@ -139,7 +139,7 @@
 
 <div class="flex flex-col gap-6 md:flex-row">
 	<!-- Grid and Selection Area -->
-	<div class="card bg-base-100 flex-1 shadow-xl">
+	<div class="card bg-base-200 flex-1 shadow-xl">
 		<div class="card-body">
 			<h2 class="card-title flex justify-between">
 				<span>Grid Draft</span>
@@ -267,7 +267,7 @@
 	</div>
 
 	<!-- Drafted Cards Area -->
-	<div class="card bg-base-100 w-full shadow-xl md:w-1/3">
+	<div class="card bg-base-200 w-full shadow-xl md:w-1/3">
 		<div class="card-body">
 			<h2 class="card-title">Your Drafted Cards</h2>
 			<CardList cube={draftStore.store.draftedDeck} preferredViewMode="list" showChart={true} />

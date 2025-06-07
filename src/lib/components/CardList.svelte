@@ -1,6 +1,5 @@
 <script lang="ts">
 	import TextCard from '$lib/components/TextCard.svelte';
-	import CardDistributionChart from '$lib/components/CardDistributionChart.svelte';
 	import CardDetails from '$lib/components/CardDetails.svelte';
 	import CardCarousel from '$lib/components/CardCarousel.svelte';
 	import { convertToYdk, downloadYdkFile } from '$lib/utils/ydkExporter';
@@ -8,6 +7,7 @@
 	import FuzzySearch from 'fuzzy-search';
 	import feather from 'feather-icons';
 	import tippy from 'tippy.js';
+	import CardChart from './CardChart.svelte';
 
 	// Props using $props rune
 	const {
@@ -48,7 +48,6 @@
 	let searchText = $state('');
 	let selectedFilterProperty = $state('');
 	let selectedFilterValue = $state('');
-	let showFilterDropdown = $state(false);
 
 	// Track previous filter property to detect changes
 	let previousFilterProperty = $state('');
@@ -153,7 +152,8 @@
 			});
 		}
 
-		return filteredResults;
+		// Return indices instead of card objects
+		return filteredResults.map((card) => cube.indexOf(card));
 	}
 
 	// Update the fuzzy searcher when cube or matchDescription changes
@@ -170,44 +170,15 @@
 	$effect(() => {
 		if (selectedFilterProperty !== previousFilterProperty && previousFilterProperty !== '') {
 			selectedFilterValue = '';
-			showFilterDropdown = false;
 		}
 		previousFilterProperty = selectedFilterProperty;
 	});
-
-	// Handle chart segment click
-	function handleChartClick(event) {
-		const { property, value } = event.detail;
-
-		// Don't apply filter if "Other" is clicked
-		if (value === 'Other') {
-			// Show a message or toast notification here if desired
-			// Alternatively, you could implement a special filter that shows
-			// all items NOT in the main categories
-			return;
-		}
-
-		selectedFilterProperty = property;
-		selectedFilterValue = value;
-		showFilterDropdown = false;
-	}
 
 	// Clear all filters
 	function clearFilters() {
 		searchText = '';
 		selectedFilterProperty = '';
 		selectedFilterValue = '';
-	}
-
-	// Toggle filter dropdown
-	function toggleFilterDropdown() {
-		showFilterDropdown = !showFilterDropdown;
-	}
-
-	// Apply filter value
-	function applyFilterValue(value) {
-		selectedFilterValue = value;
-		showFilterDropdown = false;
 	}
 
 	// Get resolved image URL for a card
@@ -233,7 +204,7 @@
 				placement: 'auto',
 				duration: [200, 0],
 				animation: 'shift-away',
-				theme: 'daisy',
+				theme: 'daisy'
 			});
 			return tooltipInstance.destroy;
 		};
@@ -259,6 +230,7 @@
 
 	// Check if a card is selected
 	function isCardSelected(card) {
+		if (!clickable) return false; // If not clickable, no selection
 		const cardIndex = card.card_index || card.index || cube.indexOf(card);
 		return selectedCardIndices.includes(cardIndex);
 	}
@@ -322,8 +294,11 @@
 	}
 
 	// Derived values
-	const filteredCube = $derived(filterCards(cube));
-	const totalCards = $derived(filteredCube.reduce((sum, card) => sum + (card.quantity || 1), 0));
+	const filteredIndices = $derived(filterCards(cube));
+	const isFiltered = $derived(filteredIndices.length < cube.length);
+	const totalCards = $derived(
+		filteredIndices.reduce((sum, index) => sum + (cube[index].quantity || 1), 0)
+	);
 	const hasFilters = $derived(!!searchText || !!selectedFilterValue);
 	// Add dynamic container height class based on view mode
 	const containerHeightClass = $derived(viewMode === 'carousel' ? 'min-h-[60vh]' : 'h-[60vh]');
@@ -455,37 +430,13 @@
 
 				<!-- Filter value dropdown -->
 				{#if selectedFilterProperty}
-					<div class="form-control relative max-w-xs min-w-[200px] flex-grow">
-						<div class="dropdown w-full">
-							<button
-								type="button"
-								onclick={toggleFilterDropdown}
-								class="btn btn-outline w-full justify-between"
-							>
-								<span class={!selectedFilterValue ? 'opacity-70' : ''}>
-									{selectedFilterValue || 'Select value'}
-								</span>
-								<span>{@html feather.icons['chevron-down'].toSvg({ width: 16, height: 16 })}</span>
-							</button>
-
-							{#if showFilterDropdown}
-								<div
-									class="dropdown-content menu bg-base-200 rounded-box z-10 max-h-60 w-full overflow-y-auto shadow-lg"
-								>
-									{#each availableFilterValues as value}
-										<li>
-											<button
-												type="button"
-												onclick={() => applyFilterValue(value)}
-												class="w-full text-left"
-											>
-												{value}
-											</button>
-										</li>
-									{/each}
-								</div>
-							{/if}
-						</div>
+					<div class="form-control max-w-xs min-w-[200px] flex-grow">
+						<select bind:value={selectedFilterValue} class="select select-bordered w-full">
+							<option value="">Select value</option>
+							{#each availableFilterValues as value}
+								<option {value}>{value}</option>
+							{/each}
+						</select>
 					</div>
 				{/if}
 			</div>
@@ -502,7 +453,11 @@
 
 	{#if showChart}
 		<!-- Card Distribution Chart with property selector moved into the chart component -->
-		<CardDistributionChart cube={filteredCube} on:chartClick={handleChartClick} />
+		<CardChart
+			{cube}
+			bind:filteredProperty={selectedFilterProperty}
+			bind:filteredValue={selectedFilterValue}
+		/>
 	{/if}
 
 	<!-- Container for cards and details -->
@@ -511,7 +466,7 @@
 		<div
 			class={`flex-1 ${viewMode === 'carousel' ? 'overflow-y-visible' : 'overflow-y-auto'} ${border ? 'card card-bordered card-compact' : ''}`}
 		>
-			{#if filteredCube.length === 0}
+			{#if filteredIndices.length === 0}
 				<div class="flex h-full items-center justify-center p-8 text-center">
 					<div class="flex flex-col items-center">
 						<span class="text-opacity-40 flex justify-center">
@@ -526,9 +481,8 @@
 				</div>
 			{:else if viewMode === 'carousel'}
 				<CardCarousel
-					{filteredCube}
+					filteredCube={isFiltered ? filteredIndices.map((index) => cube[index]) : cube}
 					clickable={selectMultiple > 0 || clickable}
-					{showDescription}
 					onCardClick={handleCardClick}
 					{selectedCardIndices}
 				/>
@@ -537,8 +491,13 @@
 					class="grid auto-cols-max grid-cols-1 justify-items-center gap-4 p-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6"
 					style="grid-template-columns: repeat(auto-fill, minmax(min(calc(100% / 3 - 16px), 271px), 1fr));"
 				>
-					{#each filteredCube as card}
-						<div class="flex w-full max-w-[271px] flex-col items-center">
+					{#each cube as card, index}
+						<div
+							class={[
+								'flex w-full max-w-[271px] flex-col items-center',
+								isFiltered && !filteredIndices.includes(index) && 'hidden'
+							]}
+						>
 							<button
 								class="card relative w-full transition-shadow hover:shadow-lg {clickable ||
 								selectMultiple > 0
@@ -574,7 +533,7 @@
 												class="h-full w-full rounded object-cover shadow"
 											/>
 										</picture>
-										<div class="hidden card-details-content">
+										<div class="card-details-content hidden">
 											<CardDetails {card} />
 										</div>
 									{:catch error}
@@ -582,7 +541,7 @@
 											class="bg-base-200 absolute inset-0 flex items-center justify-center rounded"
 										>
 											<span>
-												{@html feather.icons['image-off'].toSvg({ width: 24, height: 24 })}
+												{@html feather.icons['image-off'].toSvg({ width: '1rem', height: '1rem' })}
 											</span>
 										</div>
 									{/await}
@@ -609,18 +568,19 @@
 				</div>
 			{:else}
 				<div class="space-y-2 p-2">
-					{#each filteredCube as card}
-						<TextCard
-							{card}
-							{showDescription}
-							clickable={selectMultiple > 0 || clickable}
-							isSelected={isCardSelected(card)}
-							enableMultiSelect={selectMultiple > 0}
-							disableSelect={selectedCardIndices.length >= selectMultiple && !isCardSelected(card)}
-							onSelect={() => handleCardClick(card)}
-							imageUrl={getCardImage(card)}
-							smallImageUrl={getCardImage(card, true)}
-						/>
+					{#each cube as card, index}
+						<div class={[isFiltered && !filteredIndices.includes(index) && 'hidden']}>
+							<TextCard
+								{card}
+								{showDescription}
+								clickable={selectMultiple > 0 || clickable}
+								isSelected={isCardSelected(card)}
+								enableMultiSelect={selectMultiple > 0}
+								disableSelect={selectedCardIndices.length >= selectMultiple &&
+									!isCardSelected(card)}
+								onSelect={() => handleCardClick(card)}
+							/>
+						</div>
 					{/each}
 				</div>
 			{/if}
@@ -662,7 +622,7 @@
 									class="bg-base-200 flex aspect-[813/1185] h-full items-center justify-center rounded"
 								>
 									<span>
-										{@html feather.icons['image-off'].toSvg({ width: 24, height: 24 })}
+										{@html feather.icons['image-off'].toSvg({ width: '1rem', height: '1rem' })}
 									</span>
 								</div>
 							{/await}

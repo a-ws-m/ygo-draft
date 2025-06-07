@@ -549,7 +549,7 @@
 					>
 						?
 						<div class="tooltip-content hidden">
-							<div class="card bg-base-100">
+							<div class="card bg-base-200">
 								<div class="card-body p-4">
 									<div class="flex flex-col space-y-2">
 										<h4 class="text-base-content text-sm font-medium">Cube File Format</h4>
@@ -609,7 +609,7 @@
 			{#if isProcessing}
 				<!-- Spinner with loading message - properly positioned over upload section -->
 				<div
-					class="bg-opacity-75 bg-base-100 absolute inset-0 z-10 flex items-center justify-center rounded"
+					class="bg-opacity-75 bg-base-200 absolute inset-0 z-10 flex items-center justify-center rounded"
 				>
 					<span class="loading loading-spinner loading-lg text-primary mr-3"></span>
 					<span class="text-primary text-sm">Fetching card data (this may take a while)</span>
@@ -634,7 +634,7 @@
 					>
 						?
 						<div class="tooltip-content hidden">
-							<div class="card bg-base-100">
+							<div class="card bg-base-200">
 								<div class="card-body p-4">
 									<div class="flex flex-col space-y-2">
 										<h4 class="text-base-content text-sm font-medium">Draft Methods</h4>
@@ -856,7 +856,7 @@
 						>
 							?
 							<div class="tooltip-content hidden">
-								<div class="card bg-base-100">
+								<div class="card bg-base-200">
 									<div class="card-body p-4">
 										<div class="flex flex-col space-y-2">
 											<h4 class="text-base-content text-sm font-medium">Overlap Option</h4>
@@ -927,8 +927,10 @@
 
 		<!-- Option Validation Error -->
 		{#if optionErrorMessage}
-			<div class="alert alert-error align-middle">
-				{@html feather.icons['alert-circle'].toSvg({ width: 24, height: 24 })}
+			<div class="alert alert-error flex items-center">
+				<span class="icon">
+					{@html feather.icons['alert-circle'].toSvg({ width: '1.5rem', height: '1.5rem' })}
+				</span>
 				<span>
 					{optionErrorMessage}
 				</span>
@@ -937,8 +939,10 @@
 
 		<!-- Uneven Pool Warning -->
 		{#if showUnevenPoolWarning && useRarityDistribution && draftMethod === 'rochester'}
-			<div class="alert alert-warning align-middle">
-				{@html feather.icons['alert-circle'].toSvg({ width: 24, height: 24 })}
+			<div class="alert alert-warning flex items-center">
+				<span class="icon">
+					{@html feather.icons['alert-circle'].toSvg({ width: '1.5rem', height: '1.5rem' })}
+				</span>
 				<div>
 					<h3 class="font-bold">Uneven pool warning</h3>
 					<p>
@@ -953,8 +957,10 @@
 		<!-- Custom Rarities Message -->
 		{#if isCubeValid && hasCustomRarities && useRarityDistribution}
 			{#if cardsWithoutCustomRarity.length > 0}
-				<div class="alert alert-warning align-middle">
-					{@html feather.icons['alert-circle'].toSvg({ width: 24, height: 24 })}
+				<div class="alert alert-warning flex items-center">
+					<span class="icon flex-none">
+						{@html feather.icons['alert-circle'].toSvg({ width: '1.5rem', height: '1.5rem' })}
+					</span>
 					<div>
 						<h3 class="font-bold">Cards without custom rarity</h3>
 						<p>
@@ -985,8 +991,8 @@
 					</div>
 				</div>
 			{:else}
-				<div class="alert alert-success align-middle">
-					{@html feather.icons.info.toSvg({ width: 24, height: 24 })}
+				<div class="alert alert-success flex items-center">
+					{@html feather.icons.info.toSvg({ width: '1.5rem', height: '1.5rem' })}
 					<div>
 						<h3 class="font-bold">Custom rarities detected</h3>
 						<p>Custom rarities will be used for card distribution in Rochester draft.</p>

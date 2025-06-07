@@ -109,7 +109,7 @@ In Asynchronous Draft:
 - [Svelte](https://svelte.dev/) and [SvelteKit](https://kit.svelte.dev/) - Frontend framework
 - [Tailwind CSS](https://tailwindcss.com/) - Styling
 - [Supabase](https://supabase.com/) - Backend, database, and real-time functionality
-- [D3.js](https://d3js.org/) - Data visualization
+- [ChartJS](https://www.chartjs.org) - Data visualization
 - [PapaParse](https://www.papaparse.com/) - CSV parsing
 - [Fuzzy-search](https://github.com/wouterrutgers/fuzzy-search) - Fuzzy searching for card names/descriptions
 - [Feather icons](https://feathericons.com/) - Beautiful, open source icons
