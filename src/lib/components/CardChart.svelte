@@ -55,9 +55,7 @@
 				datasets: [
 					{
 						data: distribution.map((item) => item.count),
-						backgroundColor: distribution.map(
-							(item, index) => colors[index % chartColors.length]
-						)
+						backgroundColor: distribution.map((item, index) => colors[index % chartColors.length])
 					}
 				]
 			};
@@ -154,22 +152,19 @@
 		const ctx = chartCanvas.getContext('2d');
 		if (!ctx) return;
 
-		const textColor = getComputedStyle(document.documentElement)
-			.getPropertyValue('--color-base-content')
-			.trim();
-
 		chartInstance = new Chart(ctx, {
 			type: 'doughnut',
 			data: await chartData,
 			options: {
 				responsive: true,
 				maintainAspectRatio: true,
+				borderColor: themeStore.baseContentColor,
 				plugins: {
 					legend: {
 						display: showLegend,
 						position: 'bottom',
 						labels: {
-							color: textColor
+							color: themeStore.baseContentColor,
 						},
 						onClick: (event, legendItem, legend) => {
 							if (legendItem && legendItem.datasetIndex !== undefined) {
@@ -177,7 +172,7 @@
 								filteredValue = label;
 							}
 						}
-					},
+					}
 				},
 				onClick: async (event, elements) => {
 					if (elements && elements.length > 0) {
@@ -193,8 +188,6 @@
 
 	$effect(async () => {
 		if (chartInstance) {
-
-
 			if (selectedProperty !== oldProperty) {
 				oldProperty = selectedProperty;
 				chartInstance.data = await chartData;
@@ -206,21 +199,20 @@
 				const legendItems = chartInstance.legend?.legendItems;
 				if (!legendItems) return;
 
-				const textColor = getComputedStyle(document.documentElement)
-					.getPropertyValue('--color-base-content')
-					.trim();
-
 				// Set the hidden property for each data point
 				legendItems.forEach((item, index) => {
 					const labelValue = item.text;
 					const isHidden = filteredValue && filteredProperty && labelValue !== filteredValue;
 
 					meta.data[index].hidden = isHidden;
-					item.color = textColor;
 				});
 
 				chartInstance.update('none');
 			}
+			// Update colors
+			chartInstance.options.plugins.legend.labels.color = themeStore.baseContentColor;
+			chartInstance.options.borderColor = themeStore.baseContentColor;
+			chartInstance.update('none');
 		}
 	});
 
