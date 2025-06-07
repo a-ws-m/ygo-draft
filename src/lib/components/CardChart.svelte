@@ -658,7 +658,7 @@
 	const chartIcon = feather.icons['pie-chart'].toSvg({ width: 18, height: 18 });
 </script>
 
-<div class="collapse-arrow bg-base-200 rounded-box collapse w-full">
+<div class="collapse-arrow bg-base-300 rounded-box collapse w-full">
 	<input type="checkbox" class="peer" />
 	<div class="collapse-title flex items-center justify-center gap-2 font-medium">
 		<span class="flex items-center gap-1">
