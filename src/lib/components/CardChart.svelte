@@ -1,12 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import feather from 'feather-icons';
-	import {
-		store as themeStore,
-		lightChartColors,
-		darkChartColors,
-		secondaryChartColors
-	} from '$lib/stores/themeStore.svelte';
+	import { store as themeStore } from '$lib/stores/themeStore.svelte';
 	import {
 		Chart,
 		ArcElement,
@@ -55,7 +50,6 @@
 	let chartInstance = $state<Chart | null>(null);
 	let selectedProperty = $state(property);
 	let oldProperty = $state(property);
-	let chartColors = $derived(themeStore.useDarkMode ? darkChartColors : lightChartColors);
 
 	let distributionData = $derived<{
 		[k: string]: Promise<{ category: string; count: number }[]>;
@@ -66,8 +60,6 @@
 		if (!data) {
 			return Promise.resolve({ labels: [], datasets: [] });
 		}
-
-		const colors = chartColors;
 
 		// Special handling for type and race with multi-layer charts
 		if (selectedProperty === 'type' || selectedProperty === 'race') {
@@ -81,7 +73,6 @@
 				datasets: [
 					{
 						data: distribution.map((item) => item.count),
-						backgroundColor: distribution.map((item, index) => colors[index % chartColors.length]),
 						borderWidth: 1,
 						borderColor: themeStore.baseContentColor
 					}
@@ -178,18 +169,6 @@
 		// Now specificTypeData is ordered to match main categories
 		specificTypeData = orderedSpecificTypeData;
 
-		// Prepare colors based on main categories
-		const mainCategoryColors = mainCategoryData.map((item, index) => {
-			const baseColor = chartColors[index % chartColors.length];
-			return baseColor;
-		});
-
-		// Create colors for specific types based on their main category
-		const specificTypeColors = specificTypeData.map((item, index) => {
-			// Use secondaryChartColors for inner segments
-			return secondaryChartColors[index % secondaryChartColors.length];
-		});
-
 		// Prepare datasets for multi-layer pie/doughnut chart
 		return {
 			labels: [
@@ -201,7 +180,6 @@
 					// Outer ring - main categories (Monster, Spell, Trap)
 					label: 'Card Categories',
 					data: [...mainCategoryData.map((item) => item.count), ...specificTypeData.map(() => 0)],
-					backgroundColor: [...mainCategoryColors, ...specificTypeData.map(() => 'rgba(0,0,0,0)')],
 					borderWidth: 1,
 					borderColor: themeStore.baseContentColor
 				},
@@ -209,7 +187,6 @@
 					// Inner ring - specific types
 					label: 'Specific Types',
 					data: [...mainCategoryData.map(() => 0), ...specificTypeData.map((item) => item.count)],
-					backgroundColor: [...mainCategoryData.map(() => 'rgba(0,0,0,0)'), ...specificTypeColors],
 					borderWidth: 1,
 					borderColor: themeStore.baseContentColor
 				}
