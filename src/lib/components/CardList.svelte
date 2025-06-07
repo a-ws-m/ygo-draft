@@ -8,6 +8,7 @@
 	import FuzzySearch from 'fuzzy-search';
 	import feather from 'feather-icons';
 	import tippy from 'tippy.js';
+	import CardChart from './CardChart.svelte';
 
 	// Props using $props rune
 	const {
@@ -176,9 +177,7 @@
 	});
 
 	// Handle chart segment click
-	function handleChartClick(event) {
-		const { property, value } = event.detail;
-
+	function handleChartClick(property, value) {
 		// Don't apply filter if "Other" is clicked
 		if (value === 'Other') {
 			// Show a message or toast notification here if desired
@@ -502,7 +501,8 @@
 
 	{#if showChart}
 		<!-- Card Distribution Chart with property selector moved into the chart component -->
-		<CardDistributionChart cube={filteredCube} on:chartClick={handleChartClick} />
+		<!-- <CardDistributionChart cube={filteredCube} on:chartClick={handleChartClick} /> -->
+		 <CardChart cube={filteredCube} onChartClick={handleChartClick} />
 	{/if}
 
 	<!-- Container for cards and details -->

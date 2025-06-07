@@ -46,6 +46,7 @@
 		"@supabase/supabase-js": "^2.50.0",
 		"@tailwindcss/typography": "^0.5.16",
 		"@types/feather-icons": "^4.29.4",
+		"chart.js": "^4.4.9",
 		"d3": "^7.9.0",
 		"feather-icons": "^4.29.2",
 		"fuzzy-search": "^3.2.1",
