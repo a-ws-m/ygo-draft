@@ -51,6 +51,65 @@
 	let selectedProperty = $state(property);
 	let oldProperty = $state(property);
 
+	// Generate a colorPalette based on the selected property
+	let colorPalette = $derived.by(() => {
+		// Create different color palettes based on property type
+		if (selectedProperty === 'type') {
+			// For card types, use colors that match Yu-Gi-Oh card type colors
+			return {
+				Monster: '#f8d66d', // Gold for Monsters
+				Spell: '#1d9e74', // Green for Spells
+				Trap: '#bc5a84', // Magenta for Traps
+				// Specific monster types
+				'Normal Monster': '#fbe68d',
+				'Effect Monster': '#ff8b53',
+				'Fusion Monster': '#a086b7',
+				'Synchro Monster': '#eeeeee',
+				'Xyz Monster': '#000000',
+				'Link Monster': '#00008b',
+				'Ritual Monster': '#9db5cc',
+				'Pendulum Monster': '#7fbce6',
+				// Default colors for other types
+				default: chroma.brewer.Set3 // Use a qualitative palette for other types
+			};
+		} else if (selectedProperty === 'attribute') {
+			return {
+				DARK: '#6a329f', // Purple for DARK
+				LIGHT: '#fff44f', // Yellow for LIGHT
+				EARTH: '#8b4513', // Brown for EARTH
+				WATER: '#1e90ff', // Blue for WATER
+				FIRE: '#ff4500', // Red-orange for FIRE
+				WIND: '#7cfc00', // Bright green for WIND
+				DIVINE: '#ffd700', // Gold for DIVINE
+				default: chroma.brewer.Set3 // Use a qualitative palette for other types
+			};
+		} else if (selectedProperty === 'race') {
+			// Colors for races and spell/trap types
+			return {
+				default: chroma.brewer.Set3 // Use a qualitative palette for other types
+			};
+		} else if (selectedProperty === 'level') {
+			// Sequential color scale for levels
+			return {
+				default: chroma.brewer.Set3 // Use a qualitative palette for other types
+			};
+		} else if (selectedProperty === 'rarity') {
+			return {
+				Common: '#b0b0b0',
+				Uncommon: '#5fbb97',
+				Rare: '#4a69bd',
+				'Super Rare': '#f6b93b',
+				'Ultra Rare': '#e55039',
+				default: chroma.brewer.Set3 // Use a qualitative palette for other types
+			};
+		} else {
+			// For other properties, use a qualitative palette
+			return {
+				default: chroma.brewer.Set3 // Use a qualitative palette for other types
+			};
+		}
+	});
+
 	let distributionData = $derived<{
 		[k: string]: Promise<{ category: string; count: number }[]>;
 	}>(calculateAllDistributions());
@@ -68,11 +127,24 @@
 
 		// Standard single-layer doughnut chart for other properties
 		return data.then((distribution) => {
+			// Get appropriate colors based on categories
+			const colors = distribution.map((item) => {
+				// If there's a specific color for this category, use it
+				if (colorPalette[item.category]) {
+					return colorPalette[item.category];
+				}
+				// Otherwise use the color from the default palette
+				const defaultColors = colorPalette.default;
+				const index = distribution.findIndex((d) => d.category === item.category);
+				return defaultColors[index % defaultColors.length];
+			});
+
 			return {
 				labels: distribution.map((item) => item.category),
 				datasets: [
 					{
 						data: distribution.map((item) => item.count),
+						backgroundColor: colors,
 						borderWidth: 1,
 						borderColor: themeStore.baseContentColor
 					}
@@ -82,13 +154,16 @@
 	});
 
 	let mainCategoryData: { category: string; count: number }[] = [];
-	let specificTypeData: { category: string; count: number }[] = [];
+	let specificTypeData: { category: string; count: number; mainCategory: string }[] = [];
 
 	// Process data for multi-series pie/doughnut chart (type and race)
 	async function getMultiSeriesChartData(prop: string) {
 		// Map to track card counts for both main categories and specific types
 		const mainCategoryCounts: Record<string, number> = {};
-		const specificTypeCounts: Record<string, { category: string; count: number }> = {};
+		const specificTypeCounts: Record<
+			string,
+			{ category: string; count: number; mainCategory: string }
+		> = {};
 
 		// Process cards
 		const filteredCube = filteredIndices.length > 0 ? filteredIndices.map((i) => cube[i]) : cube;
@@ -166,7 +241,30 @@
 		// Now specificTypeData is ordered to match main categories
 		specificTypeData = orderedSpecificTypeData;
 
+		let paletteIndex = 0;
 		// Prepare datasets for multi-layer pie/doughnut chart
+		// Generate colors for main categories
+		const mainCategoryColors = mainCategoryData.map((item) => {
+			if (colorPalette[item.category]) {
+				return colorPalette[item.category];
+			} else {
+				// Use default color palette for main categories
+				const defaultColors = colorPalette.default;
+				return defaultColors[paletteIndex++ % defaultColors.length];
+			}
+		});
+
+		// Generate colors for specific types
+		const specificTypeColors = specificTypeData.map((item) => {
+			if (colorPalette[item.category]) {
+				return colorPalette[item.category];
+			} else {
+				// Use default color palette for main categories
+				const defaultColors = colorPalette.default;
+				return defaultColors[paletteIndex++ % defaultColors.length];
+			}
+		});
+
 		return {
 			labels: [
 				...mainCategoryData.map((item) => item.category),
@@ -177,6 +275,7 @@
 					// Outer ring - main categories (Monster, Spell, Trap)
 					label: 'Card Categories',
 					data: [...mainCategoryData.map((item) => item.count), ...specificTypeData.map(() => 0)],
+					backgroundColor: mainCategoryColors,
 					borderWidth: 1,
 					borderColor: themeStore.baseContentColor
 				},
@@ -184,6 +283,7 @@
 					// Inner ring - specific types
 					label: 'Specific Types',
 					data: [...mainCategoryData.map(() => 0), ...specificTypeData.map((item) => item.count)],
+					backgroundColor: specificTypeColors,
 					borderWidth: 1,
 					borderColor: themeStore.baseContentColor
 				}
@@ -296,28 +396,6 @@
 			chartInstance.destroy();
 		}
 
-		if (isMultiSeries) {
-			// Pre-fetch the multi-series data for tooltip access
-			const multiSeriesData = await getMultiSeriesChartData(selectedProperty);
-			// Extract the main categories and specific types
-			const mainCategoryCount = multiSeriesData.datasets[0].data.filter(
-				(v) => Number(v) > 0
-			).length;
-
-			// Extract specific types (from second half of labels)
-			const rawSpecificTypes = multiSeriesData.labels
-				.slice(mainCategoryCount)
-				.map((label, index) => {
-					const realIndex = index + mainCategoryCount;
-					return {
-						category: label as string,
-						count: Number(multiSeriesData.datasets[1].data[realIndex])
-					};
-				});
-
-			specificTypeData = rawSpecificTypes.filter((item) => item.count > 0);
-		}
-
 		const config: any = {
 			type: chartType,
 			data: await chartData,
@@ -333,7 +411,26 @@
 						display: showLegend,
 						position: 'bottom',
 						labels: {
-							color: themeStore.baseContentColor
+							color: themeStore.baseContentColor,
+							generateLabels: function (chart) {
+								// Get the default label list
+								const original = Chart.overrides.doughnut.plugins.legend.labels.generateLabels;
+								const labelsOriginal = original.call(this, chart);
+
+								// Build an array of colors used in the datasets of the chart
+								let datasetColors = chart.data.datasets.map(function (e) {
+									return e.backgroundColor;
+								});
+								datasetColors = datasetColors.flat();
+
+								// Modify the color and hide state of each label
+								labelsOriginal.forEach((label) => {
+									// Change the color to match the dataset
+									label.fillStyle = datasetColors[label.index];
+								});
+
+								return labelsOriginal;
+							}
 						},
 						onClick: (event: any, legendItem: any, legend: any) => {
 							if (legendItem && legendItem.text) {
