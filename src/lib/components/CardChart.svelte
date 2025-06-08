@@ -12,6 +12,7 @@
 		type ChartDataset,
 		type ChartData
 	} from 'chart.js';
+	import chroma from 'chroma-js';
 	import autocolors from 'chartjs-plugin-autocolors';
 
 	// Register required Chart.js components
@@ -449,7 +450,15 @@
 						}
 					},
 					autocolors: {
-						mode: 'data'
+						mode: 'data',
+						customize: (context: any) => {
+							const backgroundColor = context.colors.background;
+							if (themeStore.useDarkMode) {
+								return {
+									background: chroma(backgroundColor).brighten().hex()
+								};
+							}
+						}
 					}
 				}
 			}
