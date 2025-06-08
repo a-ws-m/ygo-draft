@@ -457,6 +457,7 @@
 			{cube}
 			bind:filteredProperty={selectedFilterProperty}
 			bind:filteredValue={selectedFilterValue}
+			{filteredIndices}
 		/>
 	{/if}
 

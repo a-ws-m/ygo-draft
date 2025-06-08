@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import feather from 'feather-icons';
 	import { store as themeStore } from '$lib/stores/themeStore.svelte';
-	import { setRgbBaseContentColor } from '$lib/utils/setContentColor.svelte';
+	import { setContentColors } from '$lib/utils/setContentColor.svelte';
 
 	function toggleTheme() {
 		themeStore.useDarkMode = !themeStore.useDarkMode;
@@ -15,7 +15,7 @@
 			'data-theme',
 			themeStore.useDarkMode ? 'dracula' : 'fantasy'
 		);
-		setRgbBaseContentColor();
+		setContentColors();
 	});
 
 	$inspect(themeStore.baseContentColor);
