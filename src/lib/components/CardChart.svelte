@@ -87,6 +87,9 @@
 		} else if (selectedProperty === 'race') {
 			// Colors for races and spell/trap types
 			return {
+				Monster: '#f8d66d', // Gold for Monsters
+				Spell: '#1d9e74', // Green for Spells
+				Trap: '#bc5a84', // Magenta for Traps
 				default: chroma.brewer.Set3 // Use a qualitative palette for other types
 			};
 		} else if (selectedProperty === 'level') {
@@ -521,7 +524,7 @@
 					if (datasetIndex === 1) {
 						const value = chartInstance?.data.datasets[datasetIndex].data[index];
 						if (value && Number(value) > 0) {
-							filteredValue = chartInstance?.data.labels?.[index] || '';
+							filteredValue = specificTypeData[index].category;
 						}
 					}
 					// Clicking on main categories (outer ring) doesn't do anything
