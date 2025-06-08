@@ -13,10 +13,9 @@
 		type ChartData
 	} from 'chart.js';
 	import chroma from 'chroma-js';
-	import autocolors from 'chartjs-plugin-autocolors';
 
 	// Register required Chart.js components
-	Chart.register(ArcElement, Tooltip, Legend, DoughnutController, autocolors);
+	Chart.register(ArcElement, Tooltip, Legend, DoughnutController);
 
 	let {
 		cube = [],
@@ -83,16 +82,13 @@
 	});
 
 	let mainCategoryData: { category: string; count: number }[] = [];
-	let specificTypeData: { category: string; count: number; mainCategory: string }[] = [];
+	let specificTypeData: { category: string; count: number }[] = [];
 
 	// Process data for multi-series pie/doughnut chart (type and race)
 	async function getMultiSeriesChartData(prop: string) {
 		// Map to track card counts for both main categories and specific types
 		const mainCategoryCounts: Record<string, number> = {};
-		const specificTypeCounts: Record<
-			string,
-			{ category: string; count: number; mainCategory: string }
-		> = {};
+		const specificTypeCounts: Record<string, { category: string; count: number }> = {};
 
 		// Process cards
 		const filteredCube = filteredIndices.length > 0 ? filteredIndices.map((i) => cube[i]) : cube;
@@ -312,25 +308,10 @@
 			const rawSpecificTypes = multiSeriesData.labels
 				.slice(mainCategoryCount)
 				.map((label, index) => {
-					// Find which main category this belongs to by iterating through the data
 					const realIndex = index + mainCategoryCount;
-					let mainCategory = '';
-
-					// Loop through main categories to find which one this specific type belongs to
-					for (let i = 0; i < mainCategoryCount; i++) {
-						if (
-							multiSeriesData.datasets[1].backgroundColor?.[realIndex] ===
-							multiSeriesData.datasets[1].backgroundColor?.[i]
-						) {
-							mainCategory = multiSeriesData.labels[i] as string;
-							break;
-						}
-					}
-
 					return {
 						category: label as string,
-						count: Number(multiSeriesData.datasets[1].data[realIndex]),
-						mainCategory
+						count: Number(multiSeriesData.datasets[1].data[realIndex])
 					};
 				});
 
@@ -352,41 +333,7 @@
 						display: showLegend,
 						position: 'bottom',
 						labels: {
-							color: themeStore.baseContentColor,
-							generateLabels: function (chart) {
-								// @ts-ignore - Chart.js types are incomplete
-								let labels =
-									Chart.overrides['doughnut'].plugins.legend.labels.generateLabels(chart);
-
-								return labels.map((label, index) => {
-									// Get the count value from the dataset
-									let count = 0;
-									if (isMultiSeries) {
-										// For multi-series, we need to check both datasets
-										if (index >= mainCategoryData.length) {
-											// This is a specific type label
-											const specificIndex = index - mainCategoryData.length;
-											if (specificIndex >= 0 && specificIndex < specificTypeData.length) {
-												const specificType = specificTypeData[specificIndex];
-												return {
-													...label,
-													text: `${specificType.category} (${specificType.count})`
-												};
-											}
-										} else {
-											// This is a main category label
-											count = chart.data.datasets[0].data[index];
-										}
-									} else {
-										count = chart.data.datasets[0].data[index];
-									}
-
-									return {
-										...label,
-										text: `${label.text} (${count})`
-									};
-								});
-							}
+							color: themeStore.baseContentColor
 						},
 						onClick: (event: any, legendItem: any, legend: any) => {
 							if (legendItem && legendItem.text) {
@@ -446,17 +393,6 @@
 								const value = context.raw;
 								if (value === 0) return null; // Don't show tooltip for placeholder values
 								return `Count: ${value}`;
-							}
-						}
-					},
-					autocolors: {
-						mode: 'data',
-						customize: (context: any) => {
-							const backgroundColor = context.colors.background;
-							if (themeStore.useDarkMode) {
-								return {
-									background: chroma(backgroundColor).brighten().hex()
-								};
 							}
 						}
 					}
