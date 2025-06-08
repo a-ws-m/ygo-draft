@@ -13,6 +13,7 @@
 		type ChartData
 	} from 'chart.js';
 	import chroma from 'chroma-js';
+	import { color } from 'chart.js/helpers';
 
 	// Register required Chart.js components
 	Chart.register(ArcElement, Tooltip, Legend, DoughnutController);
@@ -128,15 +129,8 @@
 		// Standard single-layer doughnut chart for other properties
 		return data.then((distribution) => {
 			// Get appropriate colors based on categories
-			const colors = distribution.map((item) => {
-				// If there's a specific color for this category, use it
-				if (colorPalette[item.category]) {
-					return colorPalette[item.category];
-				}
-				// Otherwise use the color from the default palette
-				const defaultColors = colorPalette.default;
-				const index = distribution.findIndex((d) => d.category === item.category);
-				return defaultColors[index % defaultColors.length];
+			const colors = distribution.map((item, index) => {
+				return getColorForCategory(item.category, index)[0];
 			});
 
 			return {
@@ -152,6 +146,24 @@
 			};
 		});
 	});
+
+	function getColorForCategory(category: string, index: number): [string, boolean] {
+		// Get the color for a specific category from the color palette
+		if (colorPalette[category]) {
+			return [colorPalette[category], true];
+		}
+
+		for (const [key, value] of Object.entries(colorPalette)) {
+			if (key === 'default') continue; // Skip default palette
+			if (category.toLowerCase().startsWith(key.toLowerCase())) {
+				return [value, true]; // Return the color for the main category
+			}
+		}
+
+		// If no specific color, use default palette
+		const defaultColors = colorPalette.default;
+		return [defaultColors[index % defaultColors.length], false];
+	}
 
 	let mainCategoryData: { category: string; count: number }[] = [];
 	let specificTypeData: { category: string; count: number; mainCategory: string }[] = [];
@@ -245,24 +257,20 @@
 		// Prepare datasets for multi-layer pie/doughnut chart
 		// Generate colors for main categories
 		const mainCategoryColors = mainCategoryData.map((item) => {
-			if (colorPalette[item.category]) {
-				return colorPalette[item.category];
-			} else {
-				// Use default color palette for main categories
-				const defaultColors = colorPalette.default;
-				return defaultColors[paletteIndex++ % defaultColors.length];
+			const [color, isSpecific] = getColorForCategory(item.category, paletteIndex);
+			if (!isSpecific) {
+				paletteIndex++;
 			}
+			return color;
 		});
 
 		// Generate colors for specific types
 		const specificTypeColors = specificTypeData.map((item) => {
-			if (colorPalette[item.category]) {
-				return colorPalette[item.category];
-			} else {
-				// Use default color palette for main categories
-				const defaultColors = colorPalette.default;
-				return defaultColors[paletteIndex++ % defaultColors.length];
+			const [color, isSpecific] = getColorForCategory(item.category, paletteIndex);
+			if (!isSpecific) {
+				paletteIndex++;
 			}
+			return color;
 		});
 
 		return {
@@ -274,7 +282,7 @@
 				{
 					// Outer ring - main categories (Monster, Spell, Trap)
 					label: 'Card Categories',
-					data: [...mainCategoryData.map((item) => item.count), ...specificTypeData.map(() => 0)],
+					data: mainCategoryData.map((item) => item.count),
 					backgroundColor: mainCategoryColors,
 					borderWidth: 1,
 					borderColor: themeStore.baseContentColor
@@ -282,7 +290,7 @@
 				{
 					// Inner ring - specific types
 					label: 'Specific Types',
-					data: [...mainCategoryData.map(() => 0), ...specificTypeData.map((item) => item.count)],
+					data: specificTypeData.map((item) => item.count),
 					backgroundColor: specificTypeColors,
 					borderWidth: 1,
 					borderColor: themeStore.baseContentColor
@@ -474,7 +482,7 @@
 									}
 									// For inner ring (specific types)
 									else if (datasetIndex === 1) {
-										const specificIndex = labelIndex - mainCategoryData.length;
+										const specificIndex = labelIndex;
 										if (specificIndex >= 0 && specificIndex < specificTypeData.length) {
 											const specificType = specificTypeData[specificIndex];
 											if (specificType) {
