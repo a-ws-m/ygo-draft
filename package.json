@@ -21,7 +21,7 @@
 		"@playwright/test": "^1.55.0",
 		"@sveltejs/adapter-auto": "^6.1.0",
 		"@sveltejs/adapter-static": "^3.0.9",
-		"@sveltejs/kit": "^2.49.5",
+		"@sveltejs/kit": "^2.52.2",
 		"@sveltejs/vite-plugin-svelte": "^5.1.1",
 		"@tailwindcss/vite": "^4.1.13",
 		"@types/chroma-js": "^3.1.1",
@@ -52,7 +52,7 @@
 		"feather-icons": "^4.29.2",
 		"fuzzy-search": "^3.2.1",
 		"papaparse": "^5.5.3",
-		"swiper": "^11.2.10",
+		"swiper": "^12.1.2",
 		"tippy.js": "^6.3.7"
 	}
 }
